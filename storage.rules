@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Receipts: organized as receipts/{orgId}/{entryId}/{filename}
+    match /receipts/{orgId}/{entryId}/{filename} {
+      // Auth required to read; in production tie this to org membership via Firestore lookup
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+        request.resource.size < 10 * 1024 * 1024 &&  // 10MB cap
+        request.resource.contentType.matches('image/.*|application/pdf');
+    }
+
+    // Documents: documents/{orgId}/{docId}/{filename}
+    match /documents/{orgId}/{docId}/{filename} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+        request.resource.size < 25 * 1024 * 1024;  // 25MB cap
+    }
+  }
+}
