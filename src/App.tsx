@@ -32,7 +32,7 @@ function orgPath(org: Organization) {
 
 export default function App() {
   const { user, loading: authLoading, requestOtp, verifyOtp, signOut } = useAuth();
-  const { orgs, addOrg, joinOrg, loading: orgsLoading } = useOrgs(user);
+  const { orgs, addOrg, joinOrg, removeOrg, loading: orgsLoading } = useOrgs(user);
   const navigate = useNavigate();
 
   if (authLoading || (user && orgsLoading)) {
@@ -110,7 +110,7 @@ export default function App() {
       <Route
         path="/:slug/*"
         element={
-          <OrgShell orgs={orgs} user={user} signOut={signOut} />
+          <OrgShell orgs={orgs} user={user} signOut={signOut} removeOrg={removeOrg} />
         }
       />
       <Route path="*" element={<Navigate to={orgPath(orgs[0])} replace />} />
@@ -124,9 +124,10 @@ interface OrgShellProps {
   orgs: Organization[];
   user: AuthUser;
   signOut: () => Promise<void>;
+  removeOrg: (orgId: string) => Promise<void>;
 }
 
-function OrgShell({ orgs, user, signOut }: OrgShellProps) {
+function OrgShell({ orgs, user, signOut, removeOrg }: OrgShellProps) {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
 
@@ -172,6 +173,11 @@ function OrgShell({ orgs, user, signOut }: OrgShellProps) {
           user={user}
           onApprove={setStatus}
           onAnchor={anchor}
+          onDeleteOrg={async () => {
+            await removeOrg(org.id);
+            const next = orgs.find((o) => o.id !== org.id);
+            navigate(next ? orgPath(next) : '/setup');
+          }}
         />
       </AppShell>
 
@@ -196,9 +202,10 @@ interface PageContentProps {
   user: AuthUser;
   onApprove: (entryId: string, status: LedgerStatus) => Promise<void>;
   onAnchor: (entryId: string) => Promise<void>;
+  onDeleteOrg: () => Promise<void>;
 }
 
-function PageContent({ page, ledger, org, user, onApprove, onAnchor }: PageContentProps) {
+function PageContent({ page, ledger, org, user, onApprove, onAnchor, onDeleteOrg }: PageContentProps) {
   switch (page) {
     case 'dashboard':     return <Dashboard org={org} ledger={ledger} />;
     case 'ledger':        return <Ledger ledger={ledger} />;
@@ -215,7 +222,7 @@ function PageContent({ page, ledger, org, user, onApprove, onAnchor }: PageConte
     case 'reports':       return <Reports org={org} ledger={ledger} />;
     case 'transparency':  return <Transparency org={org} ledger={ledger} />;
     case 'anchors':       return <Anchors ledger={ledger} onAnchor={onAnchor} />;
-    case 'settings':      return <Settings org={org} />;
+    case 'settings':      return <Settings org={org} user={user} onDelete={onDeleteOrg} />;
     default:              return <Dashboard org={org} ledger={ledger} />;
   }
 }

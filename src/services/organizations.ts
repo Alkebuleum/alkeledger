@@ -1,5 +1,5 @@
 import {
-  collection, doc, getDoc, getDocs, addDoc, setDoc, query, where, serverTimestamp,
+  collection, doc, getDoc, getDocs, addDoc, setDoc, deleteDoc, query, where, serverTimestamp,
 } from 'firebase/firestore';
 import { USE_MOCK_DATA, db } from '@/lib/firebase';
 import { MOCK_ORGS } from '@/data/mock';
@@ -196,6 +196,23 @@ export async function joinOrganization(
     joined: new Date().toISOString().slice(0, 10),
     duesPaid: false,
   });
+}
+
+export async function deleteOrganization(orgId: string): Promise<void> {
+  if (USE_MOCK_DATA) {
+    mockOrgs = mockOrgs.filter((o) => o.id !== orgId);
+    return;
+  }
+  if (!db) return;
+
+  // Delete all membership records for this org
+  const memberSnap = await getDocs(
+    query(collection(db, 'memberships'), where('orgId', '==', orgId))
+  );
+  await Promise.all(memberSnap.docs.map((d) => deleteDoc(d.ref)));
+
+  // Delete the org document itself
+  await deleteDoc(doc(db, 'organizations', orgId));
 }
 
 // Legacy: keep listOrganizations for mock-only callers

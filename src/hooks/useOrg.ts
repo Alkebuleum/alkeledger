@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { listOrganizationsForUser, createOrganization, joinOrganization, getOrgByInviteCode } from '@/services/organizations';
+import { listOrganizationsForUser, createOrganization, joinOrganization, getOrgByInviteCode, deleteOrganization } from '@/services/organizations';
 import type { AuthUser } from './useAuth';
 import type { Organization } from '@/types';
 
@@ -37,5 +37,10 @@ export function useOrgs(user: AuthUser | null) {
     return org;
   };
 
-  return { orgs, addOrg, joinOrg, loading };
+  const removeOrg = async (orgId: string): Promise<void> => {
+    await deleteOrganization(orgId);
+    setOrgs((prev) => prev.filter((o) => o.id !== orgId));
+  };
+
+  return { orgs, addOrg, joinOrg, removeOrg, loading };
 }
