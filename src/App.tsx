@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Routes, Route, Navigate, useNavigate, useParams, useMatch } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate, useParams, useMatch, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrgs } from '@/hooks/useOrg';
 import { useLedger } from '@/hooks/useLedger';
@@ -30,10 +30,30 @@ function orgPath(org: Organization) {
   return `/${org.slug ?? org.id}`;
 }
 
+// Saves invite code from /join?invite=CODE to sessionStorage then sends
+// unauthenticated users to sign-in. After sign-in, App picks it back up.
+function SaveInviteAndRedirectToSignIn() {
+  const location = useLocation();
+  const code = new URLSearchParams(location.search).get('invite');
+  if (code) sessionStorage.setItem('pendingInvite', code);
+  return <Navigate to="/signin" replace />;
+}
+
 export default function App() {
   const { user, loading: authLoading, requestOtp, verifyOtp, signOut } = useAuth();
   const { orgs, addOrg, joinOrg, removeOrg, saveOrgSettings, loading: orgsLoading } = useOrgs(user);
   const navigate = useNavigate();
+
+  // After sign-in + orgs loaded, check if user arrived via an invite link.
+  // The invite code was saved to sessionStorage by SaveInviteAndRedirectToSignIn.
+  useEffect(() => {
+    if (!user || orgsLoading) return;
+    const code = sessionStorage.getItem('pendingInvite');
+    if (code) {
+      sessionStorage.removeItem('pendingInvite');
+      navigate(`/join?invite=${code}`, { replace: true });
+    }
+  }, [user?.uid, orgsLoading]);
 
   if (authLoading || (user && orgsLoading)) {
     return (
@@ -47,25 +67,18 @@ export default function App() {
   if (!user) {
     return (
       <Routes>
-        <Route
-          path="/signin"
-          element={
-            <SignIn
-              onBack={() => navigate('/')}
-              onRequestOtp={requestOtp}
-              onVerifyOtp={verifyOtp}
-            />
-          }
-        />
-        <Route
-          path="*"
-          element={
-            <Landing
-              onStart={() => navigate('/signin')}
-              onDemo={() => navigate('/signin')}
-            />
-          }
-        />
+        <Route path="/signin" element={
+          <SignIn
+            onBack={() => navigate('/')}
+            onRequestOtp={requestOtp}
+            onVerifyOtp={verifyOtp}
+          />
+        } />
+        {/* Preserve invite code across sign-in */}
+        <Route path="/join" element={<SaveInviteAndRedirectToSignIn />} />
+        <Route path="*" element={
+          <Landing onStart={() => navigate('/signin')} onDemo={() => navigate('/signin')} />
+        } />
       </Routes>
     );
   }
@@ -73,46 +86,48 @@ export default function App() {
   // ── Signed in, no orgs yet ──────────────────────────────────────────────────
   if (orgs.length === 0) {
     return (
-      <OrgSetup
-        onCreate={async (data) => {
-          const org = await addOrg(data);
-          navigate(orgPath(org));
-        }}
-        onJoin={async (code) => {
-          const org = await joinOrg(code);
-          navigate(orgPath(org));
-        }}
-        user={user}
-      />
+      <Routes>
+        <Route path="/join" element={
+          <OrgSetup
+            onCreate={async (data) => { const org = await addOrg(data); navigate(orgPath(org)); }}
+            onJoin={async (code) => { const org = await joinOrg(code); navigate(orgPath(org)); }}
+            user={user}
+          />
+        } />
+        <Route path="*" element={
+          <OrgSetup
+            onCreate={async (data) => { const org = await addOrg(data); navigate(orgPath(org)); }}
+            onJoin={async (code) => { const org = await joinOrg(code); navigate(orgPath(org)); }}
+            user={user}
+          />
+        } />
+      </Routes>
     );
   }
 
   // ── Signed in, has orgs ─────────────────────────────────────────────────────
   return (
     <Routes>
-      <Route
-        path="/setup"
-        element={
-          <OrgSetup
-            onCreate={async (data) => {
-              const org = await addOrg(data);
-              navigate(orgPath(org));
-            }}
-            onJoin={async (code) => {
-              const org = await joinOrg(code);
-              navigate(orgPath(org));
-            }}
-            onCancel={() => navigate(-1)}
-            user={user}
-          />
-        }
-      />
-      <Route
-        path="/:slug/*"
-        element={
-          <OrgShell orgs={orgs} user={user} signOut={signOut} removeOrg={removeOrg} saveOrgSettings={saveOrgSettings} />
-        }
-      />
+      <Route path="/setup" element={
+        <OrgSetup
+          onCreate={async (data) => { const org = await addOrg(data); navigate(orgPath(org)); }}
+          onJoin={async (code) => { const org = await joinOrg(code); navigate(orgPath(org)); }}
+          onCancel={() => navigate(orgPath(orgs[0]))}
+          user={user}
+        />
+      } />
+      {/* Dedicated join route — works for both new and existing users */}
+      <Route path="/join" element={
+        <OrgSetup
+          onCreate={async (data) => { const org = await addOrg(data); navigate(orgPath(org)); }}
+          onJoin={async (code) => { const org = await joinOrg(code); navigate(orgPath(org)); }}
+          onCancel={() => navigate(orgPath(orgs[0]))}
+          user={user}
+        />
+      } />
+      <Route path="/:slug/*" element={
+        <OrgShell orgs={orgs} user={user} signOut={signOut} removeOrg={removeOrg} saveOrgSettings={saveOrgSettings} />
+      } />
       <Route path="*" element={<Navigate to={orgPath(orgs[0])} replace />} />
     </Routes>
   );
@@ -132,7 +147,6 @@ function OrgShell({ orgs, user, signOut, removeOrg, saveOrgSettings }: OrgShellP
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
 
-  // Derive current page from URL: /:slug/:page
   const pageMatch = useMatch('/:slug/:page');
   const pageId = (pageMatch?.params.page ?? 'dashboard') as PageId;
 

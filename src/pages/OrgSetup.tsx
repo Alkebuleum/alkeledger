@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import { Users, FolderKanban, Check, ShieldCheck, Hash } from 'lucide-react';
 import { Brand } from '@/components/Brand';
@@ -25,13 +26,12 @@ export function OrgSetup({ onCreate, onJoin, onCancel, user }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const [searchParams] = useSearchParams();
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('invite');
+    const code = searchParams.get('invite');
     if (code) {
       setInviteCode(code.toUpperCase());
       setMode('join');
-      window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
 
