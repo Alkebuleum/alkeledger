@@ -205,7 +205,7 @@ async function sendInviteEmail(
       <p style="color:#57534e;margin:0 0 24px;font-size:15px;line-height:1.6">
         You've been invited to join <strong>${orgName}</strong> on AlkeLedger — a ledger and accountability platform for organizations.
       </p>
-      <a href="${appUrl}/join?invite=${inviteCode}" style="display:block;background:#0E1015;color:#FAF8F4;text-decoration:none;padding:14px;text-align:center;font-weight:600;font-size:16px;margin-bottom:24px">
+      <a href="${appUrl}/join?invite=${inviteCode}&email=${encodeURIComponent(email)}" style="display:block;background:#0E1015;color:#FAF8F4;text-decoration:none;padding:14px;text-align:center;font-weight:600;font-size:16px;margin-bottom:24px">
         Accept invitation →
       </a>
       <div style="background:white;border:1px solid #e7e5e4;padding:16px;text-align:center;margin-bottom:24px">

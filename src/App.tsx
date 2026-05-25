@@ -34,8 +34,11 @@ function orgPath(org: Organization) {
 // unauthenticated users to sign-in. After sign-in, App picks it back up.
 function SaveInviteAndRedirectToSignIn() {
   const location = useLocation();
-  const code = new URLSearchParams(location.search).get('invite');
+  const params = new URLSearchParams(location.search);
+  const code = params.get('invite');
+  const email = params.get('email');
   if (code) sessionStorage.setItem('pendingInvite', code);
+  if (email) sessionStorage.setItem('pendingInviteEmail', email);
   return <Navigate to="/signin" replace />;
 }
 
