@@ -1,26 +1,40 @@
 import { useEffect, useState } from 'react';
-import { listOrganizationsForUser, createOrganization, joinOrganization, getOrgByInviteCode, deleteOrganization, updateOrgSettings } from '@/services/organizations';
-import type { MemberType, DuesRates } from '@/types';
+import {
+  listOrganizationsForUser, createOrganization, joinOrganization,
+  getOrgByInviteCode, deleteOrganization, updateOrgSettings,
+} from '@/services/organizations';
 import type { AuthUser } from './useAuth';
-import type { Organization } from '@/types';
+import type { Organization, MemberType, DuesRates } from '@/types';
 
 export function useOrgs(user: AuthUser | null) {
   const [orgs, setOrgs] = useState<Organization[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Track which uid's orgs are currently loaded. null = not yet loaded.
+  const [loadedForUid, setLoadedForUid] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
       setOrgs([]);
-      setLoading(false);
+      setLoadedForUid(null);
       return;
     }
 
-    setLoading(true);
-    listOrganizationsForUser(user.uid).then((list) => {
-      setOrgs(list);
-      setLoading(false);
-    });
+    // Don't reset loadedForUid here — the derived `loading` below is already
+    // true because user.uid !== loadedForUid. Avoid the extra re-render.
+    listOrganizationsForUser(user.uid)
+      .then((list) => {
+        setOrgs(list);
+        setLoadedForUid(user.uid);
+      })
+      .catch(() => {
+        setOrgs([]);
+        setLoadedForUid(user.uid);
+      });
   }, [user?.uid]);
+
+  // loading is true whenever a non-null user's orgs haven't been fetched yet.
+  // This derived value has no race window: if user.uid !== loadedForUid,
+  // we're still loading — even before the effect fires after a render.
+  const loading = user != null && loadedForUid !== user.uid;
 
   const addOrg = async (org: Omit<Organization, 'id' | 'createdAt'>): Promise<Organization> => {
     if (!user) throw new Error('Not authenticated');
