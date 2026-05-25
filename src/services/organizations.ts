@@ -200,11 +200,14 @@ export async function deleteOrganization(orgId: string): Promise<void> {
   }
   if (!db) return;
 
+  // Delete org first (while caller's membership still exists for rule check),
+  // then clean up memberships.
+  await deleteDoc(doc(db, 'organizations', orgId));
+
   const memberSnap = await getDocs(
     query(collection(db, 'memberships'), where('orgId', '==', orgId))
   );
   await Promise.all(memberSnap.docs.map((d) => deleteDoc(d.ref)));
-  await deleteDoc(doc(db, 'organizations', orgId));
 }
 
 export async function listOrganizations(): Promise<Organization[]> {
