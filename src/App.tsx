@@ -23,7 +23,7 @@ import { Transparency } from '@/pages/Transparency';
 import { Anchors } from '@/pages/Anchors';
 import { Settings } from '@/pages/Settings';
 import { NewEntryModal } from '@/modals/NewEntryModal';
-import type { LedgerEntry, LedgerStatus, Organization } from '@/types';
+import type { LedgerEntry, LedgerStatus, Organization, MemberType, DuesRates } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
 
 function orgPath(org: Organization) {
@@ -32,7 +32,7 @@ function orgPath(org: Organization) {
 
 export default function App() {
   const { user, loading: authLoading, requestOtp, verifyOtp, signOut } = useAuth();
-  const { orgs, addOrg, joinOrg, removeOrg, loading: orgsLoading } = useOrgs(user);
+  const { orgs, addOrg, joinOrg, removeOrg, saveOrgSettings, loading: orgsLoading } = useOrgs(user);
   const navigate = useNavigate();
 
   if (authLoading || (user && orgsLoading)) {
@@ -110,7 +110,7 @@ export default function App() {
       <Route
         path="/:slug/*"
         element={
-          <OrgShell orgs={orgs} user={user} signOut={signOut} removeOrg={removeOrg} />
+          <OrgShell orgs={orgs} user={user} signOut={signOut} removeOrg={removeOrg} saveOrgSettings={saveOrgSettings} />
         }
       />
       <Route path="*" element={<Navigate to={orgPath(orgs[0])} replace />} />
@@ -125,9 +125,10 @@ interface OrgShellProps {
   user: AuthUser;
   signOut: () => Promise<void>;
   removeOrg: (orgId: string) => Promise<void>;
+  saveOrgSettings: (orgId: string, s: { allowedMemberTypes?: MemberType[]; duesRates?: DuesRates }) => Promise<void>;
 }
 
-function OrgShell({ orgs, user, signOut, removeOrg }: OrgShellProps) {
+function OrgShell({ orgs, user, signOut, removeOrg, saveOrgSettings }: OrgShellProps) {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
 
@@ -178,6 +179,7 @@ function OrgShell({ orgs, user, signOut, removeOrg }: OrgShellProps) {
             const next = orgs.find((o) => o.id !== org.id);
             navigate(next ? orgPath(next) : '/setup');
           }}
+          onSaveOrgSettings={(s) => saveOrgSettings(org.id, s)}
         />
       </AppShell>
 
@@ -203,9 +205,10 @@ interface PageContentProps {
   onApprove: (entryId: string, status: LedgerStatus) => Promise<void>;
   onAnchor: (entryId: string) => Promise<void>;
   onDeleteOrg: () => Promise<void>;
+  onSaveOrgSettings: (s: { allowedMemberTypes?: MemberType[]; duesRates?: DuesRates }) => Promise<void>;
 }
 
-function PageContent({ page, ledger, org, user, onApprove, onAnchor, onDeleteOrg }: PageContentProps) {
+function PageContent({ page, ledger, org, user, onApprove, onAnchor, onDeleteOrg, onSaveOrgSettings }: PageContentProps) {
   switch (page) {
     case 'dashboard':     return <Dashboard org={org} ledger={ledger} />;
     case 'ledger':        return <Ledger ledger={ledger} />;
@@ -222,7 +225,7 @@ function PageContent({ page, ledger, org, user, onApprove, onAnchor, onDeleteOrg
     case 'reports':       return <Reports org={org} ledger={ledger} />;
     case 'transparency':  return <Transparency org={org} ledger={ledger} />;
     case 'anchors':       return <Anchors ledger={ledger} onAnchor={onAnchor} />;
-    case 'settings':      return <Settings org={org} user={user} onDelete={onDeleteOrg} />;
+    case 'settings':      return <Settings org={org} user={user} onDelete={onDeleteOrg} onSaveSettings={onSaveOrgSettings} />;
     default:              return <Dashboard org={org} ledger={ledger} />;
   }
 }

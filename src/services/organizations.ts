@@ -1,9 +1,10 @@
 import {
-  collection, doc, getDoc, getDocs, addDoc, setDoc, deleteDoc, query, where, serverTimestamp,
+  collection, doc, getDoc, getDocs, addDoc, setDoc, deleteDoc, updateDoc,
+  query, where, serverTimestamp,
 } from 'firebase/firestore';
 import { USE_MOCK_DATA, db } from '@/lib/firebase';
 import { MOCK_ORGS } from '@/data/mock';
-import type { Organization } from '@/types';
+import type { Organization, MemberType, DuesRates } from '@/types';
 
 let mockOrgs: Organization[] = [...MOCK_ORGS];
 
@@ -18,6 +19,25 @@ export function slugify(name: string): string {
     .trim()
     .replace(/\s+/g, '-')
     .slice(0, 50) || 'org';
+}
+
+function docToOrg(id: string, d: Record<string, unknown>): Organization {
+  return {
+    id,
+    slug: d.slug as string | undefined,
+    name: d.name as string,
+    type: d.type as Organization['type'],
+    createdAt: d.createdAt as string,
+    currency: d.currency as string,
+    logoInitials: d.logoInitials as string,
+    tagline: d.tagline as string | undefined,
+    inviteCode: d.inviteCode as string | undefined,
+    createdBy: d.createdBy as string | undefined,
+    allowedMemberTypes: d.allowedMemberTypes as MemberType[] | undefined,
+    duesRates: d.duesRateIndividual != null
+      ? { individual: d.duesRateIndividual as number, organization: d.duesRateOrganization as number }
+      : undefined,
+  };
 }
 
 export async function listOrganizationsForUser(userId: string): Promise<Organization[]> {
@@ -36,19 +56,7 @@ export async function listOrganizationsForUser(userId: string): Promise<Organiza
     orgIds.map(async (orgId) => {
       const orgSnap = await getDoc(doc(db!, 'organizations', orgId));
       if (orgSnap.exists()) {
-        const d = orgSnap.data();
-        orgs.push({
-          id: orgSnap.id,
-          slug: d.slug as string | undefined,
-          name: d.name,
-          type: d.type,
-          createdAt: d.createdAt,
-          currency: d.currency,
-          logoInitials: d.logoInitials,
-          tagline: d.tagline,
-          inviteCode: d.inviteCode,
-          createdBy: d.createdBy,
-        });
+        orgs.push(docToOrg(orgSnap.id, orgSnap.data() as Record<string, unknown>));
       }
     })
   );
@@ -62,19 +70,7 @@ export async function getOrganization(orgId: string): Promise<Organization | nul
 
   const snap = await getDoc(doc(db, 'organizations', orgId));
   if (!snap.exists()) return null;
-  const d = snap.data();
-  return {
-    id: snap.id,
-    slug: d.slug as string | undefined,
-    name: d.name,
-    type: d.type,
-    createdAt: d.createdAt,
-    currency: d.currency,
-    logoInitials: d.logoInitials,
-    tagline: d.tagline,
-    inviteCode: d.inviteCode,
-    createdBy: d.createdBy,
-  };
+  return docToOrg(snap.id, snap.data() as Record<string, unknown>);
 }
 
 export async function createOrganization(
@@ -113,7 +109,6 @@ export async function createOrganization(
     createdAtTs: serverTimestamp(),
   });
 
-  // Owner membership record
   await setDoc(doc(db, 'memberships', `${ref.id}_${userId}`), {
     orgId: ref.id,
     userId,
@@ -123,9 +118,33 @@ export async function createOrganization(
     status: 'active',
     joined: new Date().toISOString().slice(0, 10),
     duesPaid: false,
+    memberType: 'individual',
   });
 
   return { ...newOrg, id: ref.id, slug };
+}
+
+export async function updateOrgSettings(
+  orgId: string,
+  settings: { allowedMemberTypes?: MemberType[]; duesRates?: DuesRates },
+): Promise<void> {
+  if (USE_MOCK_DATA) {
+    mockOrgs = mockOrgs.map((o) =>
+      o.id === orgId ? { ...o, ...settings } : o
+    );
+    return;
+  }
+  if (!db) return;
+
+  const updates: Record<string, unknown> = {};
+  if (settings.allowedMemberTypes !== undefined) {
+    updates.allowedMemberTypes = settings.allowedMemberTypes;
+  }
+  if (settings.duesRates !== undefined) {
+    updates.duesRateIndividual = settings.duesRates.individual;
+    updates.duesRateOrganization = settings.duesRates.organization;
+  }
+  await updateDoc(doc(db, 'organizations', orgId), updates);
 }
 
 export async function getOrgByInviteCode(code: string): Promise<Organization | null> {
@@ -136,19 +155,7 @@ export async function getOrgByInviteCode(code: string): Promise<Organization | n
     query(collection(db, 'organizations'), where('inviteCode', '==', code.toUpperCase()))
   );
   if (snap.empty) return null;
-  const orgSnap = snap.docs[0];
-  const d = orgSnap.data();
-  return {
-    id: orgSnap.id,
-    slug: d.slug as string | undefined,
-    name: d.name,
-    type: d.type,
-    createdAt: d.createdAt,
-    currency: d.currency,
-    logoInitials: d.logoInitials,
-    tagline: d.tagline,
-    inviteCode: d.inviteCode,
-  };
+  return docToOrg(snap.docs[0].id, snap.docs[0].data() as Record<string, unknown>);
 }
 
 export async function getOrgBySlug(slug: string): Promise<Organization | null> {
@@ -159,20 +166,7 @@ export async function getOrgBySlug(slug: string): Promise<Organization | null> {
     query(collection(db, 'organizations'), where('slug', '==', slug))
   );
   if (snap.empty) return null;
-  const orgSnap = snap.docs[0];
-  const d = orgSnap.data();
-  return {
-    id: orgSnap.id,
-    slug: d.slug as string | undefined,
-    name: d.name,
-    type: d.type,
-    createdAt: d.createdAt,
-    currency: d.currency,
-    logoInitials: d.logoInitials,
-    tagline: d.tagline,
-    inviteCode: d.inviteCode,
-    createdBy: d.createdBy,
-  };
+  return docToOrg(snap.docs[0].id, snap.docs[0].data() as Record<string, unknown>);
 }
 
 export async function joinOrganization(
@@ -184,7 +178,7 @@ export async function joinOrganization(
   if (USE_MOCK_DATA || !db) return;
 
   const existing = await getDoc(doc(db, 'memberships', `${orgId}_${userId}`));
-  if (existing.exists()) return; // already a member
+  if (existing.exists()) return;
 
   await setDoc(doc(db, 'memberships', `${orgId}_${userId}`), {
     orgId,
@@ -195,6 +189,7 @@ export async function joinOrganization(
     status: 'pending',
     joined: new Date().toISOString().slice(0, 10),
     duesPaid: false,
+    memberType: 'individual',
   });
 }
 
@@ -205,17 +200,13 @@ export async function deleteOrganization(orgId: string): Promise<void> {
   }
   if (!db) return;
 
-  // Delete all membership records for this org
   const memberSnap = await getDocs(
     query(collection(db, 'memberships'), where('orgId', '==', orgId))
   );
   await Promise.all(memberSnap.docs.map((d) => deleteDoc(d.ref)));
-
-  // Delete the org document itself
   await deleteDoc(doc(db, 'organizations', orgId));
 }
 
-// Legacy: keep listOrganizations for mock-only callers
 export async function listOrganizations(): Promise<Organization[]> {
   return mockOrgs;
 }

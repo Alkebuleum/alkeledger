@@ -37,12 +37,12 @@ export const MOCK_ORGS: Organization[] = [
 ];
 
 export const MOCK_MEMBERS: Member[] = [
-  { id: 'm1', orgId: 'org_meridian', name: 'Eleanor Vance',   email: 'e.vance@meridian.org',   status: 'active',    joined: '2019-03-12', duesPaid: true,  role: 'Member' },
-  { id: 'm2', orgId: 'org_meridian', name: 'Hideo Tanaka',    email: 'h.tanaka@meridian.org',  status: 'active',    joined: '2021-06-04', duesPaid: true,  role: 'Member' },
-  { id: 'm3', orgId: 'org_meridian', name: 'Priya Raman',     email: 'p.raman@meridian.org',   status: 'pending',   joined: '2026-04-22', duesPaid: false, role: 'Applicant' },
-  { id: 'm4', orgId: 'org_meridian', name: 'Marcus Okafor',   email: 'm.okafor@meridian.org',  status: 'active',    joined: '2018-01-30', duesPaid: true,  role: 'Treasurer' },
-  { id: 'm5', orgId: 'org_meridian', name: 'Sofia Albright',  email: 's.albright@meridian.org',status: 'expired',   joined: '2017-08-11', duesPaid: false, role: 'Member' },
-  { id: 'm6', orgId: 'org_meridian', name: 'Jonas Wells',     email: 'j.wells@meridian.org',   status: 'suspended', joined: '2020-11-02', duesPaid: false, role: 'Member' },
+  { id: 'm1', orgId: 'org_meridian', name: 'Eleanor Vance',   email: 'e.vance@meridian.org',   status: 'active',    joined: '2019-03-12', duesPaid: true,  role: 'Member',     memberType: 'individual' },
+  { id: 'm2', orgId: 'org_meridian', name: 'Hideo Tanaka',    email: 'h.tanaka@meridian.org',  status: 'active',    joined: '2021-06-04', duesPaid: true,  role: 'Member',     memberType: 'organization', orgName: 'Tanaka Design Studio', orgTitle: 'Principal' },
+  { id: 'm3', orgId: 'org_meridian', name: 'Priya Raman',     email: 'p.raman@meridian.org',   status: 'pending',   joined: '2026-04-22', duesPaid: false, role: 'Applicant',  memberType: 'organization', orgName: 'Raman & Associates' },
+  { id: 'm4', orgId: 'org_meridian', name: 'Marcus Okafor',   email: 'm.okafor@meridian.org',  status: 'active',    joined: '2018-01-30', duesPaid: true,  role: 'Treasurer',  memberType: 'individual' },
+  { id: 'm5', orgId: 'org_meridian', name: 'Sofia Albright',  email: 's.albright@meridian.org',status: 'expired',   joined: '2017-08-11', duesPaid: false, role: 'Member',     memberType: 'individual' },
+  { id: 'm6', orgId: 'org_meridian', name: 'Jonas Wells',     email: 'j.wells@meridian.org',   status: 'suspended', joined: '2020-11-02', duesPaid: false, role: 'Member',     memberType: 'organization', orgName: 'Wells Architecture Group', orgTitle: 'Director' },
 ];
 
 export const MOCK_PROJECTS: Project[] = [

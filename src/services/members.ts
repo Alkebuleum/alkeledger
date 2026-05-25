@@ -23,6 +23,9 @@ function docToMember(d: Record<string, unknown>, id: string): Member {
     joined: (d.joined as string) ?? '',
     duesPaid: (d.duesPaid as boolean) ?? false,
     phone: d.phone as string | undefined,
+    memberType: (d.memberType as Member['memberType']) ?? 'individual',
+    orgName: d.orgName as string | undefined,
+    orgTitle: d.orgTitle as string | undefined,
   };
 }
 
@@ -95,6 +98,15 @@ export async function setDuesPaid(
   await updateDoc(doc(db, 'memberships', membershipId(orgId, userId)), { duesPaid });
 }
 
+export async function updateMemberInfo(
+  orgId: string,
+  userId: string,
+  info: { memberType?: Member['memberType']; orgName?: string; orgTitle?: string },
+): Promise<void> {
+  if (USE_MOCK_DATA || !db) return;
+  await updateDoc(doc(db, 'memberships', membershipId(orgId, userId)), info);
+}
+
 export async function removeMember(orgId: string, userId: string): Promise<void> {
   if (USE_MOCK_DATA || !db) return;
 
@@ -128,7 +140,7 @@ export async function inviteMembers(
   orgId: string,
   orgName: string,
   inviteCode: string,
-  invites: { name: string; email: string }[],
+  invites: { name: string; email: string; memberType?: Member['memberType']; orgName?: string; orgTitle?: string }[],
 ): Promise<InviteResult> {
   const result: InviteResult = { sent: 0, skipped: [], errors: [] };
 
@@ -141,13 +153,11 @@ export async function inviteMembers(
     }
 
     if (!USE_MOCK_DATA && db) {
-      // Skip if already a member
       const existing = await getDocs(
         query(collection(db, 'memberships'), where('orgId', '==', orgId), where('email', '==', email))
       );
       if (!existing.empty) { result.skipped.push(email); continue; }
 
-      // Store invite token
       const token = Array.from(crypto.getRandomValues(new Uint8Array(24)))
         .map((b) => b.toString(16).padStart(2, '0'))
         .join('');
@@ -156,6 +166,9 @@ export async function inviteMembers(
         email,
         orgId,
         name,
+        memberType: invite.memberType ?? 'individual',
+        orgName: invite.orgName ?? null,
+        orgTitle: invite.orgTitle ?? null,
         expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
         createdAt: serverTimestamp(),
       });

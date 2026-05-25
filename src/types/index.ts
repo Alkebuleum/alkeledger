@@ -24,6 +24,13 @@ export type AnnouncementPriority = 'normal' | 'important' | 'urgent';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+export type MemberType = 'individual' | 'organization';
+
+export interface DuesRates {
+  individual: number;
+  organization: number;
+}
+
 export interface Organization {
   id: string;
   slug?: string;
@@ -35,6 +42,8 @@ export interface Organization {
   tagline?: string;
   inviteCode?: string;
   createdBy?: string;
+  allowedMemberTypes?: MemberType[];
+  duesRates?: DuesRates;
 }
 
 export interface OrgUser {
@@ -56,6 +65,9 @@ export interface Member {
   duesPaid: boolean;
   role: string;
   phone?: string;
+  memberType?: MemberType;
+  orgName?: string;
+  orgTitle?: string;
 }
 
 export interface Project {

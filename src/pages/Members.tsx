@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Plus, X, Mail, UserCheck, UserX, Wallet, Trash2, Copy, CheckCheck, Clock } from 'lucide-react';
+import { Plus, X, Mail, UserCheck, UserX, Wallet, Trash2, Copy, CheckCheck, Clock, Building2 } from 'lucide-react';
 import { StatusPill } from '@/components/StatusPill';
 import { Panel } from '@/components/Panel';
 import {
-  listMembers, updateMemberRole, updateMemberStatus, setDuesPaid, removeMember, inviteMembers,
-  listPendingInvites, revokeInvite,
+  listMembers, updateMemberRole, updateMemberStatus, setDuesPaid, removeMember,
+  inviteMembers, listPendingInvites, revokeInvite, updateMemberInfo,
 } from '@/services/members';
 import type { PendingInvite } from '@/services/members';
 import { can, useRole } from '@/hooks/useRole';
-import type { Member, MemberStatus, Organization } from '@/types';
+import type { Member, MemberStatus, MemberType, Organization } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
 
 interface Props {
@@ -53,6 +53,12 @@ export function Members({ org, user }: Props) {
     catch (e) { setError(e instanceof Error ? e.message : 'Failed to update status.'); }
   };
 
+  const handleTypeChange = async (m: Member, memberType: MemberType) => {
+    setError('');
+    try { await updateMemberInfo(org.id, m.id, { memberType }); reload(); }
+    catch (e) { setError(e instanceof Error ? e.message : 'Failed to update type.'); }
+  };
+
   const handleRevokeInvite = async (invite: PendingInvite) => {
     if (!confirm(`Revoke invite for ${invite.email}?`)) return;
     await revokeInvite(invite.token);
@@ -72,6 +78,7 @@ export function Members({ org, user }: Props) {
   };
 
   const isAdmin = can.invite(role);
+  const allowedTypes = org.allowedMemberTypes ?? ['individual', 'organization'];
 
   return (
     <div className="p-4 sm:p-8 max-w-5xl space-y-6">
@@ -88,9 +95,15 @@ export function Members({ org, user }: Props) {
           <div className="divide-y divide-stone-100">
             {pending.map((m) => (
               <div key={m.id} className="px-5 py-4 flex items-center gap-3 flex-wrap sm:flex-nowrap">
-                <Avatar name={m.name} />
+                <Avatar name={m.name} isOrg={m.memberType === 'organization'} />
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-stone-900 text-sm">{m.name}</div>
+                  <div className="font-medium text-stone-900 text-sm flex items-center gap-2">
+                    {m.name}
+                    <MemberTypeBadge type={m.memberType} />
+                  </div>
+                  {m.memberType === 'organization' && m.orgName && (
+                    <div className="text-xs text-stone-700 font-medium">{m.orgName}{m.orgTitle ? ` · ${m.orgTitle}` : ''}</div>
+                  )}
                   <div className="text-xs text-stone-500">{m.email}</div>
                 </div>
                 <div className="flex gap-2 shrink-0">
@@ -125,7 +138,10 @@ export function Members({ org, user }: Props) {
                     <Clock className="w-3.5 h-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm text-stone-900">{inv.name || inv.email}</div>
+                    <div className="text-sm text-stone-900 flex items-center gap-2">
+                      {inv.name || inv.email}
+                      <MemberTypeBadge type={(inv as PendingInvite & { memberType?: MemberType }).memberType} />
+                    </div>
                     <div className="text-xs text-stone-500">{inv.email} · expires in {daysLeft}d</div>
                   </div>
                   <button
@@ -153,7 +169,7 @@ export function Members({ org, user }: Props) {
                   onClick={() => setShowCode(true)}
                   className="px-3 py-1.5 text-xs border border-stone-300 text-stone-700 hover:bg-stone-100 flex items-center gap-1.5"
                 >
-                  <Hash className="w-3 h-3" /> Code
+                  <HashIcon className="w-3 h-3" /> Code
                 </button>
               )}
               <button
@@ -170,13 +186,13 @@ export function Members({ org, user }: Props) {
           <div className="py-10 text-center text-stone-400 text-sm">Loading…</div>
         ) : (
           <div className="overflow-x-auto -mx-5 -mb-5">
-            <table className="w-full text-sm min-w-[560px]">
+            <table className="w-full text-sm min-w-[580px]">
               <thead className="bg-stone-50 text-[11px] uppercase tracking-widest text-stone-500">
                 <tr>
-                  <th className="text-left px-5 py-3 font-medium">Name</th>
+                  <th className="text-left px-5 py-3 font-medium">Member</th>
+                  <th className="text-left px-5 py-3 font-medium">Type</th>
                   <th className="text-left px-5 py-3 font-medium">Role</th>
                   <th className="text-left px-5 py-3 font-medium">Status</th>
-                  <th className="text-left px-5 py-3 font-medium">Joined</th>
                   <th className="text-left px-5 py-3 font-medium">Dues</th>
                   {isAdmin && <th className="px-5 py-3 font-medium" />}
                 </tr>
@@ -184,15 +200,40 @@ export function Members({ org, user }: Props) {
               <tbody className="divide-y divide-stone-100">
                 {[...active, ...suspended].map((m) => (
                   <tr key={m.id} className="hover:bg-stone-50">
+                    {/* Name cell */}
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
-                        <Avatar name={m.name} size="sm" />
+                        <Avatar name={m.name} isOrg={m.memberType === 'organization'} size="sm" />
                         <div>
                           <div className="text-stone-900">{m.name}</div>
-                          <div className="text-[11px] text-stone-500">{m.email}</div>
+                          {m.memberType === 'organization' && m.orgName && (
+                            <div className="text-[11px] text-stone-700 font-medium">
+                              {m.orgName}{m.orgTitle ? ` · ${m.orgTitle}` : ''}
+                            </div>
+                          )}
+                          <div className="text-[11px] text-stone-400">{m.email}</div>
                         </div>
                       </div>
                     </td>
+
+                    {/* Type cell */}
+                    <td className="px-5 py-3">
+                      {isAdmin && m.id !== user.uid && allowedTypes.length > 1 ? (
+                        <select
+                          value={m.memberType ?? 'individual'}
+                          onChange={(e) => handleTypeChange(m, e.target.value as MemberType)}
+                          className="text-xs border border-stone-200 rounded px-1.5 py-1 bg-white text-stone-700 focus:outline-none focus:ring-1 focus:ring-stone-400"
+                        >
+                          {allowedTypes.map((t) => (
+                            <option key={t} value={t}>{t === 'individual' ? 'Individual' : 'Organization'}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <MemberTypeBadge type={m.memberType} />
+                      )}
+                    </td>
+
+                    {/* Role cell */}
                     <td className="px-5 py-3">
                       {isAdmin && m.id !== user.uid ? (
                         <select
@@ -206,6 +247,8 @@ export function Members({ org, user }: Props) {
                         <span className="text-stone-600 capitalize">{m.role}</span>
                       )}
                     </td>
+
+                    {/* Status cell */}
                     <td className="px-5 py-3">
                       {isAdmin && m.id !== user.uid ? (
                         <select
@@ -221,7 +264,8 @@ export function Members({ org, user }: Props) {
                         <StatusPill value={m.status} />
                       )}
                     </td>
-                    <td className="px-5 py-3 text-stone-600">{m.joined}</td>
+
+                    {/* Dues cell */}
                     <td className="px-5 py-3">
                       {isAdmin ? (
                         <button
@@ -237,6 +281,7 @@ export function Members({ org, user }: Props) {
                         </span>
                       )}
                     </td>
+
                     {isAdmin && (
                       <td className="px-5 py-3 text-right">
                         {m.id !== user.uid && (
@@ -265,21 +310,12 @@ export function Members({ org, user }: Props) {
         )}
       </Panel>
 
-      {/* Invite modal */}
       {showInvite && (
-        <InviteModal
-          org={org}
-          onClose={() => setShowInvite(false)}
-          onDone={reload}
-        />
+        <InviteModal org={org} onClose={() => setShowInvite(false)} onDone={reload} />
       )}
 
-      {/* Invite code modal */}
       {showCode && org.inviteCode && (
-        <InviteCodeModal
-          code={org.inviteCode}
-          onClose={() => setShowCode(false)}
-        />
+        <InviteCodeModal code={org.inviteCode} onClose={() => setShowCode(false)} />
       )}
     </div>
   );
@@ -287,7 +323,16 @@ export function Members({ org, user }: Props) {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function Hash({ className }: { className?: string }) {
+function MemberTypeBadge({ type }: { type?: MemberType }) {
+  if (!type || type === 'individual') return null;
+  return (
+    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 rounded">
+      <Building2 className="w-2.5 h-2.5" /> Org
+    </span>
+  );
+}
+
+function HashIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <line x1="4" y1="9" x2="20" y2="9" /><line x1="4" y1="15" x2="20" y2="15" />
@@ -296,34 +341,70 @@ function Hash({ className }: { className?: string }) {
   );
 }
 
-function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
+function Avatar({ name, isOrg = false, size = 'md' }: { name: string; isOrg?: boolean; size?: 'sm' | 'md' }) {
   const initials = name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
-  const colors = ['bg-amber-100 text-amber-800', 'bg-blue-100 text-blue-800', 'bg-emerald-100 text-emerald-800', 'bg-purple-100 text-purple-800'];
+  const colors = isOrg
+    ? ['bg-blue-100 text-blue-800']
+    : ['bg-amber-100 text-amber-800', 'bg-emerald-100 text-emerald-800', 'bg-purple-100 text-purple-800'];
   const color = colors[initials.charCodeAt(0) % colors.length];
   const sz = size === 'sm' ? 'w-7 h-7 text-[10px]' : 'w-9 h-9 text-xs';
   return (
     <div className={`${sz} ${color} rounded-full flex items-center justify-center font-semibold shrink-0`}>
-      {initials}
+      {isOrg ? <Building2 className="w-3.5 h-3.5" /> : initials}
     </div>
   );
 }
 
+// ── Invite modal ──────────────────────────────────────────────────────────────
+
+type InviteRow = {
+  name: string;
+  email: string;
+  memberType: MemberType;
+  orgName: string;
+  orgTitle: string;
+};
+
 function InviteModal({ org, onClose, onDone }: { org: Organization; onClose: () => void; onDone: () => void }) {
-  const [rows, setRows] = useState([{ name: '', email: '' }]);
+  const allowedTypes = org.allowedMemberTypes ?? ['individual', 'organization'];
+  const defaultType: MemberType = allowedTypes[0];
+
+  const [rows, setRows] = useState<InviteRow[]>([
+    { name: '', email: '', memberType: defaultType, orgName: '', orgTitle: '' },
+  ]);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ sent: number; skipped: string[]; errors: string[] } | null>(null);
 
-  const addRow = () => setRows((r) => [...r, { name: '', email: '' }]);
-  const update = (i: number, field: 'name' | 'email', val: string) =>
-    setRows((r) => r.map((row, idx) => idx === i ? { ...row, [field]: val } : row));
+  const addRow = () =>
+    setRows((r) => [...r, { name: '', email: '', memberType: defaultType, orgName: '', orgTitle: '' }]);
+
+  const update = <K extends keyof InviteRow>(i: number, field: K, val: InviteRow[K]) =>
+    setRows((r) => r.map((row, idx) => (idx === i ? { ...row, [field]: val } : row)));
+
+  const removeRow = (i: number) => setRows((r) => r.filter((_, idx) => idx !== i));
 
   const send = async () => {
     setSending(true);
-    const res = await inviteMembers(org.id, org.name, org.inviteCode ?? '', rows.filter((r) => r.email));
+    const res = await inviteMembers(
+      org.id,
+      org.name,
+      org.inviteCode ?? '',
+      rows
+        .filter((r) => r.email)
+        .map((r) => ({
+          name: r.name,
+          email: r.email,
+          memberType: r.memberType,
+          orgName: r.memberType === 'organization' ? r.orgName : undefined,
+          orgTitle: r.memberType === 'organization' ? r.orgTitle : undefined,
+        })),
+    );
     setResult(res);
     setSending(false);
     onDone();
   };
+
+  const showOrgFields = allowedTypes.includes('organization');
 
   return (
     <Modal title="Invite members" onClose={onClose}>
@@ -337,25 +418,72 @@ function InviteModal({ org, onClose, onDone }: { org: Organization; onClose: () 
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-stone-600">
-            Enter names and emails. Each person will receive an email with your workspace invite code <strong>{org.inviteCode}</strong>.
+            Invitees will receive an email with workspace code <strong>{org.inviteCode}</strong>.
           </p>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             {rows.map((row, i) => (
-              <div key={i} className="grid grid-cols-2 gap-2">
-                <input
-                  placeholder="Name"
-                  value={row.name}
-                  onChange={(e) => update(i, 'name', e.target.value)}
-                  className="px-3 py-2 border border-stone-300 text-sm focus:outline-none focus:ring-1 focus:ring-stone-900"
-                />
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={row.email}
-                  onChange={(e) => update(i, 'email', e.target.value)}
-                  className="px-3 py-2 border border-stone-300 text-sm focus:outline-none focus:ring-1 focus:ring-stone-900"
-                />
+              <div key={i} className="border border-stone-200 rounded-md p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  {/* Type toggle */}
+                  {showOrgFields ? (
+                    <div className="flex gap-1">
+                      {allowedTypes.map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => update(i, 'memberType', t)}
+                          className={`px-2.5 py-1 text-xs font-medium border transition-colors ${
+                            row.memberType === t
+                              ? 'bg-stone-900 text-stone-50 border-stone-900'
+                              : 'bg-white text-stone-600 border-stone-300 hover:border-stone-500'
+                          }`}
+                        >
+                          {t === 'individual' ? 'Individual' : 'Organization'}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-stone-500">Individual</span>
+                  )}
+                  {rows.length > 1 && (
+                    <button onClick={() => removeRow(i)} className="text-stone-300 hover:text-red-500">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    placeholder="Contact name"
+                    value={row.name}
+                    onChange={(e) => update(i, 'name', e.target.value)}
+                    className="px-3 py-2 border border-stone-300 text-sm focus:outline-none focus:ring-1 focus:ring-stone-900 rounded"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={row.email}
+                    onChange={(e) => update(i, 'email', e.target.value)}
+                    className="px-3 py-2 border border-stone-300 text-sm focus:outline-none focus:ring-1 focus:ring-stone-900 rounded"
+                  />
+                </div>
+
+                {row.memberType === 'organization' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      placeholder="Organization name *"
+                      value={row.orgName}
+                      onChange={(e) => update(i, 'orgName', e.target.value)}
+                      className="px-3 py-2 border border-stone-300 text-sm focus:outline-none focus:ring-1 focus:ring-stone-900 rounded"
+                    />
+                    <input
+                      placeholder="Title / role (optional)"
+                      value={row.orgTitle}
+                      onChange={(e) => update(i, 'orgTitle', e.target.value)}
+                      className="px-3 py-2 border border-stone-300 text-sm focus:outline-none focus:ring-1 focus:ring-stone-900 rounded"
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -380,6 +508,8 @@ function InviteModal({ org, onClose, onDone }: { org: Organization; onClose: () 
   );
 }
 
+// ── Invite code modal ─────────────────────────────────────────────────────────
+
 function InviteCodeModal({ code, onClose }: { code: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
@@ -389,7 +519,7 @@ function InviteCodeModal({ code, onClose }: { code: string; onClose: () => void 
   };
   return (
     <Modal title="Workspace invite code" onClose={onClose}>
-      <p className="text-sm text-stone-600 mb-4">Share this code with anyone you want to invite. They can enter it on the AlkeLedger setup page.</p>
+      <p className="text-sm text-stone-600 mb-4">Share this code with anyone you want to invite.</p>
       <div className="bg-stone-900 text-stone-50 px-6 py-5 text-center rounded-sm mb-4">
         <div className="font-display text-5xl tracking-[.3em]">{code}</div>
         <div className="text-xs text-stone-400 mt-2 uppercase tracking-[.2em]">Invite code</div>
@@ -403,6 +533,8 @@ function InviteCodeModal({ code, onClose }: { code: string; onClose: () => void 
     </Modal>
   );
 }
+
+// ── Base modal ────────────────────────────────────────────────────────────────
 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
