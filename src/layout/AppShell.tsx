@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Sidebar, type PageId } from './Sidebar';
 import { TopBar } from './TopBar';
 import type { Organization } from '@/types';
@@ -10,7 +11,6 @@ interface Props {
   orgs: Organization[];
   onSwitchOrg: (id: string) => void;
   page: PageId;
-  setPage: (page: PageId) => void;
   onNewEntry: () => void;
   onExit: () => void;
   onNewOrg?: () => void;
@@ -18,13 +18,16 @@ interface Props {
   children: ReactNode;
 }
 
-export function AppShell({ org, orgs, onSwitchOrg, page, setPage, onNewEntry, onExit, onNewOrg, user, children }: Props) {
+export function AppShell({ org, orgs, onSwitchOrg, page, onNewEntry, onExit, onNewOrg, user, children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
 
-  const handleNav = (p: PageId) => {
-    setPage(p);
-    setSidebarOpen(false); // close drawer on mobile after navigating
-  };
+  // Close sidebar drawer on any navigation (mobile)
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
+  const slug = org.slug ?? org.id;
 
   return (
     <div className="min-h-screen flex">
@@ -47,9 +50,9 @@ export function AppShell({ org, orgs, onSwitchOrg, page, setPage, onNewEntry, on
         <Sidebar
           org={org}
           orgs={orgs}
+          slug={slug}
           onSwitchOrg={onSwitchOrg}
           page={page}
-          setPage={handleNav}
           onExit={onExit}
           onNewOrg={onNewOrg}
           onClose={() => setSidebarOpen(false)}

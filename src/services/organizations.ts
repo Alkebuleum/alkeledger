@@ -11,6 +11,15 @@ function genInviteCode(): string {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
+export function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 50) || 'org';
+}
+
 export async function listOrganizationsForUser(userId: string): Promise<Organization[]> {
   if (USE_MOCK_DATA) return mockOrgs;
   if (!db) return [];
@@ -30,6 +39,7 @@ export async function listOrganizationsForUser(userId: string): Promise<Organiza
         const d = orgSnap.data();
         orgs.push({
           id: orgSnap.id,
+          slug: d.slug as string | undefined,
           name: d.name,
           type: d.type,
           createdAt: d.createdAt,
@@ -55,6 +65,7 @@ export async function getOrganization(orgId: string): Promise<Organization | nul
   const d = snap.data();
   return {
     id: snap.id,
+    slug: d.slug as string | undefined,
     name: d.name,
     type: d.type,
     createdAt: d.createdAt,
@@ -73,9 +84,11 @@ export async function createOrganization(
   userEmail: string,
 ): Promise<Organization> {
   const inviteCode = genInviteCode();
+  const slug = slugify(org.name);
   const newOrg: Organization = {
     ...org,
     id: 'org_' + Math.random().toString(36).slice(2, 8),
+    slug,
     createdAt: new Date().toISOString().slice(0, 10),
     inviteCode,
     createdBy: userId,
@@ -93,6 +106,7 @@ export async function createOrganization(
     currency: org.currency,
     logoInitials: org.logoInitials,
     tagline: org.tagline ?? '',
+    slug,
     inviteCode,
     createdBy: userId,
     createdAt: new Date().toISOString().slice(0, 10),
@@ -111,7 +125,7 @@ export async function createOrganization(
     duesPaid: false,
   });
 
-  return { ...newOrg, id: ref.id };
+  return { ...newOrg, id: ref.id, slug };
 }
 
 export async function getOrgByInviteCode(code: string): Promise<Organization | null> {
@@ -126,6 +140,7 @@ export async function getOrgByInviteCode(code: string): Promise<Organization | n
   const d = orgSnap.data();
   return {
     id: orgSnap.id,
+    slug: d.slug as string | undefined,
     name: d.name,
     type: d.type,
     createdAt: d.createdAt,
@@ -133,6 +148,30 @@ export async function getOrgByInviteCode(code: string): Promise<Organization | n
     logoInitials: d.logoInitials,
     tagline: d.tagline,
     inviteCode: d.inviteCode,
+  };
+}
+
+export async function getOrgBySlug(slug: string): Promise<Organization | null> {
+  if (USE_MOCK_DATA) return mockOrgs.find((o) => o.slug === slug) ?? null;
+  if (!db) return null;
+
+  const snap = await getDocs(
+    query(collection(db, 'organizations'), where('slug', '==', slug))
+  );
+  if (snap.empty) return null;
+  const orgSnap = snap.docs[0];
+  const d = orgSnap.data();
+  return {
+    id: orgSnap.id,
+    slug: d.slug as string | undefined,
+    name: d.name,
+    type: d.type,
+    createdAt: d.createdAt,
+    currency: d.currency,
+    logoInitials: d.logoInitials,
+    tagline: d.tagline,
+    inviteCode: d.inviteCode,
+    createdBy: d.createdBy,
   };
 }
 

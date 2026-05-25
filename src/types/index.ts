@@ -26,6 +26,7 @@ export type AnnouncementPriority = 'normal' | 'important' | 'urgent';
 
 export interface Organization {
   id: string;
+  slug?: string;
   name: string;
   type: OrgType;
   createdAt: string;

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Wallet, BookOpen, Megaphone, FileText, Inbox,
   BarChart3, Settings, FolderKanban, PieChart, ArrowDownToLine, ArrowUpFromLine,
@@ -23,16 +24,16 @@ interface NavItem {
 interface Props {
   org: Organization;
   orgs: Organization[];
+  slug: string;
   onSwitchOrg: (id: string) => void;
   page: PageId;
-  setPage: (page: PageId) => void;
   onExit: () => void;
   onClose?: () => void;
   onNewOrg?: () => void;
   user: AuthUser;
 }
 
-export function Sidebar({ org, orgs, onSwitchOrg, page, setPage, onExit, onClose, onNewOrg, user }: Props) {
+export function Sidebar({ org, orgs, slug, onSwitchOrg, page, onExit, onClose, onNewOrg, user }: Props) {
   const nav: NavItem[] = useMemo(() => {
     const common: NavItem[] = [{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }];
     const tail: NavItem[] = [
@@ -71,7 +72,6 @@ export function Sidebar({ org, orgs, onSwitchOrg, page, setPage, onExit, onClose
     <aside className="w-64 h-full border-r border-stone-200 bg-white flex flex-col">
       <div className="px-5 py-5 border-b border-stone-200 flex items-center justify-between">
         <Brand small />
-        {/* Close button — only visible on mobile as an escape hatch */}
         {onClose && (
           <button
             onClick={onClose}
@@ -86,18 +86,22 @@ export function Sidebar({ org, orgs, onSwitchOrg, page, setPage, onExit, onClose
       <OrgSwitcher orgs={orgs} current={org} onSwitch={onSwitchOrg} />
 
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-        {nav.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setPage(item.id)}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
-              page === item.id ? 'bg-stone-900 text-stone-50' : 'text-stone-700 hover:bg-stone-100'
-            }`}
-          >
-            <item.icon className="w-4 h-4 shrink-0" />
-            {item.label}
-          </button>
-        ))}
+        {nav.map((item) => {
+          const to = item.id === 'dashboard' ? `/${slug}` : `/${slug}/${item.id}`;
+          const active = page === item.id;
+          return (
+            <Link
+              key={item.id}
+              to={to}
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
+                active ? 'bg-stone-900 text-stone-50' : 'text-stone-700 hover:bg-stone-100'
+              }`}
+            >
+              <item.icon className="w-4 h-4 shrink-0" />
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
 
       <div className="p-3 border-t border-stone-200 space-y-1">

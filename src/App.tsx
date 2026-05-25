@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Routes, Route, Navigate, useNavigate, useParams, useMatch } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrgs } from '@/hooks/useOrg';
 import { useLedger } from '@/hooks/useLedger';
@@ -22,84 +23,130 @@ import { Transparency } from '@/pages/Transparency';
 import { Anchors } from '@/pages/Anchors';
 import { Settings } from '@/pages/Settings';
 import { NewEntryModal } from '@/modals/NewEntryModal';
-import type { LedgerEntry, LedgerStatus } from '@/types';
+import type { LedgerEntry, LedgerStatus, Organization } from '@/types';
+import type { AuthUser } from '@/hooks/useAuth';
 
-type UIStage = 'landing' | 'signin' | 'setup';
+function orgPath(org: Organization) {
+  return `/${org.slug ?? org.id}`;
+}
 
 export default function App() {
   const { user, loading: authLoading, requestOtp, verifyOtp, signOut } = useAuth();
-  const { orgs, currentOrg, currentOrgId, setCurrentOrgId, addOrg, joinOrg, loading: orgsLoading } = useOrgs(user);
-  const { entries: ledger, createEntry, setStatus, anchor } = useLedger(currentOrgId);
+  const { orgs, addOrg, joinOrg, loading: orgsLoading } = useOrgs(user);
+  const navigate = useNavigate();
 
-  const [uiStage, setUiStage] = useState<UIStage>('landing');
-  const [page, setPage] = useState<PageId>('dashboard');
-  const [showNewEntry, setShowNewEntry] = useState(false);
-
-  // ── Loading ─────────────────────────────────────────────────────────────────
-  if (authLoading) {
+  if (authLoading || (user && orgsLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center text-stone-500 font-editorial italic">
-        Loading…
+        {orgsLoading ? 'Loading workspace…' : 'Loading…'}
       </div>
     );
   }
 
-  // ── Unauthenticated ─────────────────────────────────────────────────────────
+  // ── Not signed in ───────────────────────────────────────────────────────────
   if (!user) {
-    if (uiStage === 'signin') {
-      return (
-        <SignIn
-          onBack={() => setUiStage('landing')}
-          onRequestOtp={requestOtp}
-          onVerifyOtp={verifyOtp}
+    return (
+      <Routes>
+        <Route
+          path="/signin"
+          element={
+            <SignIn
+              onBack={() => navigate('/')}
+              onRequestOtp={requestOtp}
+              onVerifyOtp={verifyOtp}
+            />
+          }
         />
-      );
-    }
-    return (
-      <Landing
-        onStart={() => setUiStage('signin')}
-        onDemo={() => setUiStage('signin')}
-      />
+        <Route
+          path="*"
+          element={
+            <Landing
+              onStart={() => navigate('/signin')}
+              onDemo={() => navigate('/signin')}
+            />
+          }
+        />
+      </Routes>
     );
   }
 
-  // ── Authenticated: org loading ───────────────────────────────────────────────
-  if (orgsLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-stone-500 font-editorial italic">
-        Loading workspace…
-      </div>
-    );
-  }
-
-  // ── Authenticated: no orgs yet → setup ─────────────────────────────────────
-  if (orgs.length === 0 || uiStage === 'setup') {
+  // ── Signed in, no orgs yet ──────────────────────────────────────────────────
+  if (orgs.length === 0) {
     return (
       <OrgSetup
-        onCreate={async (org) => {
-          await addOrg(org);
-          setUiStage('landing'); // clear setup stage
-          setPage('dashboard');
+        onCreate={async (data) => {
+          const org = await addOrg(data);
+          navigate(orgPath(org));
         }}
         onJoin={async (code) => {
-          await joinOrg(code);
-          setUiStage('landing');
-          setPage('dashboard');
+          const org = await joinOrg(code);
+          navigate(orgPath(org));
         }}
-        onCancel={orgs.length > 0 ? () => setUiStage('landing') : undefined}
         user={user}
       />
     );
   }
 
-  // ── Authenticated: no org selected ──────────────────────────────────────────
-  if (!currentOrg) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-stone-500 font-editorial italic">
-        No organization selected.
-      </div>
-    );
+  // ── Signed in, has orgs ─────────────────────────────────────────────────────
+  return (
+    <Routes>
+      <Route
+        path="/setup"
+        element={
+          <OrgSetup
+            onCreate={async (data) => {
+              const org = await addOrg(data);
+              navigate(orgPath(org));
+            }}
+            onJoin={async (code) => {
+              const org = await joinOrg(code);
+              navigate(orgPath(org));
+            }}
+            onCancel={() => navigate(-1)}
+            user={user}
+          />
+        }
+      />
+      <Route
+        path="/:slug/*"
+        element={
+          <OrgShell orgs={orgs} user={user} signOut={signOut} />
+        }
+      />
+      <Route path="*" element={<Navigate to={orgPath(orgs[0])} replace />} />
+    </Routes>
+  );
+}
+
+// ── OrgShell ──────────────────────────────────────────────────────────────────
+
+interface OrgShellProps {
+  orgs: Organization[];
+  user: AuthUser;
+  signOut: () => Promise<void>;
+}
+
+function OrgShell({ orgs, user, signOut }: OrgShellProps) {
+  const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
+
+  // Derive current page from URL: /:slug/:page
+  const pageMatch = useMatch('/:slug/:page');
+  const pageId = (pageMatch?.params.page ?? 'dashboard') as PageId;
+
+  const org = orgs.find((o) => (o.slug ?? o.id) === slug) ?? null;
+
+  const { entries: ledger, createEntry, setStatus, anchor } = useLedger(org?.id ?? null);
+  const [showNewEntry, setShowNewEntry] = useState(false);
+
+  if (!org) {
+    return <Navigate to={orgPath(orgs[0])} replace />;
   }
+
+  const handleSwitchOrg = (id: string) => {
+    const target = orgs.find((o) => o.id === id);
+    if (target) navigate(orgPath(target));
+  };
 
   const handleSaveEntry = async (entry: LedgerEntry) => {
     await createEntry(entry);
@@ -109,21 +156,19 @@ export default function App() {
   return (
     <>
       <AppShell
-        org={currentOrg}
+        org={org}
         orgs={orgs}
-        onSwitchOrg={setCurrentOrgId}
-        page={page}
-        setPage={setPage}
+        onSwitchOrg={handleSwitchOrg}
+        page={pageId}
         onNewEntry={() => setShowNewEntry(true)}
         onExit={signOut}
-        onNewOrg={() => setUiStage('setup')}
+        onNewOrg={() => navigate('/setup')}
         user={user}
       >
-        <PageRouter
-          page={page}
-          orgId={currentOrgId!}
+        <PageContent
+          page={pageId}
+          org={org}
           ledger={ledger}
-          org={currentOrg}
           user={user}
           onApprove={setStatus}
           onAnchor={anchor}
@@ -132,7 +177,7 @@ export default function App() {
 
       {showNewEntry && (
         <NewEntryModal
-          org={currentOrg}
+          org={org}
           user={user}
           onClose={() => setShowNewEntry(false)}
           onSave={handleSaveEntry}
@@ -142,17 +187,18 @@ export default function App() {
   );
 }
 
-interface RouterProps {
+// ── Page content router ───────────────────────────────────────────────────────
+
+interface PageContentProps {
   page: PageId;
-  orgId: string;
+  org: Organization;
   ledger: LedgerEntry[];
-  org: NonNullable<ReturnType<typeof useOrgs>['currentOrg']>;
-  user: NonNullable<ReturnType<typeof useAuth>['user']>;
+  user: AuthUser;
   onApprove: (entryId: string, status: LedgerStatus) => Promise<void>;
   onAnchor: (entryId: string) => Promise<void>;
 }
 
-function PageRouter({ page, ledger, org, user, onApprove, onAnchor }: RouterProps) {
+function PageContent({ page, ledger, org, user, onApprove, onAnchor }: PageContentProps) {
   switch (page) {
     case 'dashboard':     return <Dashboard org={org} ledger={ledger} />;
     case 'ledger':        return <Ledger ledger={ledger} />;
