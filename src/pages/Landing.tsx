@@ -34,7 +34,7 @@ export function Landing({ onStart, onDemo }: Props) {
           <div className="flex items-end justify-between py-5">
             <div className="flex items-center gap-3">
               <img src="/logo.svg" alt="AlkeLedger" className="h-10 w-auto" />
-              <div className="font-display text-3xl md:text-4xl font-medium leading-none">AlkeLedger</div>
+              <div className="font-display text-3xl md:text-4xl leading-none"><span className="font-bold">Alke</span><span className="font-light">Ledger</span></div>
             </div>
             <nav className="hidden md:flex items-center gap-8 text-xs uppercase tracking-[0.18em] text-stone-700">
               <a className="hover:text-[var(--ink)] border-b border-transparent hover:border-[var(--ink)] pb-0.5" href="#concept">The Idea</a>
@@ -331,7 +331,7 @@ export function Landing({ onStart, onDemo }: Props) {
         <div className="max-w-[1400px] mx-auto px-6 lg:px-12 py-12">
           <div className="grid md:grid-cols-12 gap-8 items-end">
             <div className="md:col-span-5">
-              <div className="font-display text-2xl">AlkeLedger</div>
+              <div className="font-display text-2xl"><span className="font-bold">Alke</span><span className="font-light">Ledger</span></div>
               <p className="text-xs text-stone-600 mt-2 font-editorial italic max-w-md">
                 A modern instrument of record. Ledgers for organizations that intend to be trusted.
               </p>

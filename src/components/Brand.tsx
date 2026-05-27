@@ -12,7 +12,7 @@ export function Brand({ small = false }: Props) {
       />
       <div className="leading-tight">
         <div className={`font-display ${small ? 'text-base' : 'text-lg'} text-stone-900`}>
-          AlkeLedger
+          <span className="font-bold">Alke</span><span className="font-light">Ledger</span>
         </div>
         {!small && (
           <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
