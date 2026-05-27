@@ -150,6 +150,49 @@ Every Firebase / blockchain integration site is marked with `🔌 FIREBASE` or `
 
 ---
 
+## Deploying to Firebase Hosting
+
+The project is linked to the `bracket-f99ff` Firebase project (display name: **peerGov**) via `.firebaserc`.
+
+### Prerequisites
+
+```bash
+npm install -g firebase-tools
+firebase login
+```
+
+### Build and deploy (hosting only)
+
+```bash
+npm run build
+firebase deploy --only hosting
+```
+
+Live URL: **https://bracket-f99ff.web.app**
+
+### Deploy everything (hosting + functions + rules)
+
+```bash
+npm run build
+firebase deploy
+```
+
+### Deploy rules/indexes only (no rebuild needed)
+
+```bash
+firebase deploy --only firestore:rules,firestore:indexes,storage:rules
+```
+
+### Deploy Cloud Functions only
+
+```bash
+firebase deploy --only functions
+```
+
+> **Note for AI assistants:** The `.firebaserc` at the repo root already points to `bracket-f99ff`. You do not need to run `firebase use --add`. Just build and deploy.
+
+---
+
 ## Roadmap
 
 This codebase covers MVP Stages 1–4 (structure, schema, role layer, ledger workflow) with stubs ready for Stages 5–6:
