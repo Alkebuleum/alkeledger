@@ -6,10 +6,9 @@ export function Brand({ small = false }: Props) {
   return (
     <div className="flex items-center gap-2.5">
       <img
-        src="/logo.svg"
+        src="/icon.png"
         alt="AlkeLedger"
-        className={small ? 'w-7 h-7' : 'w-9 h-9'}
-        style={{ objectFit: 'contain' }}
+        className={`${small ? 'w-7 h-7' : 'w-9 h-9'} rounded-md`}
       />
       <div className="leading-tight">
         <div className={`font-display ${small ? 'text-base' : 'text-lg'} text-stone-900`}>
