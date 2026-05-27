@@ -4,11 +4,12 @@ import type { Organization } from '@/types';
 
 interface Props {
   orgs: Organization[];
+  pendingOrgs?: Organization[];
   current: Organization;
   onSwitch: (id: string) => void;
 }
 
-export function OrgSwitcher({ orgs, current, onSwitch }: Props) {
+export function OrgSwitcher({ orgs, pendingOrgs = [], current, onSwitch }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -52,6 +53,26 @@ export function OrgSwitcher({ orgs, current, onSwitch }: Props) {
               {o.id === current.id && <Check className="w-4 h-4 text-stone-900" />}
             </button>
           ))}
+
+          {pendingOrgs.length > 0 && (
+            <>
+              {orgs.length > 0 && <div className="my-1 border-t border-stone-100" />}
+              {pendingOrgs.map((o) => (
+                <div
+                  key={o.id}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm opacity-60 cursor-default"
+                >
+                  <div className="w-6 h-6 rounded bg-stone-300 text-stone-600 flex items-center justify-center text-[10px]">
+                    {o.logoInitials}
+                  </div>
+                  <div className="flex-1 text-left min-w-0">
+                    <div className="text-stone-700 truncate">{o.name}</div>
+                    <div className="text-[10px] text-stone-400">Pending approval</div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>

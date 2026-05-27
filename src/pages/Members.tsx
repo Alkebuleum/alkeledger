@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, X, Mail, UserCheck, UserX, Wallet, Trash2, Copy, CheckCheck, Clock, Building2 } from 'lucide-react';
+import { Plus, X, Mail, UserCheck, UserX, Wallet, Trash2, Copy, CheckCheck, Clock, Building2, Link2, Share2 } from 'lucide-react';
 import { StatusPill } from '@/components/StatusPill';
 import { Panel } from '@/components/Panel';
 import {
@@ -169,7 +169,7 @@ export function Members({ org, user }: Props) {
                   onClick={() => setShowCode(true)}
                   className="px-3 py-1.5 text-xs border border-stone-300 text-stone-700 hover:bg-stone-100 flex items-center gap-1.5"
                 >
-                  <HashIcon className="w-3 h-3" /> Code
+                  <Link2 className="w-3 h-3" /> Share link
                 </button>
               )}
               <button
@@ -315,7 +315,12 @@ export function Members({ org, user }: Props) {
       )}
 
       {showCode && org.inviteCode && (
-        <InviteCodeModal code={org.inviteCode} onClose={() => setShowCode(false)} />
+        <InviteCodeModal
+          code={org.inviteCode}
+          orgName={org.name}
+          joinUrl={`${import.meta.env.VITE_APP_URL ?? window.location.origin}/join/${org.inviteCode}`}
+          onClose={() => setShowCode(false)}
+        />
       )}
     </div>
   );
@@ -332,14 +337,6 @@ function MemberTypeBadge({ type }: { type?: MemberType }) {
   );
 }
 
-function HashIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <line x1="4" y1="9" x2="20" y2="9" /><line x1="4" y1="15" x2="20" y2="15" />
-      <line x1="10" y1="3" x2="8" y2="21" /><line x1="16" y1="3" x2="14" y2="21" />
-    </svg>
-  );
-}
 
 function Avatar({ name, isOrg = false, size = 'md' }: { name: string; isOrg?: boolean; size?: 'sm' | 'md' }) {
   const initials = name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
@@ -510,25 +507,84 @@ function InviteModal({ org, onClose, onDone }: { org: Organization; onClose: () 
 
 // ── Invite code modal ─────────────────────────────────────────────────────────
 
-function InviteCodeModal({ code, onClose }: { code: string; onClose: () => void }) {
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
+function InviteCodeModal({
+  code, orgName, joinUrl, onClose,
+}: { code: string; orgName: string; joinUrl: string; onClose: () => void }) {
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  function copyLink() {
+    navigator.clipboard.writeText(joinUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  }
+
+  function copyCode() {
     navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  }
+
+  const canShare = typeof navigator.share === 'function';
+
+  function shareNative() {
+    navigator.share({
+      title: `Join ${orgName} on AlkeLedger`,
+      text: `You're invited to join ${orgName}. Click to view the workspace.`,
+      url: joinUrl,
+    }).catch(() => {/* dismissed */});
+  }
+
   return (
-    <Modal title="Workspace invite code" onClose={onClose}>
-      <p className="text-sm text-stone-600 mb-4">Share this code with anyone you want to invite.</p>
-      <div className="bg-stone-900 text-stone-50 px-6 py-5 text-center rounded-sm mb-4">
-        <div className="font-display text-5xl tracking-[.3em]">{code}</div>
-        <div className="text-xs text-stone-400 mt-2 uppercase tracking-[.2em]">Invite code</div>
+    <Modal title="Invite to workspace" onClose={onClose}>
+      <p className="text-sm text-stone-600 mb-4">
+        Share this link — anyone who opens it will see a preview of the workspace and can request to join.
+      </p>
+
+      {/* Join link display */}
+      <div className="bg-stone-50 border border-stone-200 px-4 py-3 mb-3">
+        <span className="text-xs text-stone-600 font-mono break-all leading-relaxed">{joinUrl}</span>
+      </div>
+
+      <div className="flex gap-2 mb-5">
+        <button
+          onClick={copyLink}
+          className="flex-1 py-2.5 border border-stone-300 text-sm text-stone-700 hover:bg-stone-50 flex items-center justify-center gap-2"
+        >
+          {copiedLink
+            ? <><CheckCheck className="w-4 h-4 text-emerald-600" /> Copied!</>
+            : <><Copy className="w-4 h-4" /> Copy link</>}
+        </button>
+        {canShare && (
+          <button
+            onClick={shareNative}
+            title="Share via…"
+            className="px-4 py-2.5 border border-stone-300 text-sm text-stone-700 hover:bg-stone-50 flex items-center gap-2"
+          >
+            <Share2 className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Divider */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="flex-1 h-px bg-stone-200" />
+        <span className="text-xs text-stone-400 uppercase tracking-widest">or share the code</span>
+        <div className="flex-1 h-px bg-stone-200" />
+      </div>
+
+      {/* Invite code */}
+      <div className="bg-stone-900 text-stone-50 px-6 py-4 text-center mb-3">
+        <div className="font-display text-4xl tracking-[.3em]">{code}</div>
+        <div className="text-xs text-stone-400 mt-1.5 uppercase tracking-[.2em]">Invite code</div>
       </div>
       <button
-        onClick={copy}
-        className="w-full py-2.5 border border-stone-300 text-sm text-stone-700 hover:bg-stone-50 flex items-center justify-center gap-2"
+        onClick={copyCode}
+        className="w-full py-2 border border-stone-300 text-sm text-stone-600 hover:bg-stone-50 flex items-center justify-center gap-2"
       >
-        {copied ? <><CheckCheck className="w-4 h-4 text-emerald-600" /> Copied!</> : <><Copy className="w-4 h-4" /> Copy code</>}
+        {copiedCode
+          ? <><CheckCheck className="w-4 h-4 text-emerald-600" /> Copied!</>
+          : <><Copy className="w-4 h-4" /> Copy code</>}
       </button>
     </Modal>
   );

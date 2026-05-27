@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Wallet, BookOpen, Megaphone, FileText, Inbox,
   BarChart3, Settings, FolderKanban, PieChart, ArrowDownToLine, ArrowUpFromLine,
-  ShieldCheck, Globe, FileCheck, LogOut, X, Plus,
+  ShieldCheck, Globe, FileCheck, LogOut, X, Plus, CalendarDays,
 } from 'lucide-react';
 import { Brand } from '@/components/Brand';
 import { OrgSwitcher } from './OrgSwitcher';
@@ -11,7 +11,7 @@ import type { Organization } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
 
 export type PageId =
-  | 'dashboard' | 'members' | 'dues' | 'ledger' | 'announcements' | 'requests'
+  | 'dashboard' | 'members' | 'dues' | 'ledger' | 'announcements' | 'events' | 'requests'
   | 'projects' | 'budgets' | 'income' | 'expenses' | 'approvals'
   | 'documents' | 'reports' | 'transparency' | 'anchors' | 'settings';
 
@@ -24,6 +24,7 @@ interface NavItem {
 interface Props {
   org: Organization;
   orgs: Organization[];
+  pendingOrgs?: Organization[];
   slug: string;
   onSwitchOrg: (id: string) => void;
   page: PageId;
@@ -33,7 +34,7 @@ interface Props {
   user: AuthUser;
 }
 
-export function Sidebar({ org, orgs, slug, onSwitchOrg, page, onExit, onClose, onNewOrg, user }: Props) {
+export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExit, onClose, onNewOrg, user }: Props) {
   const nav: NavItem[] = useMemo(() => {
     const common: NavItem[] = [{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }];
     const tail: NavItem[] = [
@@ -50,7 +51,8 @@ export function Sidebar({ org, orgs, slug, onSwitchOrg, page, onExit, onClose, o
         { id: 'dues', label: 'Dues', icon: Wallet },
         { id: 'ledger', label: 'Ledger', icon: BookOpen },
         { id: 'announcements', label: 'Announcements', icon: Megaphone },
-        { id: 'requests', label: 'Requests', icon: Inbox },
+        { id: 'events',        label: 'Events',         icon: CalendarDays },
+        { id: 'requests',      label: 'Requests',       icon: Inbox },
         ...tail,
       ];
     }
@@ -83,7 +85,7 @@ export function Sidebar({ org, orgs, slug, onSwitchOrg, page, onExit, onClose, o
         )}
       </div>
 
-      <OrgSwitcher orgs={orgs} current={org} onSwitch={onSwitchOrg} />
+      <OrgSwitcher orgs={orgs} pendingOrgs={pendingOrgs} current={org} onSwitch={onSwitchOrg} />
 
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
         {nav.map((item) => {

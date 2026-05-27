@@ -9,6 +9,7 @@ import type { ReactNode } from 'react';
 interface Props {
   org: Organization;
   orgs: Organization[];
+  pendingOrgs?: Organization[];
   onSwitchOrg: (id: string) => void;
   page: PageId;
   onNewEntry: () => void;
@@ -18,7 +19,7 @@ interface Props {
   children: ReactNode;
 }
 
-export function AppShell({ org, orgs, onSwitchOrg, page, onNewEntry, onExit, onNewOrg, user, children }: Props) {
+export function AppShell({ org, orgs, pendingOrgs, onSwitchOrg, page, onNewEntry, onExit, onNewOrg, user, children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
@@ -50,6 +51,7 @@ export function AppShell({ org, orgs, onSwitchOrg, page, onNewEntry, onExit, onN
         <Sidebar
           org={org}
           orgs={orgs}
+          pendingOrgs={pendingOrgs}
           slug={slug}
           onSwitchOrg={onSwitchOrg}
           page={page}

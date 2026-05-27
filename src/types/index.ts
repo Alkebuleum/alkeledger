@@ -31,6 +31,24 @@ export interface DuesRates {
   organization: number;
 }
 
+export type DuesType = 'annual' | 'quarterly' | 'monthly' | 'emergency' | 'special';
+export type DuesPeriodStatus = 'upcoming' | 'active' | 'closed';
+
+export interface DuesPeriod {
+  id: string;
+  orgId: string;
+  name: string;
+  type: DuesType;
+  amountIndividual: number;
+  amountOrganization: number;
+  periodStart?: string;   // date range this collection covers (start)
+  periodEnd?: string;     // date range this collection covers (end)
+  deadline: string;       // when payment must be received by
+  status: DuesPeriodStatus;
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface Organization {
   id: string;
   slug?: string;
@@ -92,6 +110,7 @@ export interface LedgerEntry {
   description: string;
   projectId?: string;
   memberId?: string;
+  duesPeriodId?: string;
   receiptUrl?: string;
   status: LedgerStatus;
   createdBy: string;
@@ -112,6 +131,8 @@ export interface DocumentRecord {
   uploaded: string;
   category: string;
   url?: string;
+  storagePath?: string;
+  uploadedBy?: string;
 }
 
 export interface Announcement {
@@ -121,8 +142,42 @@ export interface Announcement {
   body: string;
   date: string;
   priority: AnnouncementPriority;
+  pinned?: boolean;
   createdBy: string;
   createdByUid?: string;
+}
+
+export interface Benefit {
+  id: string;
+  orgId: string;
+  name: string;
+  description?: string;
+  maxAmount?: number;
+  requiresAmount?: boolean;
+  active: boolean;
+  createdBy: string;
+  createdAt: string;
+}
+
+export type BenefitRequestStatus = 'pending' | 'approved' | 'rejected' | 'paid';
+
+export interface BenefitRequest {
+  id: string;
+  orgId: string;
+  benefitId: string;
+  benefitName: string;
+  memberId: string;
+  memberName: string;
+  amount?: number;
+  justification?: string;
+  status: BenefitRequestStatus;
+  response?: string;
+  closedBy?: string;
+  closedAt?: string;
+  paidAt?: string;
+  paidBy?: string;
+  paidAmount?: number;
+  createdAt: string;
 }
 
 export interface MemberRequest {
@@ -153,6 +208,30 @@ export interface Report {
   date: string;
   anchored: boolean;
   url?: string;
+}
+
+export type RsvpStatus = 'attending' | 'maybe' | 'declining';
+
+export interface EventRsvp {
+  name: string;
+  status: RsvpStatus;
+  respondedAt: string;
+}
+
+export interface OrgEvent {
+  id: string;
+  orgId: string;
+  title: string;
+  description?: string;
+  location?: string;
+  startDate: string;   // YYYY-MM-DDTHH:mm
+  endDate?: string;    // YYYY-MM-DDTHH:mm
+  allDay?: boolean;
+  cancelled?: boolean;
+  rsvps?: Record<string, EventRsvp>; // userId → rsvp
+  createdBy: string;
+  createdByUid?: string;
+  createdAt: string;
 }
 
 export interface Anchor {

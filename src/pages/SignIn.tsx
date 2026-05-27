@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ClipboardEvent } from 'react';
+import { useRef, useState, type KeyboardEvent, type ClipboardEvent } from 'react';
 import { ArrowLeft, Mail } from 'lucide-react';
 import { Brand } from '@/components/Brand';
 
@@ -14,28 +14,7 @@ export function SignIn({ onBack, onRequestOtp, onVerifyOtp }: Props) {
   const [digits, setDigits]   = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
-  const [fromInvite, setFromInvite] = useState(false);
   const boxRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  // If the user arrived via an invite link, their email was saved to
-  // sessionStorage. Auto-send the OTP and jump straight to code entry.
-  useEffect(() => {
-    const inviteEmail = sessionStorage.getItem('pendingInviteEmail');
-    if (!inviteEmail) return;
-    sessionStorage.removeItem('pendingInviteEmail');
-    setEmail(inviteEmail);
-    setFromInvite(true);
-    setLoading(true);
-    onRequestOtp(inviteEmail)
-      .then(() => {
-        setStep('code');
-        setTimeout(() => boxRefs.current[0]?.focus(), 60);
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Could not send code. Try again.');
-      })
-      .finally(() => setLoading(false));
-  }, []);
 
   async function handleSendCode(e: React.FormEvent) {
     e.preventDefault();
@@ -96,27 +75,22 @@ export function SignIn({ onBack, onRequestOtp, onVerifyOtp }: Props) {
         <div className="mb-8 flex items-center justify-between">
           <Brand />
           <button
-            onClick={step === 'code' && !fromInvite
+            onClick={step === 'code'
               ? () => { setStep('email'); setDigits(['','','','','','']); setError(''); }
               : onBack}
             className="text-sm text-stone-500 hover:text-stone-900 flex items-center gap-1"
           >
             <ArrowLeft className="w-4 h-4" />
-            {step === 'code' && !fromInvite ? 'Change email' : 'Back'}
+            {step === 'code' ? 'Change email' : 'Back'}
           </button>
         </div>
 
         <div className="bg-white border border-stone-200 p-8">
           {step === 'code' ? (
             <>
-              <h2 className="font-display text-2xl mb-1">
-                {fromInvite ? 'One step to join' : 'Check your email'}
-              </h2>
+              <h2 className="font-display text-2xl mb-1">Check your email</h2>
               <p className="text-stone-500 text-sm mb-6">
-                {fromInvite
-                  ? <>We sent a 6-digit code to <strong>{email}</strong>. Enter it to accept your invitation.</>
-                  : <>We sent a 6-digit code to <strong>{email}</strong>. Enter it below.</>
-                }
+                We sent a 6-digit code to <strong>{email}</strong>. Enter it below.
               </p>
 
               {error && (

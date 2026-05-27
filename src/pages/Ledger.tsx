@@ -1,29 +1,61 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Hash } from 'lucide-react';
 import { StatusPill } from '@/components/StatusPill';
 import { fmt } from '@/lib/format';
-import type { LedgerEntry, LedgerStatus } from '@/types';
+import { listDuesPeriods } from '@/services/dues';
+import type { DuesPeriod, LedgerEntry, LedgerStatus, Organization } from '@/types';
 
 interface Props {
   ledger: LedgerEntry[];
+  org: Organization;
 }
 
-type Filter = 'all' | LedgerStatus;
+type StatusFilter = 'all' | LedgerStatus;
 
-export function Ledger({ ledger }: Props) {
-  const [filter, setFilter] = useState<Filter>('all');
-  const filtered = ledger.filter((l) => (filter === 'all' ? true : l.status === filter));
-  const filters: Filter[] = ['all', 'draft', 'pending', 'approved', 'rejected', 'anchored'];
+const STATUS_FILTERS: StatusFilter[] = ['all', 'draft', 'pending', 'approved', 'rejected', 'anchored'];
+
+export function Ledger({ ledger, org }: Props) {
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [periods, setPeriods] = useState<DuesPeriod[]>([]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+
+  // Load dues periods once for membership orgs
+  useEffect(() => {
+    if (org.type !== 'membership') return;
+    listDuesPeriods(org.id).then(setPeriods);
+  }, [org.id, org.type]);
+
+  const filtered = ledger.filter((e) => {
+    if (statusFilter !== 'all' && e.status !== statusFilter) return false;
+    if (selectedPeriodId && e.duesPeriodId !== selectedPeriodId) return false;
+    return true;
+  });
 
   return (
-    <div className="p-8 max-w-7xl">
-      <div className="flex items-center gap-2 mb-5">
-        {filters.map((f) => (
+    <div className="p-4 sm:p-8 max-w-7xl space-y-4">
+
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Dues period picker — membership orgs only */}
+        {org.type === 'membership' && periods.length > 0 && (
+          <select
+            value={selectedPeriodId}
+            onChange={(e) => setSelectedPeriodId(e.target.value)}
+            className="px-3 py-1.5 border border-stone-300 rounded-md text-xs bg-white focus:outline-none focus:ring-2 focus:ring-stone-900"
+          >
+            <option value="">All periods</option>
+            {periods.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        )}
+
+        {/* Status filter pills */}
+        {STATUS_FILTERS.map((f) => (
           <button
             key={f}
-            onClick={() => setFilter(f)}
+            onClick={() => setStatusFilter(f)}
             className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize ${
-              filter === f
+              statusFilter === f
                 ? 'bg-stone-900 text-stone-50'
                 : 'bg-white ring-1 ring-stone-200 text-stone-700 hover:bg-stone-50'
             }`}
@@ -31,6 +63,7 @@ export function Ledger({ ledger }: Props) {
             {f}
           </button>
         ))}
+
         <div className="ml-auto text-xs text-stone-500">
           {filtered.length} of {ledger.length}
         </div>
@@ -57,7 +90,9 @@ export function Ledger({ ledger }: Props) {
                   <div className="text-[11px] text-stone-500">{e.id} · {e.createdBy}</div>
                 </td>
                 <td className="px-5 py-3 text-stone-600">{e.category}</td>
-                <td className={`px-5 py-3 text-right font-medium whitespace-nowrap ${e.type === 'income' ? 'text-emerald-700' : 'text-stone-900'}`}>
+                <td className={`px-5 py-3 text-right font-medium whitespace-nowrap ${
+                  e.type === 'income' ? 'text-emerald-700' : 'text-stone-900'
+                }`}>
                   {e.type === 'income' ? '+' : '−'}{fmt(e.amount, e.currency)}
                 </td>
                 <td className="px-5 py-3"><StatusPill value={e.status} /></td>

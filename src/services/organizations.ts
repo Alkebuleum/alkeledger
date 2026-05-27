@@ -40,28 +40,47 @@ function docToOrg(id: string, d: Record<string, unknown>): Organization {
   };
 }
 
-export async function listOrganizationsForUser(userId: string): Promise<Organization[]> {
-  if (USE_MOCK_DATA) return mockOrgs;
-  if (!db) return [];
+export async function listAllOrgsForUser(
+  userId: string,
+): Promise<{ active: Organization[]; pending: Organization[] }> {
+  if (USE_MOCK_DATA) return { active: mockOrgs, pending: [] };
+  if (!db) return { active: [], pending: [] };
 
   const snap = await getDocs(
     query(collection(db, 'memberships'), where('userId', '==', userId))
   );
-  if (snap.empty) return [];
+  if (snap.empty) return { active: [], pending: [] };
 
-  const orgIds = [...new Set(snap.docs.map((d) => d.data().orgId as string))];
-  const orgs: Organization[] = [];
+  const activeIds: string[] = [];
+  const pendingIds: string[] = [];
+  for (const d of snap.docs) {
+    const data = d.data();
+    const orgId = data.orgId as string;
+    if (data.status === 'active') activeIds.push(orgId);
+    else if (data.status === 'pending') pendingIds.push(orgId);
+  }
 
+  const allIds = [...new Set([...activeIds, ...pendingIds])];
+  if (allIds.length === 0) return { active: [], pending: [] };
+
+  const orgMap = new Map<string, Organization>();
   await Promise.all(
-    orgIds.map(async (orgId) => {
+    allIds.map(async (orgId) => {
       const orgSnap = await getDoc(doc(db!, 'organizations', orgId));
       if (orgSnap.exists()) {
-        orgs.push(docToOrg(orgSnap.id, orgSnap.data() as Record<string, unknown>));
+        orgMap.set(orgSnap.id, docToOrg(orgSnap.id, orgSnap.data() as Record<string, unknown>));
       }
     })
   );
 
-  return orgs;
+  const toOrgs = (ids: string[]) =>
+    [...new Set(ids)].map((id) => orgMap.get(id)).filter(Boolean) as Organization[];
+
+  return { active: toOrgs(activeIds), pending: toOrgs(pendingIds) };
+}
+
+export async function listOrganizationsForUser(userId: string): Promise<Organization[]> {
+  return (await listAllOrgsForUser(userId)).active;
 }
 
 export async function getOrganization(orgId: string): Promise<Organization | null> {

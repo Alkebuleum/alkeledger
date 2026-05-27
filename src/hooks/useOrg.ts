@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  listOrganizationsForUser, createOrganization, joinOrganization,
+  listAllOrgsForUser, createOrganization, joinOrganization,
   getOrgByInviteCode, deleteOrganization, updateOrgSettings,
 } from '@/services/organizations';
 import type { AuthUser } from './useAuth';
@@ -8,27 +8,32 @@ import type { Organization, MemberType, DuesRates } from '@/types';
 
 export function useOrgs(user: AuthUser | null) {
   const [orgs, setOrgs] = useState<Organization[]>([]);
+  const [pendingOrgs, setPendingOrgs] = useState<Organization[]>([]);
   // Track which uid's orgs are currently loaded. null = not yet loaded.
   const [loadedForUid, setLoadedForUid] = useState<string | null>(null);
+
+  const fetchOrgs = useCallback((uid: string) => {
+    listAllOrgsForUser(uid)
+      .then(({ active, pending }) => {
+        setOrgs(active);
+        setPendingOrgs(pending);
+        setLoadedForUid(uid);
+      })
+      .catch(() => {
+        setOrgs([]);
+        setPendingOrgs([]);
+        setLoadedForUid(uid);
+      });
+  }, []);
 
   useEffect(() => {
     if (!user) {
       setOrgs([]);
+      setPendingOrgs([]);
       setLoadedForUid(null);
       return;
     }
-
-    // Don't reset loadedForUid here — the derived `loading` below is already
-    // true because user.uid !== loadedForUid. Avoid the extra re-render.
-    listOrganizationsForUser(user.uid)
-      .then((list) => {
-        setOrgs(list);
-        setLoadedForUid(user.uid);
-      })
-      .catch(() => {
-        setOrgs([]);
-        setLoadedForUid(user.uid);
-      });
+    fetchOrgs(user.uid);
   }, [user?.uid]);
 
   // loading is true whenever a non-null user's orgs haven't been fetched yet.
@@ -43,12 +48,15 @@ export function useOrgs(user: AuthUser | null) {
     return created;
   };
 
-  const joinOrg = async (inviteCode: string): Promise<Organization> => {
+  const joinOrg = async (inviteCode: string, nameOverride?: string): Promise<Organization> => {
     if (!user) throw new Error('Not authenticated');
     const org = await getOrgByInviteCode(inviteCode);
     if (!org) throw new Error('Invalid invite code');
-    await joinOrganization(org.id, user.uid, user.displayName, user.email);
-    setOrgs((prev) => [...prev, org]);
+    const name = nameOverride ?? user.displayName ?? '';
+    await joinOrganization(org.id, user.uid, name, user.email);
+    // Membership is created with status:'pending' — add to pending, not active.
+    // Adding to active would incorrectly route the user into the workspace.
+    setPendingOrgs((prev) => [...prev, org]);
     return org;
   };
 
@@ -67,5 +75,7 @@ export function useOrgs(user: AuthUser | null) {
     );
   };
 
-  return { orgs, addOrg, joinOrg, removeOrg, saveOrgSettings, loading };
+  const refreshOrgs = () => { if (user) fetchOrgs(user.uid); };
+
+  return { orgs, pendingOrgs, addOrg, joinOrg, removeOrg, saveOrgSettings, loading, refreshOrgs };
 }

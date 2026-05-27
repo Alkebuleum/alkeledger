@@ -80,10 +80,17 @@ export function useAuth() {
     setUser(authUser);
   }
 
+  async function signInWithToken(customToken: string): Promise<void> {
+    if (!app || !auth) throw new Error('Firebase not initialized');
+    const credential = await signInWithCustomToken(auth, customToken);
+    const authUser = await ensureUserDoc(credential.user);
+    setUser(authUser);
+  }
+
   async function signOut(): Promise<void> {
     if (auth) await fbSignOut(auth);
     setUser(null);
   }
 
-  return { user, loading, requestOtp, verifyOtp, signOut };
+  return { user, loading, requestOtp, verifyOtp, signInWithToken, signOut };
 }

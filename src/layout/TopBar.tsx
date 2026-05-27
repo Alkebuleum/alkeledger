@@ -15,6 +15,7 @@ const titles: Record<PageId, string> = {
   dues: 'Dues',
   ledger: 'The Ledger',
   announcements: 'Announcements',
+  events: 'Events & Meetings',
   requests: 'Member Requests',
   projects: 'Projects',
   budgets: 'Budgets',

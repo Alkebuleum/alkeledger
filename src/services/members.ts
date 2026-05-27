@@ -98,6 +98,14 @@ export async function setDuesPaid(
   await updateDoc(doc(db, 'memberships', membershipId(orgId, userId)), { duesPaid });
 }
 
+export async function resetAllDuesPaid(orgId: string): Promise<void> {
+  if (USE_MOCK_DATA || !db) return;
+  const snap = await getDocs(
+    query(collection(db, 'memberships'), where('orgId', '==', orgId), where('status', '==', 'active'))
+  );
+  await Promise.all(snap.docs.map((d) => updateDoc(d.ref, { duesPaid: false })));
+}
+
 export async function updateMemberInfo(
   orgId: string,
   userId: string,
@@ -172,9 +180,13 @@ export async function inviteMembers(
         expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
         createdAt: serverTimestamp(),
       });
+
+      await sendInviteEmail(email, name, orgName, inviteCode, token);
+      result.sent++;
+      continue;
     }
 
-    await sendInviteEmail(email, name, orgName, inviteCode);
+    await sendInviteEmail(email, name, orgName, inviteCode, null);
     result.sent++;
   }
 
@@ -186,13 +198,19 @@ async function sendInviteEmail(
   name: string,
   orgName: string,
   inviteCode: string,
+  token: string | null,
 ): Promise<void> {
   const brevoKey = import.meta.env.VITE_BREVO_API_KEY;
   const senderEmail = import.meta.env.VITE_BREVO_SENDER_EMAIL;
   const appUrl = import.meta.env.VITE_APP_URL ?? window.location.origin;
 
+  // The invite link: /join/CODE?t=TOKEN for email invites, /join/CODE for manual.
+  const joinLink = token
+    ? `${appUrl}/join/${inviteCode}?t=${token}`
+    : `${appUrl}/join/${inviteCode}`;
+
   if (!brevoKey || !senderEmail) {
-    console.log(`[DEV INVITE] ${name} <${email}> → org code ${inviteCode}`);
+    console.log(`[DEV INVITE] ${name} <${email}> → ${joinLink}`);
     return;
   }
 
@@ -205,14 +223,14 @@ async function sendInviteEmail(
       <p style="color:#57534e;margin:0 0 24px;font-size:15px;line-height:1.6">
         You've been invited to join <strong>${orgName}</strong> on AlkeLedger — a ledger and accountability platform for organizations.
       </p>
-      <a href="${appUrl}/join?invite=${inviteCode}&email=${encodeURIComponent(email)}" style="display:block;background:#0E1015;color:#FAF8F4;text-decoration:none;padding:14px;text-align:center;font-weight:600;font-size:16px;margin-bottom:24px">
-        Accept invitation →
+      <a href="${joinLink}" style="display:block;background:#0E1015;color:#FAF8F4;text-decoration:none;padding:14px;text-align:center;font-weight:600;font-size:16px;margin-bottom:24px">
+        View workspace &amp; join →
       </a>
       <div style="background:white;border:1px solid #e7e5e4;padding:16px;text-align:center;margin-bottom:24px">
-        <div style="font-size:11px;color:#78716c;margin-bottom:6px;text-transform:uppercase;letter-spacing:.1em">Workspace invite code</div>
+        <div style="font-size:11px;color:#78716c;margin-bottom:6px;text-transform:uppercase;letter-spacing:.1em">Or use invite code manually</div>
         <span style="font-size:32px;font-weight:800;letter-spacing:.3em;color:#0E1015">${inviteCode}</span>
       </div>
-      <p style="color:#a8a29e;font-size:12px;margin:0;text-align:center">Sign in, then enter this code to join ${orgName}.</p>
+      <p style="color:#a8a29e;font-size:12px;margin:0;text-align:center">If you didn't expect this, you can safely ignore it.</p>
     </div>
   `;
 

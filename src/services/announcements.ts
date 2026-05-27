@@ -69,6 +69,27 @@ export async function createAnnouncement(
   return { ...ann, id: ref.id };
 }
 
+export async function updateAnnouncement(
+  orgId: string,
+  announcementId: string,
+  data: { title: string; body: string; priority: AnnouncementPriority; pinned?: boolean },
+): Promise<void> {
+  if (USE_MOCK_DATA) {
+    mockAnnouncements = mockAnnouncements.map((a) =>
+      a.id === announcementId ? { ...a, ...data } : a,
+    );
+    return;
+  }
+  if (!db) return;
+  const { updateDoc, doc: fsDoc } = await import('firebase/firestore');
+  await updateDoc(fsDoc(db, 'organizations', orgId, 'announcements', announcementId), {
+    title: data.title,
+    body: data.body,
+    priority: data.priority,
+    pinned: data.pinned ?? false,
+  });
+}
+
 export async function deleteAnnouncement(orgId: string, announcementId: string): Promise<void> {
   if (USE_MOCK_DATA) {
     mockAnnouncements = mockAnnouncements.filter((a) => a.id !== announcementId);
