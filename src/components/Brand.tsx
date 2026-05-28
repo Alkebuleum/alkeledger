@@ -8,7 +8,7 @@ export function Brand({ small = false }: Props) {
       <img
         src="/logo.svg"
         alt="AlkeLedger"
-        className={small ? 'h-5 w-auto pb-1' : 'h-7 w-auto pb-1.5'}
+        className={small ? 'h-6 w-auto pb-1' : 'h-9 w-auto pb-1.5'}
       />
       <div className="leading-tight">
         <div className={`font-display ${small ? 'text-base' : 'text-lg'} text-stone-900`}>
