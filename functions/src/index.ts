@@ -565,7 +565,7 @@ export const sharePreview = onRequest(async (req, res) => {
       ? `${attending} attending${maybe > 0 ? ` · ${maybe} maybe` : ''}`
       : '';
 
-    const ogTitle  = `${evTitle} — ${orgName}`;
+    const ogTitle  = 'Event Invite';
     const ogDesc   = [dateStr, evLoc, rsvpStr || evDesc].filter(Boolean).join(' · ').slice(0, 200);
     const eventsUrl = `${APP_BASE_URL}/${orgSlug}/events`;
 
