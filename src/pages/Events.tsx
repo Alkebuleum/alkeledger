@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, X, MapPin, Clock, Pencil, Trash2, CalendarDays, Users, ChevronDown, ChevronUp, Link2 } from 'lucide-react';
 import { listEvents, createEvent, updateEvent, deleteEvent, setRsvp } from '@/services/events';
 import { can, useRole } from '@/hooks/useRole';
@@ -60,6 +61,7 @@ export function Events({ org, user }: Props) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<OrgEvent | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const reload = () => {
     setLoading(true);
@@ -70,6 +72,19 @@ export function Events({ org, user }: Props) {
   };
 
   useEffect(() => { reload(); }, [org.id]);
+
+  // Auto-RSVP from shared link: ?openEvent=<id>&rsvp=<status>
+  useEffect(() => {
+    if (loading) return;
+    const openEventId = searchParams.get('openEvent');
+    const rsvpStatus  = searchParams.get('rsvp') as RsvpStatus | null;
+    if (!openEventId || !rsvpStatus) return;
+    if (!(['attending', 'maybe', 'declining'] as string[]).includes(rsvpStatus)) return;
+    const ev = events.find((e) => e.id === openEventId);
+    if (!ev || isPast(ev) || ev.cancelled) return;
+    setSearchParams({}, { replace: true });
+    setRsvp(org.id, openEventId, user.uid, user.displayName, rsvpStatus).then(reload).catch(() => {});
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDelete = async (ev: OrgEvent) => {
     if (!confirm(`Delete "${ev.title}"?`)) return;

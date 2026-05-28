@@ -540,86 +540,109 @@ export const sharePreview = onRequest(async (req, res) => {
   const orgData = orgDoc.data();
   const orgName = orgData['name'] as string;
 
-  let ogTitle       = '';
-  let ogDescription = '';
-  let appUrl        = `${APP_BASE_URL}/${orgSlug}`;
+  const ogImage  = `${APP_BASE_URL}/icon.png`;
+  const shareUrl = `${APP_BASE_URL}/share/${orgSlug}/${type}/${id}`;
+  const css = `*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fafaf9;display:flex;align-items:flex-start;justify-content:center;min-height:100vh;margin:0;padding:32px 20px}.card{max-width:480px;width:100%}.logo{font-size:18px;font-weight:900;color:#1c1917;letter-spacing:-.02em;margin-bottom:28px}.logo span{font-weight:300}.badge{font-size:10px;text-transform:uppercase;letter-spacing:.2em;color:#b45309;font-family:monospace;margin-bottom:6px}h1{font-size:22px;font-weight:700;color:#1c1917;margin:0 0 12px;line-height:1.3}.meta{font-size:13px;color:#78716c;margin-bottom:6px}.desc{font-size:14px;color:#57534e;margin:14px 0 0;line-height:1.65;white-space:pre-line}hr{border:none;border-top:1px solid #e7e5e4;margin:20px 0}.rsvp-label{font-size:11px;text-transform:uppercase;letter-spacing:.15em;color:#78716c;margin-bottom:10px}.rsvp-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.btn{display:inline-block;padding:10px 20px;text-decoration:none;font-size:14px;font-weight:600;border-radius:6px}.btn-a{background:#059669;color:#fff}.btn-m{background:#d97706;color:#fff}.btn-d{background:#78716c;color:#fff}.btn-open{display:block;text-align:center;padding:10px 16px;font-size:13px;color:#78716c;text-decoration:none;border:1px solid #e7e5e4;border-radius:6px;margin-top:8px}.body-text{font-size:15px;color:#1c1917;line-height:1.7;white-space:pre-line;margin:0 0 20px}`;
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=300');
 
   if (type === 'event') {
     const eventDoc = await db.collection('organizations').doc(orgDoc.id)
       .collection('events').doc(id).get();
     if (!eventDoc.exists) { res.status(404).send('Not found'); return; }
 
-    const ev = eventDoc.data()!;
-    const dateStr = formatEventDate(ev['startDate'] as string, ev['endDate'] as string | undefined, ev['allDay'] as boolean | undefined);
-    ogTitle       = `${ev['title'] as string} — ${orgName}`;
-    ogDescription = [dateStr, ev['location'], ev['description']]
-      .filter(Boolean)
-      .join(' · ')
-      .slice(0, 200);
-    appUrl = `${APP_BASE_URL}/${orgSlug}/events`;
+    const ev       = eventDoc.data()!;
+    const evTitle  = ev['title'] as string;
+    const dateStr  = formatEventDate(ev['startDate'] as string, ev['endDate'] as string | undefined, ev['allDay'] as boolean | undefined);
+    const evLoc    = ev['location'] as string | undefined;
+    const evDesc   = ev['description'] as string | undefined;
+    const ogTitle  = `${evTitle} — ${orgName}`;
+    const ogDesc   = [dateStr, evLoc, evDesc].filter(Boolean).join(' · ').slice(0, 200);
+    const eventsUrl = `${APP_BASE_URL}/${orgSlug}/events`;
 
-  } else {
-    const annDoc = await db.collection('organizations').doc(orgDoc.id)
-      .collection('announcements').doc(id).get();
-    if (!annDoc.exists) { res.status(404).send('Not found'); return; }
-
-    const ann = annDoc.data()!;
-    ogTitle       = `${ann['title'] as string} — ${orgName}`;
-    ogDescription = ((ann['body'] as string) ?? '').slice(0, 200);
-    appUrl = `${APP_BASE_URL}/${orgSlug}/announcements`;
-  }
-
-  const shareUrl = `${APP_BASE_URL}/share/${orgSlug}/${type}/${id}`;
-  const ogImage  = `${APP_BASE_URL}/icon.png`;
-
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.setHeader('Cache-Control', 'public, max-age=300');
-  res.send(`<!DOCTYPE html>
+    res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>${esc(ogTitle)}</title>
-  <meta name="description" content="${esc(ogDescription)}" />
-
-  <!-- Open Graph -->
-  <meta property="og:type"        content="website" />
-  <meta property="og:url"         content="${esc(shareUrl)}" />
-  <meta property="og:site_name"   content="AlkeLedger" />
-  <meta property="og:title"       content="${esc(ogTitle)}" />
-  <meta property="og:description" content="${esc(ogDescription)}" />
-  <meta property="og:image"       content="${esc(ogImage)}" />
+  <meta name="description" content="${esc(ogDesc)}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="${esc(shareUrl)}" />
+  <meta property="og:site_name" content="AlkeLedger" />
+  <meta property="og:title" content="${esc(ogTitle)}" />
+  <meta property="og:description" content="${esc(ogDesc)}" />
+  <meta property="og:image" content="${esc(ogImage)}" />
   <meta property="og:image:width" content="1080" />
   <meta property="og:image:height" content="734" />
-
-  <!-- Twitter / X -->
-  <meta name="twitter:card"        content="summary_large_image" />
-  <meta name="twitter:title"       content="${esc(ogTitle)}" />
-  <meta name="twitter:description" content="${esc(ogDescription)}" />
-  <meta name="twitter:image"       content="${esc(ogImage)}" />
-
-  <meta http-equiv="refresh" content="0;url=${esc(appUrl)}" />
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-           background: #fafaf9; display: flex; align-items: center; justify-content: center;
-           min-height: 100vh; margin: 0; padding: 24px; box-sizing: border-box; }
-    .card { max-width: 480px; width: 100%; text-align: center; }
-    .logo { font-size: 20px; font-weight: 900; color: #1c1917; letter-spacing: -.02em; margin-bottom: 24px; }
-    .logo span { font-weight: 300; }
-    h1 { font-size: 20px; color: #1c1917; margin: 0 0 8px; }
-    p  { font-size: 14px; color: #78716c; margin: 0 0 20px; }
-    a  { display: inline-block; padding: 12px 24px; background: #1c1917; color: white;
-         text-decoration: none; font-size: 14px; font-weight: 600; border-radius: 6px; }
-  </style>
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${esc(ogTitle)}" />
+  <meta name="twitter:description" content="${esc(ogDesc)}" />
+  <meta name="twitter:image" content="${esc(ogImage)}" />
+  <style>${css}</style>
 </head>
 <body>
   <div class="card">
     <div class="logo">Alke<span>Ledger</span></div>
-    <h1>${esc(ogTitle)}</h1>
-    <p>${esc(ogDescription)}</p>
-    <a href="${esc(appUrl)}">Open in AlkeLedger →</a>
+    <div class="badge">${esc(orgName)} · Event</div>
+    <h1>${esc(evTitle)}</h1>
+    <div class="meta">📅 ${esc(dateStr)}</div>
+    ${evLoc  ? `<div class="meta">📍 ${esc(evLoc)}</div>` : ''}
+    ${evDesc ? `<p class="desc">${esc(evDesc)}</p>`        : ''}
+    <hr />
+    <div class="rsvp-label">RSVP</div>
+    <div class="rsvp-row">
+      <a href="${esc(eventsUrl)}?openEvent=${esc(id)}&amp;rsvp=attending" class="btn btn-a">Attending</a>
+      <a href="${esc(eventsUrl)}?openEvent=${esc(id)}&amp;rsvp=maybe"     class="btn btn-m">Maybe</a>
+      <a href="${esc(eventsUrl)}?openEvent=${esc(id)}&amp;rsvp=declining" class="btn btn-d">Declining</a>
+    </div>
+    <a href="${esc(eventsUrl)}" class="btn-open">View in AlkeLedger →</a>
   </div>
-  <script>window.location.replace('${appUrl.replace(/'/g, "\\'")}');</script>
+</body>
+</html>`);
+    return;
+  }
+
+  // Announcement
+  const annDoc = await db.collection('organizations').doc(orgDoc.id)
+    .collection('announcements').doc(id).get();
+  if (!annDoc.exists) { res.status(404).send('Not found'); return; }
+
+  const ann      = annDoc.data()!;
+  const annTitle = ann['title'] as string;
+  const annBody  = (ann['body'] as string) ?? '';
+  const ogTitle  = `${annTitle} — ${orgName}`;
+  const ogDesc   = annBody.slice(0, 200);
+  const annUrl   = `${APP_BASE_URL}/${orgSlug}/announcements`;
+
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${esc(ogTitle)}</title>
+  <meta name="description" content="${esc(ogDesc)}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="${esc(shareUrl)}" />
+  <meta property="og:site_name" content="AlkeLedger" />
+  <meta property="og:title" content="${esc(ogTitle)}" />
+  <meta property="og:description" content="${esc(ogDesc)}" />
+  <meta property="og:image" content="${esc(ogImage)}" />
+  <meta property="og:image:width" content="1080" />
+  <meta property="og:image:height" content="734" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${esc(ogTitle)}" />
+  <meta name="twitter:description" content="${esc(ogDesc)}" />
+  <meta name="twitter:image" content="${esc(ogImage)}" />
+  <style>${css}</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">Alke<span>Ledger</span></div>
+    <div class="badge">${esc(orgName)} · Announcement</div>
+    <h1>${esc(annTitle)}</h1>
+    <p class="body-text">${esc(annBody)}</p>
+    <a href="${esc(annUrl)}" class="btn-open">View in AlkeLedger →</a>
+  </div>
 </body>
 </html>`);
 });
