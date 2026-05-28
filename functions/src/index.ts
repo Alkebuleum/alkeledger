@@ -9,7 +9,7 @@ const db = admin.firestore();
 const adminAuth = admin.auth();
 const FieldValue = admin.firestore.FieldValue;
 
-const APP_BASE_URL = process.env.APP_BASE_URL ?? 'https://bracket-f99ff.web.app';
+const APP_BASE_URL = process.env.APP_BASE_URL ?? 'https://app.alkeledger.com';
 
 function generateCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
