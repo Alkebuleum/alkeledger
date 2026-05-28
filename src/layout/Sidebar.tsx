@@ -33,9 +33,10 @@ interface Props {
   onClose?: () => void;
   onNewOrg?: () => void;
   user: AuthUser;
+  unreadCounts?: Partial<Record<PageId, number>>;
 }
 
-export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExit, onClose, onNewOrg, user }: Props) {
+export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExit, onClose, onNewOrg, user, unreadCounts }: Props) {
   const role = useRole(org.id, user.uid);
   const isAdmin = can.manage(role);
 
@@ -97,8 +98,9 @@ export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExi
 
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
         {nav.map((item) => {
-          const to = item.id === 'dashboard' ? `/${slug}` : `/${slug}/${item.id}`;
+          const to     = item.id === 'dashboard' ? `/${slug}` : `/${slug}/${item.id}`;
           const active = page === item.id;
+          const badge  = unreadCounts?.[item.id] ?? 0;
           return (
             <Link
               key={item.id}
@@ -108,7 +110,14 @@ export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExi
               }`}
             >
               <item.icon className="w-4 h-4 shrink-0" />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {badge > 0 && (
+                <span className={`min-w-[18px] h-4.5 text-[9px] font-bold rounded-full flex items-center justify-center px-1 leading-none ${
+                  active ? 'bg-white/20 text-white' : 'bg-[var(--ledger-red)] text-white'
+                }`}>
+                  {badge > 99 ? '99+' : badge}
+                </span>
+              )}
             </Link>
           );
         })}

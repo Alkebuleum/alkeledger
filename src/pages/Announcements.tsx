@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, X, Trash2, Pencil, Megaphone, Pin, Link2 } from 'lucide-react';
 import { listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/services/announcements';
+import { notifyCreated } from '@/services/notifications';
 import { can, useRole } from '@/hooks/useRole';
 import type { Announcement, AnnouncementPriority, Organization } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
@@ -229,6 +230,7 @@ function AnnouncementModal({
         pinned: editing.pinned,
       });
     } else {
+      const orgSlug = org.slug ?? org.id;
       await createAnnouncement(org.id, {
         title: title.trim(),
         body: body.trim(),
@@ -236,6 +238,7 @@ function AnnouncementModal({
         createdBy: user.displayName,
         createdByUid: user.uid,
       });
+      notifyCreated(org.id, 'announcement', title.trim(), body.trim().slice(0, 120), `/${orgSlug}/announcements`);
     }
     setSaving(false);
     onSaved();

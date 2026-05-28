@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
-import { ShieldCheck, CheckCircle2, Trash2, Save, ImagePlus } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, Trash2, Save, ImagePlus, Bell } from 'lucide-react';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { Panel } from '@/components/Panel';
 import { Row } from '@/components/Row';
 import { useRole, can } from '@/hooks/useRole';
@@ -113,6 +114,17 @@ export function Settings({ org, user, onDelete, onSaveSettings }: Props) {
       setError(e instanceof Error ? e.message : 'Delete failed.');
       setDeleting(false);
     }
+  };
+
+  const { permission, requestPush } = usePushNotifications(user);
+  const [pushRequesting, setPushRequesting] = useState(false);
+  const [pushResult, setPushResult] = useState<'ok' | 'denied' | null>(null);
+
+  const handleEnablePush = async () => {
+    setPushRequesting(true);
+    const ok = await requestPush();
+    setPushResult(ok ? 'ok' : 'denied');
+    setPushRequesting(false);
   };
 
   const roles = org.type === 'membership'
@@ -307,6 +319,36 @@ export function Settings({ org, user, onDelete, onSaveSettings }: Props) {
               <ShieldCheck className="w-4 h-4 text-stone-500" /> {r}
             </div>
           ))}
+        </div>
+      </Panel>
+
+      <Panel title="Notifications">
+        <div className="space-y-3 text-sm">
+          <p className="text-stone-600">Get browser push notifications when new announcements, events, or votes are posted.</p>
+          {permission === 'granted' ? (
+            <div className="flex items-center gap-2 text-emerald-700">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Push notifications enabled on this device</span>
+            </div>
+          ) : permission === 'denied' ? (
+            <p className="text-xs text-stone-500">
+              Push notifications are blocked in your browser settings. Enable them in your browser's site permissions to receive notifications.
+            </p>
+          ) : (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleEnablePush}
+                disabled={pushRequesting}
+                className="flex items-center gap-1.5 px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium hover:bg-stone-800 disabled:opacity-40"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                {pushRequesting ? 'Enabling…' : 'Enable push notifications'}
+              </button>
+              {pushResult === 'denied' && (
+                <span className="text-xs text-red-600">Permission denied — check browser settings.</span>
+              )}
+            </div>
+          )}
         </div>
       </Panel>
 

@@ -1,29 +1,50 @@
 import { useMemo, useEffect, useState } from 'react';
-import { TrendingUp, TrendingDown, ShieldCheck, Lock } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { TrendingUp, TrendingDown, ShieldCheck, Lock, CalendarDays, BarChart2 } from 'lucide-react';
 import { StatusPill } from '@/components/StatusPill';
 import { fmt } from '@/lib/format';
 import { listMembers } from '@/services/members';
 import { listAnnouncements } from '@/services/announcements';
 import { listProjects } from '@/services/projects';
-import type { LedgerEntry, Member, Announcement, Project, Organization } from '@/types';
+import { listEvents } from '@/services/events';
+import { listPolls } from '@/services/votes';
+import type { LedgerEntry, Member, Announcement, Project, Organization, OrgEvent, Poll } from '@/types';
+import type { AuthUser } from '@/hooks/useAuth';
 
 interface Props {
   org: Organization;
   ledger: LedgerEntry[];
+  user: AuthUser;
 }
 
-export function Dashboard({ org, ledger }: Props) {
-  const [members, setMembers]           = useState<Member[]>([]);
+export function Dashboard({ org, ledger, user }: Props) {
+  const [members, setMembers]             = useState<Member[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [projects, setProjects]         = useState<Project[]>([]);
+  const [projects, setProjects]           = useState<Project[]>([]);
+  const [events, setEvents]               = useState<OrgEvent[]>([]);
+  const [polls, setPolls]                 = useState<Poll[]>([]);
 
   useEffect(() => {
     listMembers(org.id).then(setMembers).catch(() => {});
     listAnnouncements(org.id).then(setAnnouncements).catch(() => {});
-    if (org.type !== 'membership') {
+    if (org.type === 'membership') {
+      listEvents(org.id).then(setEvents).catch(() => {});
+      listPolls(org.id).then(setPolls).catch(() => {});
+    } else {
       listProjects(org.id).then(setProjects).catch(() => {});
     }
   }, [org.id, org.type]);
+
+  const orgSlug = org.slug ?? org.id;
+
+  const upcomingEvents = useMemo(() => {
+    const now = new Date().toISOString();
+    return events
+      .filter((e) => e.startDate >= now && !e.cancelled)
+      .slice(0, 3);
+  }, [events]);
+
+  const activePolls = useMemo(() => polls.filter((p) => p.status === 'active'), [polls]);
 
   const totals = useMemo(() => {
     const income = ledger
@@ -220,38 +241,118 @@ export function Dashboard({ org, ledger }: Props) {
 
         {/* Org-type-specific row */}
         {org.type === 'membership' ? (
-          <div className="grid lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-7">
-              <div className="text-[10px] uppercase tracking-[0.25em] text-[var(--ledger-red)] font-mono mb-1">§ The roster</div>
-              <h3 className="font-display text-2xl mb-4 pb-3 border-b border-stone-300/60">Membership at a glance</h3>
+          <div className="space-y-8">
+            <div className="grid lg:grid-cols-12 gap-8">
+              <div className="lg:col-span-7">
+                <div className="text-[10px] uppercase tracking-[0.25em] text-[var(--ledger-red)] font-mono mb-1">§ The roster</div>
+                <h3 className="font-display text-2xl mb-4 pb-3 border-b border-stone-300/60">Membership at a glance</h3>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-stone-300/60 border border-stone-300/60">
-                {[
-                  { l: 'Active',    v: memberStats.active,    c: 'text-emerald-700' },
-                  { l: 'Pending',   v: memberStats.pending,   c: 'text-amber-700' },
-                  { l: 'Expired',   v: memberStats.expired,   c: 'text-stone-500' },
-                  { l: 'Suspended', v: memberStats.suspended, c: 'text-[var(--ledger-red)]' },
-                ].map((b) => (
-                  <div key={b.l} className="p-4 sm:p-6 bg-white">
-                    <div className={`font-display text-4xl sm:text-5xl ${b.c}`}>{b.v}</div>
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-stone-500 mt-2 font-mono">{b.l}</div>
-                  </div>
-                ))}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-stone-300/60 border border-stone-300/60">
+                  {[
+                    { l: 'Active',    v: memberStats.active,    c: 'text-emerald-700' },
+                    { l: 'Pending',   v: memberStats.pending,   c: 'text-amber-700' },
+                    { l: 'Expired',   v: memberStats.expired,   c: 'text-stone-500' },
+                    { l: 'Suspended', v: memberStats.suspended, c: 'text-[var(--ledger-red)]' },
+                  ].map((b) => (
+                    <div key={b.l} className="p-4 sm:p-6 bg-white">
+                      <div className={`font-display text-4xl sm:text-5xl ${b.c}`}>{b.v}</div>
+                      <div className="text-[10px] uppercase tracking-[0.22em] text-stone-500 mt-2 font-mono">{b.l}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="lg:col-span-5">
+                <div className="text-[10px] uppercase tracking-[0.25em] text-[var(--ledger-red)] font-mono mb-1">§ Notices</div>
+                <h3 className="font-display text-2xl mb-4 pb-3 border-b border-stone-300/60">Recent announcements</h3>
+                <div className="space-y-4">
+                  {announcements.length === 0 ? (
+                    <p className="text-xs text-stone-400 italic">No announcements posted yet.</p>
+                  ) : announcements.slice(0, 3).map((a) => (
+                    <article key={a.id} className="bg-white border border-stone-300/60 p-5">
+                      <div className="text-[10px] uppercase tracking-[0.22em] text-stone-500 font-mono mb-2">{a.date}</div>
+                      <h4 className="font-display text-xl leading-tight">{a.title}</h4>
+                    </article>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="lg:col-span-5">
-              <div className="text-[10px] uppercase tracking-[0.25em] text-[var(--ledger-red)] font-mono mb-1">§ Notices</div>
-              <h3 className="font-display text-2xl mb-4 pb-3 border-b border-stone-300/60">Recent announcements</h3>
-              <div className="space-y-4">
-                {announcements.length === 0 ? (
-                  <p className="text-xs text-stone-400 italic">No announcements posted yet.</p>
-                ) : announcements.slice(0, 3).map((a) => (
-                  <article key={a.id} className="bg-white border border-stone-300/60 p-5">
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-stone-500 font-mono mb-2">{a.date}</div>
-                    <h4 className="font-display text-xl leading-tight">{a.title}</h4>
-                  </article>
-                ))}
+            {/* Upcoming events + active votes */}
+            <div className="grid lg:grid-cols-2 gap-8">
+              <div>
+                <div className="flex items-baseline justify-between mb-4 pb-3 border-b border-stone-300/60">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.25em] text-[var(--ledger-red)] font-mono mb-1">§ Coming up</div>
+                    <h3 className="font-display text-2xl">Upcoming events</h3>
+                  </div>
+                  <Link to={`/${orgSlug}/events`} className="text-xs text-stone-500 hover:text-stone-900 underline">See all</Link>
+                </div>
+                {upcomingEvents.length === 0 ? (
+                  <p className="text-xs text-stone-400 italic">No upcoming events scheduled.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {upcomingEvents.map((ev) => {
+                      const d = new Date(ev.startDate);
+                      return (
+                        <Link key={ev.id} to={`/${orgSlug}/events?openEvent=${ev.id}`} className="flex gap-4 bg-white border border-stone-300/60 p-4 hover:bg-stone-50 transition-colors">
+                          <div className="w-10 shrink-0 text-center border-r border-stone-200 pr-4">
+                            <div className="text-[10px] uppercase tracking-[0.2em] font-mono text-stone-400">
+                              {d.toLocaleDateString('en-US', { month: 'short' })}
+                            </div>
+                            <div className="font-display text-2xl leading-none text-stone-900">{d.getDate()}</div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-editorial text-base leading-snug text-stone-900 truncate">{ev.title}</h4>
+                            {ev.location && <p className="text-xs text-stone-500 mt-0.5 truncate">{ev.location}</p>}
+                            {!ev.allDay && (
+                              <p className="text-[10px] font-mono text-stone-400 mt-1 uppercase tracking-wider">
+                                {d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                              </p>
+                            )}
+                          </div>
+                          <CalendarDays className="w-4 h-4 text-stone-300 shrink-0 mt-0.5" />
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="flex items-baseline justify-between mb-4 pb-3 border-b border-stone-300/60">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.25em] text-[var(--ledger-red)] font-mono mb-1">§ Your vote</div>
+                    <h3 className="font-display text-2xl">Active votes</h3>
+                  </div>
+                  <Link to={`/${orgSlug}/votes`} className="text-xs text-stone-500 hover:text-stone-900 underline">See all</Link>
+                </div>
+                {activePolls.length === 0 ? (
+                  <p className="text-xs text-stone-400 italic">No active votes right now.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {activePolls.slice(0, 3).map((p) => {
+                      const totalVotes = Object.keys(p.votes ?? {}).length;
+                      const hasVoted   = !!p.votes?.[user.uid];
+                      return (
+                        <Link key={p.id} to={`/${orgSlug}/votes?openPoll=${p.id}`} className="block bg-white border border-stone-300/60 p-4 hover:bg-stone-50 transition-colors">
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="font-editorial text-base leading-snug text-stone-900">{p.title}</h4>
+                            {hasVoted ? (
+                              <span className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 font-mono uppercase tracking-wider shrink-0">Voted</span>
+                            ) : (
+                              <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 ring-1 ring-amber-200 font-mono uppercase tracking-wider shrink-0">Vote now</span>
+                            )}
+                          </div>
+                          <div className="mt-2 flex items-center gap-3 text-[10px] font-mono text-stone-400 uppercase tracking-wider">
+                            <span className="inline-flex items-center gap-1"><BarChart2 className="w-3 h-3" />{totalVotes} vote{totalVotes !== 1 ? 's' : ''}</span>
+                            {p.deadline && <span>· Due {new Date(p.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>

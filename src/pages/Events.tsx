@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, X, MapPin, Clock, Pencil, Trash2, CalendarDays, Users, ChevronDown, ChevronUp, Link2, Mail, MessageCircle } from 'lucide-react';
 import { listEvents, createEvent, updateEvent, deleteEvent, setRsvp, notifyEventMembers } from '@/services/events';
+import { notifyCreated } from '@/services/notifications';
 import { can, useRole } from '@/hooks/useRole';
 import type { OrgEvent, Organization, RsvpStatus } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
@@ -524,11 +525,13 @@ function EventModal({
     if (isEdit) {
       await updateEvent(org.id, editing.id, data);
     } else {
-      await createEvent(org.id, {
+      const orgSlug = org.slug ?? org.id;
+      const created = await createEvent(org.id, {
         ...data,
         createdBy: user.displayName,
         createdByUid: user.uid,
       });
+      notifyCreated(org.id, 'event', data.title, data.description?.slice(0, 120) ?? '', `/${orgSlug}/events?openEvent=${created.id}`);
     }
     setSaving(false);
     onSaved();

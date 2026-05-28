@@ -36,6 +36,14 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      match /notifications/{notifId} {
+        // Users can read their own notifications and mark them read; only Admin SDK can create/delete
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow update: if request.auth != null && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+        allow create, delete: if false;
+      }
     }
 
     // ─── memberships ──────────────────────────────────────────────────────────

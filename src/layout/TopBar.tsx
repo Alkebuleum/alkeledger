@@ -1,5 +1,6 @@
 import { Search, Plus, Menu } from 'lucide-react';
-import type { Organization } from '@/types';
+import { NotificationBell } from '@/components/NotificationBell';
+import type { Organization, AppNotif } from '@/types';
 import type { PageId } from './Sidebar';
 
 interface Props {
@@ -7,6 +8,10 @@ interface Props {
   page: PageId;
   onNewEntry: () => void;
   onMenuToggle: () => void;
+  notifs: AppNotif[];
+  totalUnread: number;
+  onMarkRead: (id: string) => void;
+  onMarkAllRead: () => void;
 }
 
 const titles: Record<PageId, string> = {
@@ -30,7 +35,7 @@ const titles: Record<PageId, string> = {
   settings: 'Settings',
 };
 
-export function TopBar({ org, page, onNewEntry, onMenuToggle }: Props) {
+export function TopBar({ org, page, onNewEntry, onMenuToggle, notifs, totalUnread, onMarkRead, onMarkAllRead }: Props) {
   return (
     <header className="border-b-2 border-[var(--ink)] bg-[var(--bone)] shrink-0">
       <div className="px-4 sm:px-8 py-3 sm:py-5 flex items-center gap-3">
@@ -57,6 +62,12 @@ export function TopBar({ org, page, onNewEntry, onMenuToggle }: Props) {
           <button className="sm:hidden p-2 text-stone-700 hover:bg-stone-100 border border-stone-300">
             <Search className="w-4 h-4" />
           </button>
+          <NotificationBell
+            notifs={notifs}
+            totalUnread={totalUnread}
+            onMarkRead={onMarkRead}
+            onMarkAllRead={onMarkAllRead}
+          />
           <button
             onClick={onNewEntry}
             className="px-3 sm:px-4 py-2 bg-[var(--ink)] text-[var(--bone)] text-sm font-medium hover:bg-stone-800 flex items-center gap-1.5"

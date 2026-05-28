@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Sidebar, type PageId } from './Sidebar';
 import { TopBar } from './TopBar';
-import type { Organization } from '@/types';
+import type { Organization, AppNotif } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
 import type { ReactNode } from 'react';
 
@@ -17,9 +17,14 @@ interface Props {
   onNewOrg?: () => void;
   user: AuthUser;
   children: ReactNode;
+  notifs: AppNotif[];
+  totalUnread: number;
+  onMarkRead: (id: string) => void;
+  onMarkAllRead: () => void;
+  unreadCounts: Partial<Record<PageId, number>>;
 }
 
-export function AppShell({ org, orgs, pendingOrgs, onSwitchOrg, page, onNewEntry, onExit, onNewOrg, user, children }: Props) {
+export function AppShell({ org, orgs, pendingOrgs, onSwitchOrg, page, onNewEntry, onExit, onNewOrg, user, children, notifs, totalUnread, onMarkRead, onMarkAllRead, unreadCounts }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
@@ -59,6 +64,7 @@ export function AppShell({ org, orgs, pendingOrgs, onSwitchOrg, page, onNewEntry
           onNewOrg={onNewOrg}
           onClose={() => setSidebarOpen(false)}
           user={user}
+          unreadCounts={unreadCounts}
         />
       </div>
 
@@ -68,6 +74,10 @@ export function AppShell({ org, orgs, pendingOrgs, onSwitchOrg, page, onNewEntry
           page={page}
           onNewEntry={onNewEntry}
           onMenuToggle={() => setSidebarOpen((o) => !o)}
+          notifs={notifs}
+          totalUnread={totalUnread}
+          onMarkRead={onMarkRead}
+          onMarkAllRead={onMarkAllRead}
         />
         <div className="flex-1 overflow-y-auto">{children}</div>
       </main>

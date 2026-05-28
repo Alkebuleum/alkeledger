@@ -908,3 +908,81 @@ export const publicOrgData = onRequest({ cors: true }, async (req, res) => {
     eventsUrl:       `${APP_BASE_URL}/${orgSlug}/events`,
   });
 });
+
+// ─── createNotifications ──────────────────────────────────────────────────────
+
+export const createNotifications = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
+
+  const { orgId, type, title, body, link } = (request.data ?? {}) as {
+    orgId?: string;
+    type?: string;
+    title?: string;
+    body?: string;
+    link?: string;
+  };
+
+  if (!orgId || !type || !title || !link) {
+    throw new HttpsError('invalid-argument', 'Missing required fields.');
+  }
+
+  // Verify caller is an active member of the org
+  const callerUid  = request.auth.uid;
+  const membershipId = `${orgId}_${callerUid}`;
+  const callerSnap = await db.collection('memberships').doc(membershipId).get();
+  if (!callerSnap.exists) throw new HttpsError('permission-denied', 'Not a member of this org.');
+
+  const callerRole = (callerSnap.data() as Record<string, unknown>)?.role as string | undefined;
+  const canAnnounce = ['owner', 'admin', 'treasurer', 'finance'].includes(callerRole ?? '');
+  if (!canAnnounce) throw new HttpsError('permission-denied', 'Insufficient role.');
+
+  // Fetch all active members of the org
+  const membersSnap = await db.collection('memberships')
+    .where('orgId', '==', orgId)
+    .where('status', '==', 'active')
+    .get();
+
+  const uids = membersSnap.docs.map((d) => (d.data() as Record<string, unknown>).userId as string).filter(Boolean);
+  if (uids.length === 0) return { sent: 0 };
+
+  const now = new Date().toISOString();
+  const notifPayload = { orgId, type, title, body: body ?? '', link, read: false, createdAt: now };
+
+  // Write in batches of 499 (Firestore batch limit is 500 ops)
+  const BATCH_SIZE = 499;
+  for (let i = 0; i < uids.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    for (const uid of uids.slice(i, i + BATCH_SIZE)) {
+      const ref = db.collection('users').doc(uid).collection('notifications').doc();
+      batch.set(ref, notifPayload);
+    }
+    await batch.commit();
+  }
+
+  // Best-effort FCM push
+  try {
+    const userDocs = await Promise.all(uids.map((uid) => db.collection('users').doc(uid).get()));
+    const tokens: string[] = [];
+    for (const d of userDocs) {
+      const fcmTokens = (d.data() as Record<string, unknown> | undefined)?.fcmTokens;
+      if (Array.isArray(fcmTokens)) tokens.push(...(fcmTokens as string[]));
+    }
+    if (tokens.length > 0) {
+      const FCM_BATCH = 500;
+      for (let i = 0; i < tokens.length; i += FCM_BATCH) {
+        await admin.messaging().sendEachForMulticast({
+          tokens: tokens.slice(i, i + FCM_BATCH),
+          notification: { title, body: body ?? '' },
+          webpush: {
+            notification: { title, body: body ?? '', icon: `${APP_BASE_URL}/icon.png` },
+            fcmOptions: { link: `${APP_BASE_URL}${link}` },
+          },
+        });
+      }
+    }
+  } catch (e) {
+    logger.warn('FCM push best-effort failed:', e);
+  }
+
+  return { sent: uids.length };
+});

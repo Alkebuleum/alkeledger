@@ -5,6 +5,7 @@ import {
   ChevronDown, ChevronUp, Link2, Mail, MessageCircle, CheckCircle2,
 } from 'lucide-react';
 import { listPolls, createPoll, updatePoll, deletePoll, castVote, notifyPollMembers } from '@/services/votes';
+import { notifyCreated } from '@/services/notifications';
 import { can, useRole } from '@/hooks/useRole';
 import type { Poll, PollOption, PollStatus, VoteType, Organization } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
@@ -95,6 +96,8 @@ export function Votes({ org, user }: Props) {
 
   const handlePublish = async (poll: Poll) => {
     await updatePoll(org.id, poll.id, { status: 'active' });
+    const orgSlug = org.slug ?? org.id;
+    notifyCreated(org.id, 'poll', poll.title, poll.description?.slice(0, 120) ?? '', `/${orgSlug}/votes?openPoll=${poll.id}`);
     reload();
   };
 

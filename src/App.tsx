@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate, useParams, useMatch, useLocation 
 import { useAuth } from '@/hooks/useAuth';
 import { useOrgs } from '@/hooks/useOrg';
 import { useLedger } from '@/hooks/useLedger';
+import { useNotifications } from '@/hooks/useNotifications';
 import { AppShell } from '@/layout/AppShell';
 import type { PageId } from '@/layout/Sidebar';
 import { Landing } from '@/pages/Landing';
@@ -27,7 +28,7 @@ import { Anchors } from '@/pages/Anchors';
 import { Settings } from '@/pages/Settings';
 import { RsvpConfirm } from '@/pages/RsvpConfirm';
 import { NewEntryModal } from '@/modals/NewEntryModal';
-import type { LedgerEntry, LedgerStatus, Organization, MemberType, DuesRates } from '@/types';
+import type { LedgerEntry, LedgerStatus, Organization, MemberType, DuesRates, NotifType } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
 
 function orgPath(org: Organization) {
@@ -268,6 +269,17 @@ function OrgShell({ orgs, pendingOrgs, user, signOut, removeOrg, saveOrgSettings
   const { entries: ledger, createEntry, setStatus, anchor } = useLedger(org?.id ?? null);
   const [showNewEntry, setShowNewEntry] = useState(false);
 
+  const { notifs, totalUnread, unreadCount, markRead, markAllRead } = useNotifications(user, orgs.map((o) => o.id));
+
+  const unreadCounts: Partial<Record<PageId, number>> = org ? {
+    announcements: unreadCount(org.id, 'announcement' as NotifType),
+    events:        unreadCount(org.id, 'event'        as NotifType),
+    votes:         unreadCount(org.id, 'poll'         as NotifType),
+    requests:      unreadCount(org.id, 'request'      as NotifType),
+    dues:          unreadCount(org.id, 'dues'         as NotifType),
+    members:       unreadCount(org.id, 'membership'   as NotifType),
+  } : {};
+
   if (!org) {
     return <Navigate to={orgPath(orgs[0])} replace />;
   }
@@ -294,6 +306,11 @@ function OrgShell({ orgs, pendingOrgs, user, signOut, removeOrg, saveOrgSettings
         onExit={signOut}
         onNewOrg={() => navigate('/setup')}
         user={user}
+        notifs={notifs}
+        totalUnread={totalUnread}
+        onMarkRead={markRead}
+        onMarkAllRead={markAllRead}
+        unreadCounts={unreadCounts}
       >
         <PageContent
           page={pageId}
@@ -340,7 +357,7 @@ interface PageContentProps {
 
 function PageContent({ page, ledger, org, user, onApprove, onAnchor, onDeleteOrg, onSaveOrgSettings, onCreateEntry }: PageContentProps) {
   switch (page) {
-    case 'dashboard':     return <Dashboard org={org} ledger={ledger} />;
+    case 'dashboard':     return <Dashboard org={org} ledger={ledger} user={user} />;
     case 'ledger':        return <Ledger ledger={ledger} org={org} />;
     case 'members':       return <Members org={org} user={user} />;
     case 'dues':          return <Dues org={org} ledger={ledger} user={user} onRecordPayment={onCreateEntry} onApprove={onApprove} />;
@@ -358,6 +375,6 @@ function PageContent({ page, ledger, org, user, onApprove, onAnchor, onDeleteOrg
     case 'transparency':  return <Transparency org={org} ledger={ledger} />;
     case 'anchors':       return <Anchors ledger={ledger} onAnchor={onAnchor} />;
     case 'settings':      return <Settings org={org} user={user} onDelete={onDeleteOrg} onSaveSettings={onSaveOrgSettings} />;
-    default:              return <Dashboard org={org} ledger={ledger} />;
+    default:              return <Dashboard org={org} ledger={ledger} user={user} />;
   }
 }

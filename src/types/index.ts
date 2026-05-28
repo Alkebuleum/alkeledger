@@ -247,6 +247,21 @@ export interface Anchor {
   verified: boolean;
 }
 
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+export type NotifType = 'announcement' | 'event' | 'poll' | 'dues' | 'request' | 'membership';
+
+export interface AppNotif {
+  id: string;
+  orgId: string;
+  type: NotifType;
+  title: string;
+  body?: string;
+  link: string;
+  read: boolean;
+  createdAt: string;
+}
+
 export type PollStatus = 'draft' | 'active' | 'closed';
 export type VoteType = 'single' | 'multiple';
 
