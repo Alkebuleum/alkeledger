@@ -19,7 +19,7 @@ function copyShareLink(orgSlug: string, type: 'event' | 'announcement', id: stri
   });
 }
 
-function shareOnWhatsApp(event: OrgEvent, orgSlug: string) {
+function shareEvent(event: OrgEvent, orgSlug: string) {
   const url  = `${window.location.origin}/share/${orgSlug}/event/${event.id}`;
   const date = event.startDate
     ? new Date(event.startDate).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
@@ -45,7 +45,14 @@ function shareOnWhatsApp(event: OrgEvent, orgSlug: string) {
   lines.push('Tap below to RSVP:');
   lines.push(url);
 
-  window.open(`https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
+  const text = lines.join('\n');
+
+  if (navigator.share) {
+    navigator.share({ title: event.title, text }).catch(() => {/* user cancelled */});
+  } else {
+    // Desktop fallback: open WhatsApp Web
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -298,8 +305,8 @@ function EventCard({
                     : <Link2 className="w-3.5 h-3.5" />}
                 </button>
                 <button
-                  onClick={() => shareOnWhatsApp(event, orgSlug)}
-                  title="Share on WhatsApp"
+                  onClick={() => shareEvent(event, orgSlug)}
+                  title="Share event"
                   className="p-1.5 rounded text-stone-300 hover:text-[#25D366] hover:bg-emerald-50 transition-colors"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
