@@ -15,6 +15,7 @@ import { Members } from '@/pages/Members';
 import { Dues } from '@/pages/Dues';
 import { Announcements } from '@/pages/Announcements';
 import { Events } from '@/pages/Events';
+import { Votes } from '@/pages/Votes';
 import { Requests } from '@/pages/Requests';
 import { Projects } from '@/pages/Projects';
 import { Budgets } from '@/pages/Budgets';
@@ -252,7 +253,7 @@ interface OrgShellProps {
   user: AuthUser;
   signOut: () => Promise<void>;
   removeOrg: (orgId: string) => Promise<void>;
-  saveOrgSettings: (orgId: string, s: { allowedMemberTypes?: MemberType[]; duesRates?: DuesRates }) => Promise<void>;
+  saveOrgSettings: (orgId: string, s: { allowedMemberTypes?: MemberType[]; duesRates?: DuesRates; tagline?: string; logoUrl?: string }) => Promise<void>;
 }
 
 function OrgShell({ orgs, pendingOrgs, user, signOut, removeOrg, saveOrgSettings }: OrgShellProps) {
@@ -333,7 +334,7 @@ interface PageContentProps {
   onApprove: (entryId: string, status: LedgerStatus) => Promise<void>;
   onAnchor: (entryId: string) => Promise<void>;
   onDeleteOrg: () => Promise<void>;
-  onSaveOrgSettings: (s: { allowedMemberTypes?: MemberType[]; duesRates?: DuesRates }) => Promise<void>;
+  onSaveOrgSettings: (s: { allowedMemberTypes?: MemberType[]; duesRates?: DuesRates; tagline?: string; logoUrl?: string }) => Promise<void>;
   onCreateEntry: (entry: LedgerEntry) => Promise<void>;
 }
 
@@ -345,6 +346,7 @@ function PageContent({ page, ledger, org, user, onApprove, onAnchor, onDeleteOrg
     case 'dues':          return <Dues org={org} ledger={ledger} user={user} onRecordPayment={onCreateEntry} onApprove={onApprove} />;
     case 'announcements': return <Announcements org={org} user={user} />;
     case 'events':        return <Events org={org} user={user} />;
+    case 'votes':         return <Votes  org={org} user={user} />;
     case 'requests':      return <Requests org={org} user={user} onCreateEntry={onCreateEntry} />;
     case 'projects':      return <Projects org={org} />;
     case 'budgets':       return <Budgets org={org} />;

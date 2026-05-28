@@ -193,6 +193,16 @@ service cloud.firestore {
           (isMemberOfOrg(orgId) &&
            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rsvps']));
       }
+
+      match /polls/{pollId} {
+        allow read: if isMemberOfOrg(orgId);
+        allow create: if canManage(orgId);
+        allow delete: if canManage(orgId);
+        // Admins can edit anything; members can only update their own vote entry
+        allow update: if canManage(orgId) ||
+          (isMemberOfOrg(orgId) &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes']));
+      }
     }
 
     // ─── public transparency pages ────────────────────────────────────────────

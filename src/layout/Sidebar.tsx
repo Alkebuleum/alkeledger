@@ -2,16 +2,17 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Wallet, BookOpen, Megaphone, FileText, Inbox,
-  BarChart3, Settings, FolderKanban, PieChart, ArrowDownToLine, ArrowUpFromLine,
+  BarChart3, BarChart2, Settings, FolderKanban, PieChart, ArrowDownToLine, ArrowUpFromLine,
   ShieldCheck, Globe, FileCheck, LogOut, X, Plus, CalendarDays,
 } from 'lucide-react';
 import { Brand } from '@/components/Brand';
 import { OrgSwitcher } from './OrgSwitcher';
+import { useRole, can } from '@/hooks/useRole';
 import type { Organization } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
 
 export type PageId =
-  | 'dashboard' | 'members' | 'dues' | 'ledger' | 'announcements' | 'events' | 'requests'
+  | 'dashboard' | 'members' | 'dues' | 'ledger' | 'announcements' | 'events' | 'votes' | 'requests'
   | 'projects' | 'budgets' | 'income' | 'expenses' | 'approvals'
   | 'documents' | 'reports' | 'transparency' | 'anchors' | 'settings';
 
@@ -35,40 +36,47 @@ interface Props {
 }
 
 export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExit, onClose, onNewOrg, user }: Props) {
+  const role = useRole(org.id, user.uid);
+  const isAdmin = can.manage(role);
+
   const nav: NavItem[] = useMemo(() => {
     const common: NavItem[] = [{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }];
-    const tail: NavItem[] = [
+    const memberTail: NavItem[] = [
       { id: 'documents', label: 'Documents', icon: FileText },
-      { id: 'reports', label: 'Reports', icon: BarChart3 },
-      { id: 'anchors', label: 'Proof & Anchoring', icon: ShieldCheck },
-      { id: 'settings', label: 'Settings', icon: Settings },
     ];
+    const adminTail: NavItem[] = [
+      { id: 'reports',  label: 'Reports',          icon: BarChart3   },
+      { id: 'anchors',  label: 'Proof & Anchoring', icon: ShieldCheck },
+      { id: 'settings', label: 'Settings',          icon: Settings    },
+    ];
+    const tail = isAdmin ? [...memberTail, ...adminTail] : memberTail;
 
     if (org.type === 'membership') {
       return [
         ...common,
-        { id: 'members', label: 'Members', icon: Users },
-        { id: 'dues', label: 'Dues', icon: Wallet },
-        { id: 'ledger', label: 'Ledger', icon: BookOpen },
-        { id: 'announcements', label: 'Announcements', icon: Megaphone },
+        { id: 'members',       label: 'Members',       icon: Users        },
+        { id: 'dues',          label: 'Dues',           icon: Wallet       },
+        { id: 'ledger',        label: 'Ledger',         icon: BookOpen     },
+        { id: 'announcements', label: 'Announcements',  icon: Megaphone    },
         { id: 'events',        label: 'Events',         icon: CalendarDays },
-        { id: 'requests',      label: 'Requests',       icon: Inbox },
+        { id: 'votes',         label: 'Votes',          icon: BarChart2    },
+        { id: 'requests',      label: 'Requests',       icon: Inbox        },
         ...tail,
       ];
     }
 
     return [
       ...common,
-      { id: 'projects', label: 'Projects', icon: FolderKanban },
-      { id: 'budgets', label: 'Budgets', icon: PieChart },
-      { id: 'income', label: 'Income', icon: ArrowDownToLine },
-      { id: 'expenses', label: 'Expenses', icon: ArrowUpFromLine },
-      { id: 'approvals', label: 'Approvals', icon: FileCheck },
-      ...tail.slice(0, 1),
+      { id: 'projects',  label: 'Projects',  icon: FolderKanban    },
+      { id: 'budgets',   label: 'Budgets',   icon: PieChart        },
+      { id: 'income',    label: 'Income',    icon: ArrowDownToLine },
+      { id: 'expenses',  label: 'Expenses',  icon: ArrowUpFromLine },
+      { id: 'approvals', label: 'Approvals', icon: FileCheck       },
+      ...memberTail,
       { id: 'transparency', label: 'Transparency Page', icon: Globe },
-      ...tail.slice(1),
+      ...(isAdmin ? adminTail : []),
     ];
-  }, [org.type]);
+  }, [org.type, isAdmin]);
 
   return (
     <aside className="w-64 h-full border-r border-stone-200 bg-white flex flex-col">

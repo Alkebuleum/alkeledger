@@ -12,6 +12,7 @@ import type {
   Member,
   MemberRequest,
   Organization,
+  Poll,
   Project,
 } from '@/types';
 
@@ -81,6 +82,44 @@ export const MOCK_ANNOUNCEMENTS: Announcement[] = [
 export const MOCK_REQUESTS: MemberRequest[] = [
   { id: 'r1', orgId: 'org_meridian', from: 'Sofia Albright', subject: 'Reinstate membership', status: 'open',    date: '2026-05-18' },
   { id: 'r2', orgId: 'org_meridian', from: 'Hideo Tanaka',   subject: 'Receipt for 2025 dues', status: 'closed', date: '2026-04-30' },
+];
+
+export const MOCK_POLLS: Poll[] = [
+  {
+    id: 'pol_001',
+    orgId: 'org_meridian',
+    title: 'Should we raise the annual dues for 2027?',
+    description: 'The board is proposing an increase from $350 to $400 for individual members to cover rising venue costs. Please vote below.',
+    options: [
+      { id: 'o1', text: 'Yes, approve the increase' },
+      { id: 'o2', text: 'No, keep dues at $350' },
+      { id: 'o3', text: 'Need more information first' },
+    ],
+    voteType: 'single',
+    status: 'active',
+    deadline: '2026-06-15',
+    createdBy: 'Marcus Okafor',
+    createdAt: '2026-05-20',
+    votes: {
+      'm1': { optionIds: ['o1'], votedAt: '2026-05-21T10:00:00Z', voterName: 'Eleanor Vance' },
+      'm2': { optionIds: ['o2'], votedAt: '2026-05-22T14:30:00Z', voterName: 'Hideo Tanaka' },
+    },
+  },
+  {
+    id: 'pol_002',
+    orgId: 'org_meridian',
+    title: 'Which day works best for the Q3 General Meeting?',
+    options: [
+      { id: 'o4', text: 'Saturday, July 12' },
+      { id: 'o5', text: 'Wednesday, July 16' },
+      { id: 'o6', text: 'Saturday, July 19' },
+    ],
+    voteType: 'single',
+    status: 'draft',
+    createdBy: 'Eleanor Vance',
+    createdAt: '2026-05-24',
+    votes: {},
+  },
 ];
 
 export const MOCK_AUDIT: AuditLogEntry[] = [

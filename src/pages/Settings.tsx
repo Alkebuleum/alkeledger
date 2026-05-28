@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { ShieldCheck, CheckCircle2, Trash2, Save } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { ShieldCheck, CheckCircle2, Trash2, Save, ImagePlus } from 'lucide-react';
 import { Panel } from '@/components/Panel';
 import { Row } from '@/components/Row';
 import { useRole, can } from '@/hooks/useRole';
+import { uploadOrgLogo } from '@/lib/storage';
 import type { Organization, MemberType, DuesRates } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
 
@@ -10,7 +11,7 @@ interface Props {
   org: Organization;
   user: AuthUser;
   onDelete: () => Promise<void>;
-  onSaveSettings: (s: { allowedMemberTypes?: MemberType[]; duesRates?: DuesRates }) => Promise<void>;
+  onSaveSettings: (s: { allowedMemberTypes?: MemberType[]; duesRates?: DuesRates; tagline?: string; logoUrl?: string }) => Promise<void>;
 }
 
 const DEFAULT_TYPES: MemberType[] = ['individual', 'organization'];
@@ -19,6 +20,15 @@ export function Settings({ org, user, onDelete, onSaveSettings }: Props) {
   const role = useRole(org.id, user.uid);
   const isAdmin = can.invite(role);
   const isOwner = can.configure(role);
+
+  // Profile state
+  const [taglineVal, setTaglineVal] = useState(org.tagline ?? '');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(org.logoUrl ?? null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savedProfile, setSavedProfile] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Membership settings state
   const [allowedTypes, setAllowedTypes] = useState<MemberType[]>(
@@ -38,6 +48,33 @@ export function Settings({ org, user, onDelete, onSaveSettings }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [showDanger, setShowDanger] = useState(false);
   const [error, setError] = useState('');
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoFile(file);
+    setSavedProfile(false);
+    setProfileError('');
+    const reader = new FileReader();
+    reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    setSavedProfile(false);
+    setProfileError('');
+    try {
+      let logoUrl = org.logoUrl;
+      if (logoFile) logoUrl = await uploadOrgLogo(org.id, logoFile);
+      await onSaveSettings({ tagline: taglineVal, logoUrl });
+      setLogoFile(null);
+      setSavedProfile(true);
+    } catch {
+      setProfileError('Failed to save profile. Try again.');
+    }
+    setSavingProfile(false);
+  };
 
   const toggleType = (t: MemberType) => {
     setAllowedTypes((prev) => {
@@ -95,6 +132,74 @@ export function Settings({ org, user, onDelete, onSaveSettings }: Props) {
           {org.inviteCode && <Row label="Invite code" value={<span className="font-mono font-bold tracking-widest">{org.inviteCode}</span>} />}
         </div>
       </Panel>
+
+      {/* Profile — tagline + logo, available to all admins */}
+      {isAdmin && (
+        <Panel title="Profile">
+          <div className="space-y-5 text-sm">
+            {/* Logo */}
+            <div>
+              <p className="text-xs text-stone-600 mb-2">Organization logo</p>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 border border-stone-200 rounded flex items-center justify-center bg-stone-50 overflow-hidden flex-shrink-0">
+                  {logoPreview ? (
+                    <img src={logoPreview} alt="Logo" className="w-full h-full object-contain" />
+                  ) : (
+                    <span className="text-xl font-bold text-stone-400">
+                      {org.logoInitials || org.name.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoChange}
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-stone-300 hover:border-stone-500 text-stone-600"
+                  >
+                    <ImagePlus className="w-3.5 h-3.5" />
+                    {logoPreview ? 'Change logo' : 'Upload logo'}
+                  </button>
+                  <p className="text-xs text-stone-400 mt-1.5">PNG, JPG, SVG · Max 2 MB</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Tagline */}
+            <div>
+              <label className="text-xs text-stone-600 block mb-1.5">Tagline</label>
+              <input
+                type="text"
+                value={taglineVal}
+                onChange={(e) => { setTaglineVal(e.target.value); setSavedProfile(false); }}
+                placeholder="A short description of your organization"
+                maxLength={120}
+                className="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
+              />
+              <p className="text-xs text-stone-400 mt-1">Shown on your join page and public listings.</p>
+            </div>
+
+            {profileError && <p className="text-xs text-red-600">{profileError}</p>}
+
+            <div className="flex items-center gap-3 pt-1 border-t border-stone-100">
+              <button
+                onClick={handleSaveProfile}
+                disabled={savingProfile}
+                className="flex items-center gap-1.5 px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium hover:bg-stone-800 disabled:opacity-40"
+              >
+                <Save className="w-3.5 h-3.5" />
+                {savingProfile ? 'Saving…' : 'Save profile'}
+              </button>
+              {savedProfile && <span className="text-xs text-emerald-600">Saved</span>}
+            </div>
+          </div>
+        </Panel>
+      )}
 
       {/* Membership settings — only for membership orgs, admin+ */}
       {org.type === 'membership' && isAdmin && (

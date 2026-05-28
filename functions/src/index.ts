@@ -186,6 +186,7 @@ export const getOrgPreviewByCode = onCall(async (request) => {
     orgName: orgData.name as string,
     orgType: orgData.type as string,
     orgTagline: (orgData.tagline as string) || '',
+    orgLogoUrl: (orgData.logoUrl as string) || '',
     inviteCode: upperCode,
     memberCount: memberSnap.size,
     inviteeName,
@@ -447,6 +448,121 @@ export const notifyEventCreated = onCall(async (request) => {
   return { success: true, sent, failed };
 });
 
+// ─── notifyPollCreated ────────────────────────────────────────────────────────
+// Emails all active members a link to vote on a new poll. Pro feature.
+
+export const notifyPollCreated = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Must be signed in to send notifications.');
+  }
+
+  const { orgId, pollId, poll } = request.data as {
+    orgId: string;
+    pollId: string;
+    poll: { title: string; description?: string };
+  };
+
+  if (!orgId || !pollId || !poll?.title) {
+    throw new HttpsError('invalid-argument', 'orgId, pollId, and poll data are required.');
+  }
+
+  const brevoKey    = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.BREVO_SENDER_EMAIL ?? 'noreply@alkeledger.app';
+
+  const orgSnap = await db.collection('organizations').doc(orgId).get();
+  if (!orgSnap.exists) throw new HttpsError('not-found', 'Organization not found.');
+  const orgData = orgSnap.data()!;
+  const orgName = orgData['name'] as string;
+  const orgSlug = (orgData['slug'] as string | undefined) ?? orgId;
+
+  const membersSnap = await db.collection('memberships')
+    .where('orgId', '==', orgId)
+    .where('status', '==', 'active')
+    .get();
+
+  if (membersSnap.empty) return { success: true, sent: 0 };
+
+  const voteUrl = `${APP_BASE_URL}/${orgSlug}/votes?openPoll=${pollId}`;
+
+  const emailJobs = membersSnap.docs.map(async (memberDoc) => {
+    const member      = memberDoc.data();
+    const memberEmail = member['email'] as string;
+    const memberName  = member['name']  as string;
+    if (!memberEmail) return;
+
+    const descRow = poll.description ? `
+      <tr>
+        <td colspan="2" style="padding:10px 0 0;font-size:13px;color:#57534e;line-height:1.55">${esc(poll.description).replace(/\n/g, '<br>')}</td>
+      </tr>` : '';
+
+    const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f5f4;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f4;padding:32px 16px;">
+  <tr><td align="center">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fafaf9;border:1px solid #e7e5e4;">
+      <tr>
+        <td style="background:#1c1917;padding:18px 28px;">
+          <span style="color:white;font-size:17px;font-weight:900;letter-spacing:-.02em;">Alke</span><span style="color:white;font-size:17px;font-weight:300;letter-spacing:-.02em;">Ledger</span>
+          <span style="color:#57534e;font-size:13px;margin-left:10px;">${esc(orgName)}</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:28px;">
+          <p style="color:#a8a29e;font-size:11px;text-transform:uppercase;letter-spacing:.18em;margin:0 0 6px;font-family:monospace;">New Vote</p>
+          <h1 style="color:#1c1917;font-size:22px;font-weight:700;margin:0 0 20px;line-height:1.25;">${esc(poll.title)}</h1>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;border-top:1px solid #f5f5f4;">
+            ${descRow}
+          </table>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:white;border:1px solid #e7e5e4;margin-bottom:20px;">
+            <tr>
+              <td style="padding:22px;text-align:center;">
+                <p style="color:#1c1917;font-size:15px;font-weight:600;margin:0 0 14px;">Your vote matters — cast it now</p>
+                <a href="${esc(voteUrl)}" style="display:inline-block;background:#1c1917;color:white;text-decoration:none;padding:12px 28px;font-size:14px;font-weight:600;border-radius:4px;">Vote now →</a>
+              </td>
+            </tr>
+          </table>
+          <p style="color:#a8a29e;font-size:12px;text-align:center;margin:0;">
+            You're receiving this because you're an active member of ${esc(orgName)}.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+
+    if (!brevoKey) {
+      logger.info(`[DEV POLL EMAIL] → ${memberEmail}`);
+      return;
+    }
+
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender: { name: `${orgName} via AlkeLedger`, email: senderEmail },
+        to: [{ email: memberEmail, name: memberName }],
+        subject: `🗳️ Vote now: ${poll.title} — ${orgName}`,
+        htmlContent: html,
+      }),
+    });
+
+    if (!res.ok) {
+      const d = await res.json() as { message?: string };
+      logger.warn(`Poll email failed for ${memberEmail}: ${d.message}`);
+    }
+  });
+
+  const results = await Promise.allSettled(emailJobs);
+  const failed  = results.filter((r) => r.status === 'rejected').length;
+  const sent    = results.length - failed;
+  logger.info(`Poll notifications: ${sent} sent, ${failed} failed for poll ${pollId}`);
+  return { success: true, sent, failed };
+});
+
 // ─── handleEmailRsvp ──────────────────────────────────────────────────────────
 // Validates a per-member RSVP token from an email link and records the response.
 // Does NOT require Firebase authentication — the token is the proof of identity.
@@ -524,7 +640,7 @@ export const sharePreview = onRequest(async (req, res) => {
   const parts = req.path.split('/').filter(Boolean);
   const [, orgSlug, type, id] = parts; // parts[0] = 'share'
 
-  if (!orgSlug || !type || !id || !['event', 'announcement'].includes(type)) {
+  if (!orgSlug || !type || !id || !['event', 'announcement', 'poll'].includes(type)) {
     res.status(404).send('Not found');
     return;
   }
@@ -558,8 +674,8 @@ export const sharePreview = onRequest(async (req, res) => {
     const evLoc    = ev['location'] as string | undefined;
     const evDesc   = ev['description'] as string | undefined;
 
-    const ogTitle  = 'Event Invite';
-    const ogDesc   = `${orgName} is inviting you to an event on AlkeLedger. Tap below to view the details and confirm your RSVP.`;
+    const ogTitle  = `${orgName} - Event`;
+    const ogDesc   = evTitle + (evDesc ? `: ${evDesc.slice(0, 150)}` : ` · ${dateStr}`);
     const eventsUrl = `${APP_BASE_URL}/${orgSlug}/events`;
 
     res.send(`<!DOCTYPE html>
@@ -604,6 +720,84 @@ export const sharePreview = onRequest(async (req, res) => {
     return;
   }
 
+  // Poll
+  if (type === 'poll') {
+    const pollDoc = await db.collection('organizations').doc(orgDoc.id)
+      .collection('polls').doc(id).get();
+    if (!pollDoc.exists) { res.status(404).send('Not found'); return; }
+
+    const poll       = pollDoc.data()!;
+    const pollTitle  = poll['title'] as string;
+    const pollDesc   = (poll['description'] as string | undefined) ?? '';
+    const options    = (poll['options'] as { id: string; text: string }[]) ?? [];
+    const votes      = (poll['votes'] as Record<string, { optionIds: string[] }>) ?? {};
+    const totalVotes = Object.keys(votes).length;
+    const pollStatus = poll['status'] as string;
+    const deadline   = (poll['deadline'] as string | undefined) ?? '';
+
+    const counts: Record<string, number> = {};
+    for (const opt of options) counts[opt.id] = 0;
+    for (const v of Object.values(votes)) {
+      for (const oid of v.optionIds) counts[oid] = (counts[oid] ?? 0) + 1;
+    }
+
+    const votesUrl    = APP_BASE_URL + '/' + orgSlug + '/votes?openPoll=' + esc(id);
+    const pollOgTitle = orgName + ' - Vote';
+    const pollOgDesc  = pollTitle + (pollDesc ? ': ' + pollDesc.slice(0, 150) : '');
+    const statusBadge = pollStatus === 'closed' ? ' · Closed' : '';
+    const voteBtn     = pollStatus === 'active'
+      ? '<a href="' + esc(votesUrl) + '" class="btn btn-a" style="display:block;text-align:center;margin-bottom:8px">Vote now</a>'
+      : '<p style="font-size:13px;color:#78716c;text-align:center;margin-bottom:8px">Voting has closed.</p>';
+    const deadlineRow = deadline ? (' · Closes ' + esc(deadline)) : '';
+
+    const optionRows = options.map((opt) => {
+      const cnt = counts[opt.id] ?? 0;
+      const pct = totalVotes > 0 ? Math.round((cnt / totalVotes) * 100) : 0;
+      return '<div style="margin-bottom:10px">'
+        + '<div style="display:flex;justify-content:space-between;font-size:13px;color:#1c1917;margin-bottom:4px">'
+        + '<span>' + esc(opt.text) + '</span>'
+        + '<span style="font-family:monospace;color:#78716c">' + cnt + ' · ' + pct + '%</span>'
+        + '</div>'
+        + '<div style="height:6px;background:#f5f5f4;border-radius:99px;overflow:hidden">'
+        + '<div style="height:100%;width:' + pct + '%;background:#1c1917;border-radius:99px"></div>'
+        + '</div></div>';
+    }).join('');
+
+    const descHtml = pollDesc ? '<p class="desc" style="margin-bottom:16px">' + esc(pollDesc) + '</p>' : '';
+
+    res.send('<!DOCTYPE html><html lang="en"><head>'
+      + '<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>'
+      + '<title>' + esc(pollOgTitle) + '</title>'
+      + '<meta name="description" content="' + esc(pollOgDesc) + '"/>'
+      + '<meta property="og:type" content="website"/>'
+      + '<meta property="og:url" content="' + esc(shareUrl) + '"/>'
+      + '<meta property="og:site_name" content="AlkeLedger"/>'
+      + '<meta property="og:title" content="' + esc(pollOgTitle) + '"/>'
+      + '<meta property="og:description" content="' + esc(pollOgDesc) + '"/>'
+      + '<meta property="og:image" content="' + esc(ogImage) + '"/>'
+      + '<meta property="og:image:width" content="1254"/>'
+      + '<meta property="og:image:height" content="1254"/>'
+      + '<meta name="twitter:card" content="summary_large_image"/>'
+      + '<meta name="twitter:title" content="' + esc(pollOgTitle) + '"/>'
+      + '<meta name="twitter:description" content="' + esc(pollOgDesc) + '"/>'
+      + '<meta name="twitter:image" content="' + esc(ogImage) + '"/>'
+      + '<style>' + css + '</style>'
+      + '</head><body><div class="card">'
+      + '<div class="logo">Alke<span>Ledger</span></div>'
+      + '<div class="badge">' + esc(orgName) + ' · Vote' + statusBadge + '</div>'
+      + '<h1>' + esc(pollTitle) + '</h1>'
+      + descHtml
+      + '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.15em;color:#78716c;margin-bottom:8px">'
+      + totalVotes + ' vote' + (totalVotes !== 1 ? 's' : '') + deadlineRow
+      + '</div>'
+      + optionRows
+      + '<hr/>'
+      + voteBtn
+      + '<a href="' + esc(votesUrl) + '" class="btn-open">View in AlkeLedger</a>'
+      + '</div></body></html>');
+    return;
+  }
+
   // Announcement
   const annDoc = await db.collection('organizations').doc(orgDoc.id)
     .collection('announcements').doc(id).get();
@@ -612,8 +806,8 @@ export const sharePreview = onRequest(async (req, res) => {
   const ann      = annDoc.data()!;
   const annTitle = ann['title'] as string;
   const annBody  = (ann['body'] as string) ?? '';
-  const ogTitle  = `${annTitle} — ${orgName}`;
-  const ogDesc   = annBody.slice(0, 200);
+  const ogTitle  = `${orgName} - Announcement`;
+  const ogDesc   = annTitle + (annBody ? `: ${annBody.slice(0, 150)}` : '');
   const annUrl   = `${APP_BASE_URL}/${orgSlug}/announcements`;
 
   res.send(`<!DOCTYPE html>
@@ -646,4 +840,71 @@ export const sharePreview = onRequest(async (req, res) => {
   </div>
 </body>
 </html>`);
+});
+
+// ─── publicOrgData ────────────────────────────────────────────────────────────
+// Public JSON endpoint for external websites to display live org summary data.
+// No authentication required. Accessible via GET /api/public-data?orgSlug=xxx
+// Returns: memberCount, upcomingEvents, duesRates, transparencyUrl, eventsUrl
+
+export const publicOrgData = onRequest({ cors: true }, async (req, res) => {
+  const orgSlug = (req.query['orgSlug'] as string | undefined ?? '').trim();
+
+  if (!orgSlug) {
+    res.status(400).json({ error: 'orgSlug query parameter is required' });
+    return;
+  }
+
+  const orgSnap = await db.collection('organizations')
+    .where('slug', '==', orgSlug)
+    .limit(1)
+    .get();
+
+  if (orgSnap.empty) {
+    res.status(404).json({ error: 'Organization not found' });
+    return;
+  }
+
+  const orgDoc  = orgSnap.docs[0];
+  const orgId   = orgDoc.id;
+  const orgData = orgDoc.data();
+
+  const now = new Date().toISOString();
+
+  const [membersSnap, eventsSnap] = await Promise.all([
+    db.collection('memberships')
+      .where('orgId', '==', orgId)
+      .where('status', '==', 'active')
+      .get(),
+    db.collection('organizations').doc(orgId)
+      .collection('events')
+      .where('startDate', '>=', now)
+      .orderBy('startDate', 'asc')
+      .limit(6)
+      .get(),
+  ]);
+
+  const upcomingEvents = eventsSnap.docs.map((doc) => {
+    const d = doc.data();
+    return {
+      id:          doc.id,
+      title:       d['title']       as string,
+      startDate:   d['startDate']   as string,
+      endDate:     (d['endDate']    as string | undefined) ?? null,
+      location:    (d['location']   as string | undefined) ?? null,
+      description: (d['description'] as string | undefined) ?? null,
+      allDay:      (d['allDay']     as boolean | undefined) ?? false,
+    };
+  });
+
+  res.set('Cache-Control', 'public, max-age=300');
+  res.json({
+    memberCount:     membersSnap.size,
+    upcomingEvents,
+    duesRates:       orgData['duesRates'] ?? null,
+    tagline:         (orgData['tagline'] as string) || null,
+    logoUrl:         (orgData['logoUrl'] as string) || null,
+    transparencyUrl: `${APP_BASE_URL}/${orgSlug}/transparency`,
+    eventsUrl:       `${APP_BASE_URL}/${orgSlug}/events`,
+  });
 });

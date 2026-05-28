@@ -31,6 +31,7 @@ function docToOrg(id: string, d: Record<string, unknown>): Organization {
     currency: d.currency as string,
     logoInitials: d.logoInitials as string,
     tagline: d.tagline as string | undefined,
+    logoUrl: d.logoUrl as string | undefined,
     inviteCode: d.inviteCode as string | undefined,
     createdBy: d.createdBy as string | undefined,
     allowedMemberTypes: d.allowedMemberTypes as MemberType[] | undefined,
@@ -145,7 +146,7 @@ export async function createOrganization(
 
 export async function updateOrgSettings(
   orgId: string,
-  settings: { allowedMemberTypes?: MemberType[]; duesRates?: DuesRates },
+  settings: { allowedMemberTypes?: MemberType[]; duesRates?: DuesRates; tagline?: string; logoUrl?: string },
 ): Promise<void> {
   if (USE_MOCK_DATA) {
     mockOrgs = mockOrgs.map((o) =>
@@ -162,6 +163,12 @@ export async function updateOrgSettings(
   if (settings.duesRates !== undefined) {
     updates.duesRateIndividual = settings.duesRates.individual;
     updates.duesRateOrganization = settings.duesRates.organization;
+  }
+  if (settings.tagline !== undefined) {
+    updates.tagline = settings.tagline;
+  }
+  if (settings.logoUrl !== undefined) {
+    updates.logoUrl = settings.logoUrl;
   }
   await updateDoc(doc(db, 'organizations', orgId), updates);
 }

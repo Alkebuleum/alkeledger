@@ -8,7 +8,7 @@ import {
 } from '@/services/members';
 import type { PendingInvite } from '@/services/members';
 import { can, useRole } from '@/hooks/useRole';
-import type { Member, MemberStatus, MemberType, Organization } from '@/types';
+import type { Member, MemberStatus, MemberType, Organization, Role } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
 
 interface Props {
@@ -16,7 +16,19 @@ interface Props {
   user: AuthUser;
 }
 
-const ROLES = ['member', 'treasurer', 'admin', 'owner'] as const;
+const ROLE_LABELS: Record<Role, string> = {
+  owner:          'Owner',
+  admin:          'Admin',
+  treasurer:      'Treasurer',
+  finance:        'Finance',
+  auditor:        'Auditor',
+  projectManager: 'Project Manager',
+  member:         'Member',
+  viewer:         'Viewer',
+};
+
+const MEMBERSHIP_ROLES: Role[] = ['member', 'auditor', 'treasurer', 'admin', 'owner'];
+const PROJECT_ROLES:    Role[] = ['viewer', 'auditor', 'finance', 'projectManager', 'admin', 'owner'];
 
 export function Members({ org, user }: Props) {
   const role = useRole(org.id, user.uid);
@@ -77,7 +89,11 @@ export function Members({ org, user }: Props) {
     reload();
   };
 
-  const isAdmin = can.invite(role);
+  const isAdmin  = can.invite(role);
+  const isOwner  = can.configure(role);
+  const baseRoles = org.type === 'membership' ? MEMBERSHIP_ROLES : PROJECT_ROLES;
+  // Admins can assign up to admin; only owners can assign the owner role
+  const assignableRoles = isOwner ? baseRoles : baseRoles.filter((r) => r !== 'owner');
   const allowedTypes = org.allowedMemberTypes ?? ['individual', 'organization'];
 
   return (
@@ -241,10 +257,12 @@ export function Members({ org, user }: Props) {
                           onChange={(e) => handleRoleChange(m, e.target.value)}
                           className="text-xs border border-stone-200 rounded px-1.5 py-1 bg-white text-stone-700 focus:outline-none focus:ring-1 focus:ring-stone-400"
                         >
-                          {ROLES.map((r) => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+                          {assignableRoles.map((r) => (
+                            <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                          ))}
                         </select>
                       ) : (
-                        <span className="text-stone-600 capitalize">{m.role}</span>
+                        <span className="text-stone-600">{ROLE_LABELS[m.role as Role] ?? m.role}</span>
                       )}
                     </td>
 

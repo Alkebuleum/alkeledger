@@ -19,6 +19,10 @@
         "function": "sharePreview"
       },
       {
+        "source": "/api/public-data",
+        "function": "publicOrgData"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

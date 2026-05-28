@@ -1,6 +1,17 @@
-import { useRef, useState, type KeyboardEvent, type ClipboardEvent } from 'react';
+import { useRef, useState, useEffect, type KeyboardEvent, type ClipboardEvent } from 'react';
 import { ArrowLeft, Mail } from 'lucide-react';
 import { Brand } from '@/components/Brand';
+
+function getPendingContext(): string | null {
+  try {
+    const path = sessionStorage.getItem('loginRedirect') ?? '';
+    if (/\/votes(\?|$)/.test(path))         return 'Sign in to cast your vote';
+    if (/\/events(\?|$)/.test(path))         return 'Sign in to confirm your RSVP';
+    if (/\/announcements(\?|$)/.test(path))  return 'Sign in to view the announcement';
+    if (path && path !== '/')                return 'Sign in to continue';
+  } catch { /* storage unavailable */ }
+  return null;
+}
 
 interface Props {
   onBack: () => void;
@@ -9,12 +20,15 @@ interface Props {
 }
 
 export function SignIn({ onBack, onRequestOtp, onVerifyOtp }: Props) {
-  const [step, setStep]       = useState<'email' | 'code'>('email');
-  const [email, setEmail]     = useState('');
-  const [digits, setDigits]   = useState(['', '', '', '', '', '']);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const [step, setStep]           = useState<'email' | 'code'>('email');
+  const [email, setEmail]         = useState('');
+  const [digits, setDigits]       = useState(['', '', '', '', '', '']);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState('');
+  const [context, setContext]     = useState<string | null>(null);
   const boxRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  useEffect(() => { setContext(getPendingContext()); }, []);
 
   async function handleSendCode(e: React.FormEvent) {
     e.preventDefault();
@@ -135,9 +149,11 @@ export function SignIn({ onBack, onRequestOtp, onVerifyOtp }: Props) {
             </>
           ) : (
             <>
-              <h2 className="font-display text-2xl mb-1">Sign in</h2>
+              <h2 className="font-display text-2xl mb-1">{context ?? 'Sign in'}</h2>
               <p className="text-stone-500 text-sm mb-6">
-                We'll send a 6-digit code to your email — no password needed.
+                {context
+                  ? "Enter your email to verify it's you — we'll send a 6-digit code."
+                  : "We'll send a 6-digit code to your email — no password needed."}
               </p>
 
               <form onSubmit={handleSendCode} className="space-y-4">

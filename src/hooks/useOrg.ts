@@ -67,7 +67,7 @@ export function useOrgs(user: AuthUser | null) {
 
   const saveOrgSettings = async (
     orgId: string,
-    settings: { allowedMemberTypes?: MemberType[]; duesRates?: DuesRates },
+    settings: { allowedMemberTypes?: MemberType[]; duesRates?: DuesRates; tagline?: string; logoUrl?: string },
   ): Promise<void> => {
     await updateOrgSettings(orgId, settings);
     setOrgs((prev) =>

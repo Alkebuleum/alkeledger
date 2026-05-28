@@ -62,6 +62,7 @@ export interface Organization {
   createdBy?: string;
   allowedMemberTypes?: MemberType[];
   duesRates?: DuesRates;
+  logoUrl?: string;
   plan?: 'free' | 'pro';
 }
 
@@ -244,4 +245,33 @@ export interface Anchor {
   status: AnchorStatus;
   txHash?: string;
   verified: boolean;
+}
+
+export type PollStatus = 'draft' | 'active' | 'closed';
+export type VoteType = 'single' | 'multiple';
+
+export interface PollOption {
+  id: string;
+  text: string;
+}
+
+export interface PollVote {
+  optionIds: string[];
+  votedAt: string;
+  voterName: string;
+}
+
+export interface Poll {
+  id: string;
+  orgId: string;
+  title: string;
+  description?: string;
+  options: PollOption[];
+  voteType: VoteType;
+  status: PollStatus;
+  deadline?: string;
+  createdBy: string;
+  createdByUid?: string;
+  createdAt: string;
+  votes?: Record<string, PollVote>;
 }

@@ -17,6 +17,7 @@ interface OrgPreview {
   orgName: string;
   orgType: string;
   orgTagline: string;
+  orgLogoUrl: string;
   inviteCode: string;
   memberCount: number;
   inviteeName: string | null;
@@ -331,12 +332,21 @@ export function JoinPreview({ user, orgs, onRequestOtp, onVerifyOtp, onSignInWit
           {view === 'preview' && (
             <>
               {/* Org logo */}
-              <div className="w-16 h-16 bg-stone-900 text-stone-50 flex items-center justify-center text-xl font-bold mx-auto mb-4">
-                {initials}
+              <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center overflow-hidden">
+                {orgPreview.orgLogoUrl ? (
+                  <img src={orgPreview.orgLogoUrl} alt={orgPreview.orgName} className="w-full h-full object-contain" />
+                ) : (
+                  <div className="w-16 h-16 bg-stone-900 text-stone-50 flex items-center justify-center text-xl font-bold">
+                    {initials}
+                  </div>
+                )}
               </div>
 
               <h2 className="font-display text-2xl text-center mb-1">{orgPreview.orgName}</h2>
               <p className="text-xs text-center text-stone-400 uppercase tracking-widest mb-1">{typePill}</p>
+              {orgPreview.orgTagline && (
+                <p className="text-sm text-center text-stone-500 mb-2 px-2">{orgPreview.orgTagline}</p>
+              )}
               <p className="text-sm text-center text-stone-400 mb-4">
                 {orgPreview.memberCount} {orgPreview.memberCount === 1 ? 'member' : 'members'}
               </p>

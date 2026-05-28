@@ -1,9 +1,11 @@
-import { useMemo } from 'react';
-import { TrendingUp, ShieldCheck, Lock } from 'lucide-react';
+import { useMemo, useEffect, useState } from 'react';
+import { TrendingUp, TrendingDown, ShieldCheck, Lock } from 'lucide-react';
 import { StatusPill } from '@/components/StatusPill';
 import { fmt } from '@/lib/format';
-import { MOCK_AUDIT, MOCK_MEMBERS, MOCK_PROJECTS, MOCK_ANNOUNCEMENTS } from '@/data/mock';
-import type { LedgerEntry, Organization } from '@/types';
+import { listMembers } from '@/services/members';
+import { listAnnouncements } from '@/services/announcements';
+import { listProjects } from '@/services/projects';
+import type { LedgerEntry, Member, Announcement, Project, Organization } from '@/types';
 
 interface Props {
   org: Organization;
@@ -11,6 +13,18 @@ interface Props {
 }
 
 export function Dashboard({ org, ledger }: Props) {
+  const [members, setMembers]           = useState<Member[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [projects, setProjects]         = useState<Project[]>([]);
+
+  useEffect(() => {
+    listMembers(org.id).then(setMembers).catch(() => {});
+    listAnnouncements(org.id).then(setAnnouncements).catch(() => {});
+    if (org.type !== 'membership') {
+      listProjects(org.id).then(setProjects).catch(() => {});
+    }
+  }, [org.id, org.type]);
+
   const totals = useMemo(() => {
     const income = ledger
       .filter((l) => l.type === 'income' && (l.status === 'approved' || l.status === 'anchored'))
@@ -24,8 +38,62 @@ export function Dashboard({ org, ledger }: Props) {
     return { income, expense, net: income - expense, pending, anchored, ready };
   }, [ledger]);
 
-  const spark = [12, 18, 14, 22, 28, 24, 35, 41];
-  const sparkMax = Math.max(...spark);
+  // Monthly income for the last 8 months (approved + anchored)
+  const spark = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 8 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (7 - i), 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      return ledger
+        .filter((l) => l.type === 'income' && (l.status === 'approved' || l.status === 'anchored') && l.createdAt.startsWith(key))
+        .reduce((s, l) => s + l.amount, 0);
+    });
+  }, [ledger]);
+
+  // This month's income vs prior month's income
+  const periodChange = useMemo(() => {
+    const now = new Date();
+    const curKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevKey = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+    const sumIncome = (k: string) =>
+      ledger
+        .filter((l) => l.type === 'income' && (l.status === 'approved' || l.status === 'anchored') && l.createdAt.startsWith(k))
+        .reduce((s, l) => s + l.amount, 0);
+    const cur = sumIncome(curKey);
+    const prior = sumIncome(prevKey);
+    if (prior === 0) return null;
+    return Math.round(((cur - prior) / prior) * 100);
+  }, [ledger]);
+
+  // Audit trail synthesised from ledger events
+  const derivedAudit = useMemo(() => {
+    type AuditItem = { id: string; at: string; who: string; action: string };
+    return ledger
+      .flatMap((e): AuditItem[] => {
+        if (e.anchorStatus === 'anchored' && e.txHash) {
+          return [{ id: `anc_${e.id}`, at: e.approvedAt ?? e.createdAt, who: e.approvedBy ?? e.createdBy, action: `Anchored ${e.description} (${fmt(e.amount, e.currency)})` }];
+        }
+        if (e.status === 'approved' && e.approvedAt) {
+          return [{ id: `apv_${e.id}`, at: e.approvedAt, who: e.approvedBy ?? '', action: `Approved ${e.description}` }];
+        }
+        if (e.status === 'rejected' && e.approvedAt) {
+          return [{ id: `rej_${e.id}`, at: e.approvedAt, who: e.approvedBy ?? '', action: `Rejected — ${e.description}` }];
+        }
+        return [{ id: `crt_${e.id}`, at: e.createdAt, who: e.createdBy, action: `${e.status === 'pending' ? 'Submitted' : 'Created'} entry: ${e.description}` }];
+      })
+      .sort((a, b) => b.at.localeCompare(a.at))
+      .slice(0, 5);
+  }, [ledger]);
+
+  const memberStats = useMemo(() => ({
+    active:    members.filter((m) => m.status === 'active').length,
+    pending:   members.filter((m) => m.status === 'pending').length,
+    expired:   members.filter((m) => m.status === 'expired').length,
+    suspended: members.filter((m) => m.status === 'suspended').length,
+  }), [members]);
+
+  const sparkMax = Math.max(...spark, 1);
   const sparkPath = spark.map((v, i) => `${(i / (spark.length - 1)) * 100},${100 - (v / sparkMax) * 100}`).join(' ');
 
   return (
@@ -46,8 +114,17 @@ export function Dashboard({ org, ledger }: Props) {
               <div className="text-[10px] uppercase tracking-[0.25em] text-stone-500 font-mono">Net position · YTD</div>
               <div className="mt-3 font-display text-4xl sm:text-6xl leading-none tracking-[-0.03em]">{fmt(totals.net, org.currency)}</div>
               <div className="mt-3 flex items-center gap-3 text-xs text-stone-600">
-                <span className="inline-flex items-center gap-1 text-emerald-700"><TrendingUp className="w-3.5 h-3.5" /> +18% vs prior period</span>
-                <span className="text-stone-400">·</span>
+                {periodChange !== null && (
+                  <>
+                    <span className={`inline-flex items-center gap-1 ${periodChange >= 0 ? 'text-emerald-700' : 'text-[var(--ledger-red)]'}`}>
+                      {periodChange >= 0
+                        ? <TrendingUp className="w-3.5 h-3.5" />
+                        : <TrendingDown className="w-3.5 h-3.5" />}
+                      {periodChange >= 0 ? '+' : ''}{periodChange}% vs prior month
+                    </span>
+                    <span className="text-stone-400">·</span>
+                  </>
+                )}
                 <span>across {ledger.length} records</span>
               </div>
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute right-7 bottom-7 w-32 h-12 opacity-60">
@@ -125,9 +202,11 @@ export function Dashboard({ org, ledger }: Props) {
             </div>
 
             <div className="bg-[var(--paper)]/40 border border-stone-300/60 p-5 relative">
-              <div className="absolute left-7 top-5 bottom-5 w-px bg-stone-300" />
+              {derivedAudit.length > 0 && <div className="absolute left-7 top-5 bottom-5 w-px bg-stone-300" />}
               <div className="space-y-4">
-                {MOCK_AUDIT.map((a) => (
+                {derivedAudit.length === 0 ? (
+                  <p className="text-xs text-stone-400 italic">No ledger activity yet.</p>
+                ) : derivedAudit.map((a) => (
                   <div key={a.id} className="relative pl-8">
                     <div className="absolute left-[18px] top-1.5 w-2 h-2 bg-[var(--ink)] rounded-full ring-4 ring-[var(--paper)]" />
                     <div className="text-xs text-stone-800 font-editorial leading-snug">{a.action}</div>
@@ -148,10 +227,10 @@ export function Dashboard({ org, ledger }: Props) {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-stone-300/60 border border-stone-300/60">
                 {[
-                  { l: 'Active',    v: MOCK_MEMBERS.filter((m) => m.status === 'active').length,    c: 'text-emerald-700' },
-                  { l: 'Pending',   v: MOCK_MEMBERS.filter((m) => m.status === 'pending').length,   c: 'text-amber-700' },
-                  { l: 'Expired',   v: MOCK_MEMBERS.filter((m) => m.status === 'expired').length,   c: 'text-stone-500' },
-                  { l: 'Suspended', v: MOCK_MEMBERS.filter((m) => m.status === 'suspended').length, c: 'text-[var(--ledger-red)]' },
+                  { l: 'Active',    v: memberStats.active,    c: 'text-emerald-700' },
+                  { l: 'Pending',   v: memberStats.pending,   c: 'text-amber-700' },
+                  { l: 'Expired',   v: memberStats.expired,   c: 'text-stone-500' },
+                  { l: 'Suspended', v: memberStats.suspended, c: 'text-[var(--ledger-red)]' },
                 ].map((b) => (
                   <div key={b.l} className="p-4 sm:p-6 bg-white">
                     <div className={`font-display text-4xl sm:text-5xl ${b.c}`}>{b.v}</div>
@@ -165,7 +244,9 @@ export function Dashboard({ org, ledger }: Props) {
               <div className="text-[10px] uppercase tracking-[0.25em] text-[var(--ledger-red)] font-mono mb-1">§ Notices</div>
               <h3 className="font-display text-2xl mb-4 pb-3 border-b border-stone-300/60">Recent announcements</h3>
               <div className="space-y-4">
-                {MOCK_ANNOUNCEMENTS.map((a) => (
+                {announcements.length === 0 ? (
+                  <p className="text-xs text-stone-400 italic">No announcements posted yet.</p>
+                ) : announcements.slice(0, 3).map((a) => (
                   <article key={a.id} className="bg-white border border-stone-300/60 p-5">
                     <div className="text-[10px] uppercase tracking-[0.22em] text-stone-500 font-mono mb-2">{a.date}</div>
                     <h4 className="font-display text-xl leading-tight">{a.title}</h4>
@@ -179,8 +260,11 @@ export function Dashboard({ org, ledger }: Props) {
             <div className="text-[10px] uppercase tracking-[0.25em] text-[var(--ledger-red)] font-mono mb-1">§ Portfolio</div>
             <h3 className="font-display text-2xl mb-4 pb-3 border-b border-stone-300/60">Projects in motion</h3>
 
+            {projects.length === 0 ? (
+              <p className="text-xs text-stone-400 italic">No projects added yet.</p>
+            ) : (
             <div className="grid md:grid-cols-2 gap-px bg-stone-300/60 border border-stone-300/60">
-              {MOCK_PROJECTS.map((p) => {
+              {projects.map((p) => {
                 const pct = Math.round((p.spent / p.budget) * 100);
                 return (
                   <div key={p.id} className="bg-white p-4 sm:p-6">
@@ -213,6 +297,7 @@ export function Dashboard({ org, ledger }: Props) {
                 );
               })}
             </div>
+            )}
           </div>
         )}
       </div>
