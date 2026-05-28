@@ -2,7 +2,8 @@ import {
   collection, doc, getDocs, addDoc, updateDoc, deleteDoc,
   orderBy, query, serverTimestamp, Timestamp,
 } from 'firebase/firestore';
-import { USE_MOCK_DATA, db } from '@/lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { USE_MOCK_DATA, db, app } from '@/lib/firebase';
 import type { OrgEvent, RsvpStatus } from '@/types';
 
 let mockEvents: OrgEvent[] = [];
@@ -50,7 +51,23 @@ export async function createEvent(
     rsvps: {},
     createdAt: serverTimestamp(),
   });
-  return { ...event, id: ref.id };
+  const created = { ...event, id: ref.id };
+  // Fire-and-forget: notify all active members by email
+  if (app) {
+    httpsCallable(getFunctions(app), 'notifyEventCreated')({
+      orgId,
+      eventId: ref.id,
+      event: {
+        title:       data.title,
+        startDate:   data.startDate,
+        endDate:     data.endDate,
+        allDay:      data.allDay,
+        location:    data.location,
+        description: data.description,
+      },
+    }).catch((e) => console.warn('Event notification failed:', e));
+  }
+  return created;
 }
 
 export async function updateEvent(

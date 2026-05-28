@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, X, MapPin, Clock, Pencil, Trash2, CalendarDays, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, X, MapPin, Clock, Pencil, Trash2, CalendarDays, Users, ChevronDown, ChevronUp, Link2 } from 'lucide-react';
 import { listEvents, createEvent, updateEvent, deleteEvent, setRsvp } from '@/services/events';
 import { can, useRole } from '@/hooks/useRole';
 import type { OrgEvent, Organization, RsvpStatus } from '@/types';
@@ -8,6 +8,14 @@ import type { AuthUser } from '@/hooks/useAuth';
 interface Props {
   org: Organization;
   user: AuthUser;
+}
+
+function copyShareLink(orgSlug: string, type: 'event' | 'announcement', id: string, setCopied: (v: boolean) => void) {
+  const url = `${window.location.origin}/share/${orgSlug}/${type}/${id}`;
+  navigator.clipboard.writeText(url).then(() => {
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -126,6 +134,7 @@ export function Events({ org, user }: Props) {
                   key={ev.id}
                   event={ev}
                   userId={user.uid}
+                  orgSlug={org.slug ?? org.id}
                   isAdmin={isAdmin}
                   onRsvp={(s) => handleRsvp(ev, s)}
                   onEdit={() => { setEditing(ev); setShowForm(true); }}
@@ -140,6 +149,7 @@ export function Events({ org, user }: Props) {
             <PastSection
               events={past}
               userId={user.uid}
+              orgSlug={org.slug ?? org.id}
               isAdmin={isAdmin}
               onEdit={(ev) => { setEditing(ev); setShowForm(true); }}
               onDelete={handleDelete}
@@ -164,16 +174,18 @@ export function Events({ org, user }: Props) {
 // ─── EventCard ────────────────────────────────────────────────────────────────
 
 function EventCard({
-  event, userId, isAdmin, onRsvp, onEdit, onDelete,
+  event, userId, orgSlug, isAdmin, onRsvp, onEdit, onDelete,
 }: {
   event: OrgEvent;
   userId: string;
+  orgSlug: string;
   isAdmin: boolean;
   onRsvp: (s: RsvpStatus) => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const [showAttendees, setShowAttendees] = useState(false);
+  const [copied, setCopied] = useState(false);
   const past = isPast(event);
   const fmt  = formatDate(event.startDate);
   const myRsvp = event.rsvps?.[userId]?.status ?? null;
@@ -206,12 +218,23 @@ function EventCard({
                 )}
                 <h3 className="font-display text-xl text-stone-900 leading-snug">{event.title}</h3>
               </div>
-              {isAdmin && !past && (
-                <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={onEdit}   className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100"><Pencil  className="w-3.5 h-3.5" /></button>
-                  <button onClick={onDelete} className="p-1.5 rounded text-stone-300 hover:text-red-500  hover:bg-red-50"  ><Trash2  className="w-3.5 h-3.5" /></button>
-                </div>
-              )}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => copyShareLink(orgSlug, 'event', event.id, setCopied)}
+                  title="Copy share link"
+                  className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                >
+                  {copied
+                    ? <span className="text-[10px] text-emerald-600 font-mono">Copied!</span>
+                    : <Link2 className="w-3.5 h-3.5" />}
+                </button>
+                {isAdmin && !past && (
+                  <>
+                    <button onClick={onEdit}   className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100"><Pencil className="w-3.5 h-3.5" /></button>
+                    <button onClick={onDelete} className="p-1.5 rounded text-stone-300 hover:text-red-500  hover:bg-red-50"  ><Trash2 className="w-3.5 h-3.5" /></button>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Meta */}
@@ -301,10 +324,11 @@ function EventCard({
 // ─── PastSection ──────────────────────────────────────────────────────────────
 
 function PastSection({
-  events, userId, isAdmin, onEdit, onDelete,
+  events, userId, orgSlug, isAdmin, onEdit, onDelete,
 }: {
   events: OrgEvent[];
   userId: string;
+  orgSlug: string;
   isAdmin: boolean;
   onEdit: (ev: OrgEvent) => void;
   onDelete: (ev: OrgEvent) => void;
@@ -324,6 +348,7 @@ function PastSection({
           key={ev.id}
           event={ev}
           userId={userId}
+          orgSlug={orgSlug}
           isAdmin={isAdmin}
           onRsvp={() => {}}
           onEdit={() => onEdit(ev)}

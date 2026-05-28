@@ -24,6 +24,7 @@ import { Reports } from '@/pages/Reports';
 import { Transparency } from '@/pages/Transparency';
 import { Anchors } from '@/pages/Anchors';
 import { Settings } from '@/pages/Settings';
+import { RsvpConfirm } from '@/pages/RsvpConfirm';
 import { NewEntryModal } from '@/modals/NewEntryModal';
 import type { LedgerEntry, LedgerStatus, Organization, MemberType, DuesRates } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
@@ -68,6 +69,10 @@ export default function App() {
   );
 
   // ── Not signed in ───────────────────────────────────────────────────────────
+  const rsvpRoute = (
+    <Route path="/rsvp/:orgId/:eventId" element={<RsvpConfirm />} />
+  );
+
   if (!user) {
     return (
       <Routes>
@@ -79,6 +84,7 @@ export default function App() {
           />
         } />
         {joinPreviewRoute}
+        {rsvpRoute}
         {/* Backward-compat: old /join?invite=CODE links */}
         <Route path="/join" element={<RedirectOldInvite />} />
         <Route path="*" element={
@@ -93,6 +99,7 @@ export default function App() {
     return (
       <Routes>
         {joinPreviewRoute}
+        {rsvpRoute}
         <Route path="*" element={
           <PendingApprovalScreen
             pendingOrgs={pendingOrgs}
@@ -109,6 +116,7 @@ export default function App() {
     return (
       <Routes>
         {joinPreviewRoute}
+        {rsvpRoute}
         <Route path="*" element={
           <OrgSetup
             onCreate={async (data) => { const org = await addOrg(data); navigate(orgPath(org)); }}
@@ -132,6 +140,7 @@ export default function App() {
         />
       } />
       {joinPreviewRoute}
+      {rsvpRoute}
       {/* Old /join route — now just redirects to OrgSetup (manual code entry) */}
       <Route path="/join" element={
         <OrgSetup

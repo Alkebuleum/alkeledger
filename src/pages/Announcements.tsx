@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, X, Trash2, Pencil, Megaphone, Pin } from 'lucide-react';
+import { Plus, X, Trash2, Pencil, Megaphone, Pin, Link2 } from 'lucide-react';
 import { listAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/services/announcements';
 import { can, useRole } from '@/hooks/useRole';
 import type { Announcement, AnnouncementPriority, Organization } from '@/types';
@@ -26,10 +26,19 @@ const PRIORITY_BADGE: Record<AnnouncementPriority, string> = {
 
 export function Announcements({ org, user }: Props) {
   const role = useRole(org.id, user.uid);
-  const [items, setItems] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<Announcement | null>(null);
+  const [items,    setItems]    = useState<Announcement[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [editing,  setEditing]  = useState<Announcement | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleShare = (a: Announcement) => {
+    const url = `${window.location.origin}/share/${org.slug ?? org.id}/announcement/${a.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedId(a.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  };
 
   const reload = () => {
     setLoading(true);
@@ -134,32 +143,43 @@ export function Announcements({ org, user }: Props) {
                     <div className="mt-3 text-[11px] text-stone-400">Posted by {a.createdBy}</div>
                   </div>
 
-                  {/* Admin actions */}
-                  {isAdmin && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => handleTogglePin(a)}
-                        title={a.pinned ? 'Unpin' : 'Pin to top'}
-                        className={`p-1.5 rounded hover:bg-stone-100 transition-colors ${a.pinned ? 'text-stone-700' : 'text-stone-300 hover:text-stone-600'}`}
-                      >
-                        <Pin className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => { setEditing(a); setShowForm(true); }}
-                        title="Edit"
-                        className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(a)}
-                        title="Delete"
-                        className="p-1.5 rounded text-stone-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleShare(a)}
+                      title="Copy share link"
+                      className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                    >
+                      {copiedId === a.id
+                        ? <span className="text-[10px] text-emerald-600 font-mono">Copied!</span>
+                        : <Link2 className="w-3.5 h-3.5" />}
+                    </button>
+                    {isAdmin && (
+                      <>
+                        <button
+                          onClick={() => handleTogglePin(a)}
+                          title={a.pinned ? 'Unpin' : 'Pin to top'}
+                          className={`p-1.5 rounded hover:bg-stone-100 transition-colors ${a.pinned ? 'text-stone-700' : 'text-stone-300 hover:text-stone-600'}`}
+                        >
+                          <Pin className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => { setEditing(a); setShowForm(true); }}
+                          title="Edit"
+                          className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(a)}
+                          title="Delete"
+                          className="p-1.5 rounded text-stone-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </article>
