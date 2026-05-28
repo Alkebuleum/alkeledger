@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, X, MapPin, Clock, Pencil, Trash2, CalendarDays, Users, ChevronDown, ChevronUp, Link2 } from 'lucide-react';
-import { listEvents, createEvent, updateEvent, deleteEvent, setRsvp } from '@/services/events';
+import { Plus, X, MapPin, Clock, Pencil, Trash2, CalendarDays, Users, ChevronDown, ChevronUp, Link2, Mail } from 'lucide-react';
+import { listEvents, createEvent, updateEvent, deleteEvent, setRsvp, notifyEventMembers } from '@/services/events';
 import { can, useRole } from '@/hooks/useRole';
 import type { OrgEvent, Organization, RsvpStatus } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
@@ -100,6 +100,7 @@ export function Events({ org, user }: Props) {
   };
 
   const isAdmin = can.announce(role);
+  const isPro   = org.plan === 'pro';
 
   const upcoming = events.filter((e) => !isPast(e) && !e.cancelled);
   const past      = events.filter((e) => isPast(e) || !!e.cancelled);
@@ -151,9 +152,14 @@ export function Events({ org, user }: Props) {
                   userId={user.uid}
                   orgSlug={org.slug ?? org.id}
                   isAdmin={isAdmin}
+                  isPro={isPro}
                   onRsvp={(s) => handleRsvp(ev, s)}
                   onEdit={() => { setEditing(ev); setShowForm(true); }}
                   onDelete={() => handleDelete(ev)}
+                  onNotify={() => notifyEventMembers(org.id, ev.id, {
+                    title: ev.title, startDate: ev.startDate, endDate: ev.endDate,
+                    allDay: ev.allDay, location: ev.location, description: ev.description,
+                  })}
                 />
               ))}
             </section>
@@ -166,6 +172,7 @@ export function Events({ org, user }: Props) {
               userId={user.uid}
               orgSlug={org.slug ?? org.id}
               isAdmin={isAdmin}
+              isPro={isPro}
               onEdit={(ev) => { setEditing(ev); setShowForm(true); }}
               onDelete={handleDelete}
             />
@@ -188,20 +195,38 @@ export function Events({ org, user }: Props) {
 
 // ─── EventCard ────────────────────────────────────────────────────────────────
 
+type NotifyState = 'idle' | 'confirm' | 'sending' | 'sent' | 'error';
+
 function EventCard({
-  event, userId, orgSlug, isAdmin, onRsvp, onEdit, onDelete,
+  event, userId, orgSlug, isAdmin, isPro, onRsvp, onEdit, onDelete, onNotify,
 }: {
   event: OrgEvent;
   userId: string;
   orgSlug: string;
   isAdmin: boolean;
+  isPro: boolean;
   onRsvp: (s: RsvpStatus) => void;
   onEdit: () => void;
   onDelete: () => void;
+  onNotify?: () => Promise<void>;
 }) {
   const [showAttendees, setShowAttendees] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [notifyState, setNotifyState] = useState<NotifyState>('idle');
   const past = isPast(event);
+
+  const handleNotifyConfirm = async () => {
+    if (!onNotify) return;
+    setNotifyState('sending');
+    try {
+      await onNotify();
+      setNotifyState('sent');
+      setTimeout(() => setNotifyState('idle'), 4000);
+    } catch {
+      setNotifyState('error');
+      setTimeout(() => setNotifyState('idle'), 4000);
+    }
+  };
   const fmt  = formatDate(event.startDate);
   const myRsvp = event.rsvps?.[userId]?.status ?? null;
 
@@ -245,6 +270,17 @@ function EventCard({
                 </button>
                 {isAdmin && !past && (
                   <>
+                    <button
+                      onClick={() => isPro ? setNotifyState('confirm') : undefined}
+                      title={isPro ? 'Email members about this event' : 'Pro feature — upgrade to send event emails'}
+                      className={`p-1.5 rounded transition-colors ${
+                        isPro
+                          ? 'text-stone-300 hover:text-stone-700 hover:bg-stone-100'
+                          : 'text-stone-200 cursor-not-allowed'
+                      }`}
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                    </button>
                     <button onClick={onEdit}   className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100"><Pencil className="w-3.5 h-3.5" /></button>
                     <button onClick={onDelete} className="p-1.5 rounded text-stone-300 hover:text-red-500  hover:bg-red-50"  ><Trash2 className="w-3.5 h-3.5" /></button>
                   </>
@@ -267,6 +303,36 @@ function EventCard({
 
             {event.description && (
               <p className="mt-2.5 text-sm text-stone-700 leading-relaxed whitespace-pre-line">{event.description}</p>
+            )}
+
+            {/* Email notify confirmation strip */}
+            {notifyState !== 'idle' && (
+              <div className="mt-3 px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-md">
+                {notifyState === 'confirm' && (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs text-stone-700">Email all active members about this event?</span>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => setNotifyState('idle')}
+                        className="text-xs text-stone-500 hover:text-stone-900"
+                      >Cancel</button>
+                      <button
+                        onClick={handleNotifyConfirm}
+                        className="text-xs font-medium text-white bg-stone-900 px-2.5 py-1 rounded hover:bg-stone-700"
+                      >Send emails</button>
+                    </div>
+                  </div>
+                )}
+                {notifyState === 'sending' && (
+                  <p className="text-xs text-stone-500">Sending emails…</p>
+                )}
+                {notifyState === 'sent' && (
+                  <p className="text-xs text-emerald-600 font-medium">Emails sent to all active members.</p>
+                )}
+                {notifyState === 'error' && (
+                  <p className="text-xs text-red-500">Failed to send. Please try again.</p>
+                )}
+              </div>
             )}
 
             {/* RSVP section */}
@@ -339,12 +405,13 @@ function EventCard({
 // ─── PastSection ──────────────────────────────────────────────────────────────
 
 function PastSection({
-  events, userId, orgSlug, isAdmin, onEdit, onDelete,
+  events, userId, orgSlug, isAdmin, isPro, onEdit, onDelete,
 }: {
   events: OrgEvent[];
   userId: string;
   orgSlug: string;
   isAdmin: boolean;
+  isPro: boolean;
   onEdit: (ev: OrgEvent) => void;
   onDelete: (ev: OrgEvent) => void;
 }) {
@@ -365,6 +432,7 @@ function PastSection({
           userId={userId}
           orgSlug={orgSlug}
           isAdmin={isAdmin}
+          isPro={isPro}
           onRsvp={() => {}}
           onEdit={() => onEdit(ev)}
           onDelete={() => onDelete(ev)}

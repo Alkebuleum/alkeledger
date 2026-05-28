@@ -52,21 +52,6 @@ export async function createEvent(
     createdAt: serverTimestamp(),
   });
   const created = { ...event, id: ref.id };
-  // Fire-and-forget: notify all active members by email
-  if (app) {
-    httpsCallable(getFunctions(app), 'notifyEventCreated')({
-      orgId,
-      eventId: ref.id,
-      event: {
-        title:       data.title,
-        startDate:   data.startDate,
-        endDate:     data.endDate,
-        allDay:      data.allDay,
-        location:    data.location,
-        description: data.description,
-      },
-    }).catch((e) => console.warn('Event notification failed:', e));
-  }
   return created;
 }
 
@@ -90,6 +75,15 @@ export async function deleteEvent(orgId: string, eventId: string): Promise<void>
   }
   if (!db) return;
   await deleteDoc(doc(eventsCol(orgId), eventId));
+}
+
+export async function notifyEventMembers(
+  orgId: string,
+  eventId: string,
+  event: Pick<OrgEvent, 'title' | 'startDate' | 'endDate' | 'allDay' | 'location' | 'description'>,
+): Promise<void> {
+  if (USE_MOCK_DATA || !app) return;
+  await httpsCallable(getFunctions(app), 'notifyEventCreated')({ orgId, eventId, event });
 }
 
 export async function setRsvp(

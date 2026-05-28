@@ -62,6 +62,7 @@ export interface Organization {
   createdBy?: string;
   allowedMemberTypes?: MemberType[];
   duesRates?: DuesRates;
+  plan?: 'free' | 'pro';
 }
 
 export interface OrgUser {
