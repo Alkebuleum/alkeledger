@@ -570,7 +570,7 @@ export const sharePreview = onRequest(async (req, res) => {
   }
 
   const shareUrl = `${APP_BASE_URL}/share/${orgSlug}/${type}/${id}`;
-  const ogImage  = `${APP_BASE_URL}/logo.png`;
+  const ogImage  = `${APP_BASE_URL}/icon.png`;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'public, max-age=300');
