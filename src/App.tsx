@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams, useMatch, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrgs } from '@/hooks/useOrg';
@@ -41,10 +41,29 @@ function RedirectOldInvite() {
   return <Navigate to="/" replace />;
 }
 
+// Saves the intended destination then sends unauthenticated users to sign-in.
+function RedirectToSignIn() {
+  const location = useLocation();
+  useEffect(() => {
+    const path = location.pathname + location.search;
+    sessionStorage.setItem('loginRedirect', path);
+  }, []);
+  return <Navigate to="/signin" replace />;
+}
+
 export default function App() {
   const { user, loading: authLoading, requestOtp, verifyOtp, signInWithToken, signOut } = useAuth();
   const { orgs, pendingOrgs, addOrg, joinOrg, removeOrg, saveOrgSettings, loading: orgsLoading, refreshOrgs } = useOrgs(user);
   const navigate = useNavigate();
+
+  const handleVerifyOtp = async (email: string, code: string) => {
+    await verifyOtp(email, code);
+    const redirect = sessionStorage.getItem('loginRedirect');
+    if (redirect) {
+      sessionStorage.removeItem('loginRedirect');
+      navigate(redirect, { replace: true });
+    }
+  };
 
 
   if (authLoading || (user && orgsLoading)) {
@@ -76,20 +95,21 @@ export default function App() {
   if (!user) {
     return (
       <Routes>
+        <Route path="/" element={
+          <Landing onStart={() => navigate('/signin')} onDemo={() => navigate('/signin')} />
+        } />
         <Route path="/signin" element={
           <SignIn
             onBack={() => navigate('/')}
             onRequestOtp={requestOtp}
-            onVerifyOtp={verifyOtp}
+            onVerifyOtp={handleVerifyOtp}
           />
         } />
         {joinPreviewRoute}
         {rsvpRoute}
         {/* Backward-compat: old /join?invite=CODE links */}
         <Route path="/join" element={<RedirectOldInvite />} />
-        <Route path="*" element={
-          <Landing onStart={() => navigate('/signin')} onDemo={() => navigate('/signin')} />
-        } />
+        <Route path="*" element={<RedirectToSignIn />} />
       </Routes>
     );
   }
