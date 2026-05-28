@@ -51,7 +51,6 @@ export async function createEvent(
     rsvps: {},
     createdAt: serverTimestamp(),
   });
-  await updateDoc(ref, { eventId: ref.id });
   const created = { ...event, id: ref.id };
   return created;
 }

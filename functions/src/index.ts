@@ -513,34 +513,63 @@ export const handleEmailRsvp = onCall(async (request) => {
   };
 });
 
-// ─── Event page helper ────────────────────────────────────────────────────────
+// ─── sharePreview ─────────────────────────────────────────────────────────────
+// HTTP function that serves OG-tagged HTML for social sharing previews.
+// Firebase Hosting rewrites /share/** to this function.
+// Crawlers (WhatsApp, Telegram, etc.) see OG meta tags.
+// Real users get a JS redirect into the app.
 
-function serveEventPage(
-  res: { setHeader(n: string, v: string): void; send(b: string): void },
-  ev: Record<string, unknown>,
-  evId: string,
-  orgName: string,
-  orgSlug: string,
-  shareUrl: string,
-): void {
-  const ogImage   = `${APP_BASE_URL}/icon.png`;
-  const evTitle   = ev['title'] as string;
-  const dateStr   = formatEventDate(ev['startDate'] as string, ev['endDate'] as string | undefined, ev['allDay'] as boolean | undefined);
-  const evLoc     = ev['location'] as string | undefined;
-  const evDesc    = ev['description'] as string | undefined;
-  const rsvps     = (ev['rsvps'] as Record<string, { status: string }> | undefined) ?? {};
-  const attending = Object.values(rsvps).filter((r) => r.status === 'attending').length;
-  const maybe     = Object.values(rsvps).filter((r) => r.status === 'maybe').length;
-  const rsvpStr   = attending > 0 || maybe > 0
-    ? `${attending} attending${maybe > 0 ? ` · ${maybe} maybe` : ''}`
-    : '';
-  const ogTitle   = `${evTitle} — ${orgName}`;
-  const ogDesc    = [dateStr, evLoc, rsvpStr || evDesc].filter(Boolean).join(' · ').slice(0, 200);
-  const eventsUrl = `${APP_BASE_URL}/${orgSlug}/events`;
+export const sharePreview = onRequest(async (req, res) => {
+  // Path: /share/{orgSlug}/{type}/{id}
+  const parts = req.path.split('/').filter(Boolean);
+  const [, orgSlug, type, id] = parts; // parts[0] = 'share'
+
+  if (!orgSlug || !type || !id || !['event', 'announcement'].includes(type)) {
+    res.status(404).send('Not found');
+    return;
+  }
+
+  const orgSnap = await db.collection('organizations')
+    .where('slug', '==', orgSlug)
+    .limit(1)
+    .get();
+
+  if (orgSnap.empty) { res.status(404).send('Not found'); return; }
+
+  const orgDoc  = orgSnap.docs[0];
+  const orgData = orgDoc.data();
+  const orgName = orgData['name'] as string;
+
+  const ogImage  = `${APP_BASE_URL}/icon.png`;
+  const shareUrl = `${APP_BASE_URL}/share/${orgSlug}/${type}/${id}`;
   const css = `*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fafaf9;display:flex;align-items:flex-start;justify-content:center;min-height:100vh;margin:0;padding:32px 20px}.card{max-width:480px;width:100%}.logo{font-size:18px;font-weight:900;color:#1c1917;letter-spacing:-.02em;margin-bottom:28px}.logo span{font-weight:300}.badge{font-size:10px;text-transform:uppercase;letter-spacing:.2em;color:#b45309;font-family:monospace;margin-bottom:6px}h1{font-size:22px;font-weight:700;color:#1c1917;margin:0 0 12px;line-height:1.3}.meta{font-size:13px;color:#78716c;margin-bottom:6px}.desc{font-size:14px;color:#57534e;margin:14px 0 0;line-height:1.65;white-space:pre-line}hr{border:none;border-top:1px solid #e7e5e4;margin:20px 0}.rsvp-label{font-size:11px;text-transform:uppercase;letter-spacing:.15em;color:#78716c;margin-bottom:10px}.rsvp-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.btn{display:inline-block;padding:10px 20px;text-decoration:none;font-size:14px;font-weight:600;border-radius:6px}.btn-a{background:#059669;color:#fff}.btn-m{background:#d97706;color:#fff}.btn-d{background:#78716c;color:#fff}.btn-open{display:block;text-align:center;padding:10px 16px;font-size:13px;color:#78716c;text-decoration:none;border:1px solid #e7e5e4;border-radius:6px;margin-top:8px}.body-text{font-size:15px;color:#1c1917;line-height:1.7;white-space:pre-line;margin:0 0 20px}`;
+
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'public, max-age=300');
-  res.send(`<!DOCTYPE html>
+
+  if (type === 'event') {
+    const eventDoc = await db.collection('organizations').doc(orgDoc.id)
+      .collection('events').doc(id).get();
+    if (!eventDoc.exists) { res.status(404).send('Not found'); return; }
+
+    const ev       = eventDoc.data()!;
+    const evTitle  = ev['title'] as string;
+    const dateStr  = formatEventDate(ev['startDate'] as string, ev['endDate'] as string | undefined, ev['allDay'] as boolean | undefined);
+    const evLoc    = ev['location'] as string | undefined;
+    const evDesc   = ev['description'] as string | undefined;
+
+    const rsvps    = (ev['rsvps'] as Record<string, {status: string}> | undefined) ?? {};
+    const attending = Object.values(rsvps).filter((r) => r.status === 'attending').length;
+    const maybe     = Object.values(rsvps).filter((r) => r.status === 'maybe').length;
+    const rsvpStr   = attending > 0 || maybe > 0
+      ? `${attending} attending${maybe > 0 ? ` · ${maybe} maybe` : ''}`
+      : '';
+
+    const ogTitle  = `${evTitle} — ${orgName}`;
+    const ogDesc   = [dateStr, evLoc, rsvpStr || evDesc].filter(Boolean).join(' · ').slice(0, 200);
+    const eventsUrl = `${APP_BASE_URL}/${orgSlug}/events`;
+
+    res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -571,76 +600,14 @@ function serveEventPage(
     <hr />
     <div class="rsvp-label">RSVP</div>
     <div class="rsvp-row">
-      <a href="${esc(eventsUrl)}?openEvent=${esc(evId)}&amp;rsvp=attending" class="btn btn-a">Attending</a>
-      <a href="${esc(eventsUrl)}?openEvent=${esc(evId)}&amp;rsvp=maybe"     class="btn btn-m">Maybe</a>
-      <a href="${esc(eventsUrl)}?openEvent=${esc(evId)}&amp;rsvp=declining" class="btn btn-d">Declining</a>
+      <a href="${esc(eventsUrl)}?openEvent=${esc(id)}&amp;rsvp=attending" class="btn btn-a">Attending</a>
+      <a href="${esc(eventsUrl)}?openEvent=${esc(id)}&amp;rsvp=maybe"     class="btn btn-m">Maybe</a>
+      <a href="${esc(eventsUrl)}?openEvent=${esc(id)}&amp;rsvp=declining" class="btn btn-d">Declining</a>
     </div>
     <a href="${esc(eventsUrl)}" class="btn-open">View in AlkeLedger →</a>
   </div>
 </body>
 </html>`);
-}
-
-// ─── sharePreview ─────────────────────────────────────────────────────────────
-// HTTP function that serves OG-tagged HTML for social sharing previews.
-// Firebase Hosting rewrites /share/** to this function.
-// Crawlers (WhatsApp, Telegram, etc.) see OG meta tags.
-// Real users get a JS redirect into the app.
-
-export const sharePreview = onRequest(async (req, res) => {
-  const parts = req.path.split('/').filter(Boolean);
-
-  // Short URL: /e/{eventId}
-  if (parts[0] === 'e' && parts.length === 2) {
-    const shortId = parts[1];
-    const evSnap  = await db.collectionGroup('events')
-      .where('eventId', '==', shortId)
-      .limit(1)
-      .get();
-    if (evSnap.empty) { res.status(404).send('Not found'); return; }
-    const evDoc      = evSnap.docs[0];
-    const orgRef     = evDoc.ref.parent.parent!;
-    const orgDocSnap = await orgRef.get();
-    if (!orgDocSnap.exists) { res.status(404).send('Not found'); return; }
-    const orgData    = orgDocSnap.data()!;
-    const orgName    = orgData['name'] as string;
-    const orgSlugVal = (orgData['slug'] as string) || orgRef.id;
-    const shareUrl   = `${APP_BASE_URL}/e/${shortId}`;
-    serveEventPage(res, evDoc.data()!, shortId, orgName, orgSlugVal, shareUrl);
-    return;
-  }
-
-  // Path: /share/{orgSlug}/{type}/{id}
-  const [, orgSlug, type, id] = parts; // parts[0] = 'share'
-
-  if (!orgSlug || !type || !id || !['event', 'announcement'].includes(type)) {
-    res.status(404).send('Not found');
-    return;
-  }
-
-  const orgSnap = await db.collection('organizations')
-    .where('slug', '==', orgSlug)
-    .limit(1)
-    .get();
-
-  if (orgSnap.empty) { res.status(404).send('Not found'); return; }
-
-  const orgDoc  = orgSnap.docs[0];
-  const orgData = orgDoc.data();
-  const orgName = orgData['name'] as string;
-
-  const ogImage  = `${APP_BASE_URL}/icon.png`;
-  const shareUrl = `${APP_BASE_URL}/share/${orgSlug}/${type}/${id}`;
-  const css = `*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fafaf9;display:flex;align-items:flex-start;justify-content:center;min-height:100vh;margin:0;padding:32px 20px}.card{max-width:480px;width:100%}.logo{font-size:18px;font-weight:900;color:#1c1917;letter-spacing:-.02em;margin-bottom:28px}.logo span{font-weight:300}.badge{font-size:10px;text-transform:uppercase;letter-spacing:.2em;color:#b45309;font-family:monospace;margin-bottom:6px}h1{font-size:22px;font-weight:700;color:#1c1917;margin:0 0 12px;line-height:1.3}.meta{font-size:13px;color:#78716c;margin-bottom:6px}.desc{font-size:14px;color:#57534e;margin:14px 0 0;line-height:1.65;white-space:pre-line}hr{border:none;border-top:1px solid #e7e5e4;margin:20px 0}.rsvp-label{font-size:11px;text-transform:uppercase;letter-spacing:.15em;color:#78716c;margin-bottom:10px}.rsvp-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.btn{display:inline-block;padding:10px 20px;text-decoration:none;font-size:14px;font-weight:600;border-radius:6px}.btn-a{background:#059669;color:#fff}.btn-m{background:#d97706;color:#fff}.btn-d{background:#78716c;color:#fff}.btn-open{display:block;text-align:center;padding:10px 16px;font-size:13px;color:#78716c;text-decoration:none;border:1px solid #e7e5e4;border-radius:6px;margin-top:8px}.body-text{font-size:15px;color:#1c1917;line-height:1.7;white-space:pre-line;margin:0 0 20px}`;
-
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.setHeader('Cache-Control', 'public, max-age=300');
-
-  if (type === 'event') {
-    const eventDoc = await db.collection('organizations').doc(orgDoc.id)
-      .collection('events').doc(id).get();
-    if (!eventDoc.exists) { res.status(404).send('Not found'); return; }
-    serveEventPage(res, eventDoc.data()!, id, orgName, orgSlug, shareUrl);
     return;
   }
 
