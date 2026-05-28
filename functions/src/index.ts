@@ -581,8 +581,8 @@ export const sharePreview = onRequest(async (req, res) => {
   <meta property="og:title" content="${esc(ogTitle)}" />
   <meta property="og:description" content="${esc(ogDesc)}" />
   <meta property="og:image" content="${esc(ogImage)}" />
-  <meta property="og:image:width" content="1080" />
-  <meta property="og:image:height" content="734" />
+  <meta property="og:image:width" content="1254" />
+  <meta property="og:image:height" content="1254" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="${esc(ogTitle)}" />
   <meta name="twitter:description" content="${esc(ogDesc)}" />
@@ -635,8 +635,8 @@ export const sharePreview = onRequest(async (req, res) => {
   <meta property="og:title" content="${esc(ogTitle)}" />
   <meta property="og:description" content="${esc(ogDesc)}" />
   <meta property="og:image" content="${esc(ogImage)}" />
-  <meta property="og:image:width" content="1080" />
-  <meta property="og:image:height" content="734" />
+  <meta property="og:image:width" content="1254" />
+  <meta property="og:image:height" content="1254" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="${esc(ogTitle)}" />
   <meta name="twitter:description" content="${esc(ogDesc)}" />
