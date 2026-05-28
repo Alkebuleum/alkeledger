@@ -4,11 +4,11 @@ interface Props {
 
 export function Brand({ small = false }: Props) {
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-end gap-2.5">
       <img
         src="/logo.svg"
         alt="AlkeLedger"
-        className={small ? 'h-6 w-auto' : 'h-8 w-auto'}
+        className={small ? 'h-5 w-auto' : 'h-7 w-auto'}
       />
       <div className="leading-tight">
         <div className={`font-display ${small ? 'text-base' : 'text-lg'} text-stone-900`}>
