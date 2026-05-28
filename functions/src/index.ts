@@ -558,15 +558,8 @@ export const sharePreview = onRequest(async (req, res) => {
     const evLoc    = ev['location'] as string | undefined;
     const evDesc   = ev['description'] as string | undefined;
 
-    const rsvps    = (ev['rsvps'] as Record<string, {status: string}> | undefined) ?? {};
-    const attending = Object.values(rsvps).filter((r) => r.status === 'attending').length;
-    const maybe     = Object.values(rsvps).filter((r) => r.status === 'maybe').length;
-    const rsvpStr   = attending > 0 || maybe > 0
-      ? `${attending} attending${maybe > 0 ? ` · ${maybe} maybe` : ''}`
-      : '';
-
     const ogTitle  = 'Event Invite';
-    const ogDesc   = [dateStr, evLoc, rsvpStr || evDesc].filter(Boolean).join(' · ').slice(0, 200);
+    const ogDesc   = `${orgName} is inviting you to an event on AlkeLedger. Tap below to view the details and confirm your RSVP.`;
     const eventsUrl = `${APP_BASE_URL}/${orgSlug}/events`;
 
     res.send(`<!DOCTYPE html>
