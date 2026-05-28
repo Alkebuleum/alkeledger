@@ -33,7 +33,7 @@ export function Landing({ onStart, onDemo }: Props) {
           </div>
           <div className="flex items-end justify-between py-5">
             <div className="flex items-end gap-3">
-              <img src="/logo.svg" alt="AlkeLedger" className="h-9 w-auto" />
+              <img src="/logo.svg" alt="AlkeLedger" className="h-9 w-auto pb-2" />
               <div className="font-display text-3xl md:text-4xl leading-none"><span className="font-bold">Alke</span><span className="font-light">Ledger</span></div>
             </div>
             <nav className="hidden md:flex items-center gap-8 text-xs uppercase tracking-[0.18em] text-stone-700">
