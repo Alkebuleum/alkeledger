@@ -67,7 +67,7 @@ export function NotificationBell({ notifs, totalUnread, onMarkRead, onMarkAllRea
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-80 sm:w-96 bg-white border border-stone-200 shadow-2xl z-50">
+        <div className="absolute right-0 top-full mt-1 w-[min(24rem,calc(100vw-1rem))] bg-white border border-stone-200 shadow-2xl z-50">
           {/* Header */}
           <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
             <span className="text-sm font-semibold text-stone-900">

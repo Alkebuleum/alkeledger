@@ -149,7 +149,7 @@ export function Announcements({ org, user }: Props) {
                     <button
                       onClick={() => handleShare(a)}
                       title="Copy share link"
-                      className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                      className="hidden sm:flex p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
                     >
                       {copiedId === a.id
                         ? <span className="text-[10px] text-emerald-600 font-mono">Copied!</span>

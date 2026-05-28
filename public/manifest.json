@@ -1,0 +1,15 @@
+{
+  "name": "AlkeLedger",
+  "short_name": "AlkeLedger",
+  "description": "Blockchain-anchored bookkeeping for organizations that intend to be trusted.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f0e8",
+  "theme_color": "#1c1917",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/favicon-16x16.png", "sizes": "16x16",   "type": "image/png" },
+    { "src": "/favicon-32x32.png", "sizes": "32x32",   "type": "image/png" },
+    { "src": "/icon.png",          "sizes": "1254x1254","type": "image/png", "purpose": "any maskable" }
+  ]
+}

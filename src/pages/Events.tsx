@@ -302,7 +302,7 @@ function EventCard({
                 <button
                   onClick={() => copyShareLink(orgSlug, 'event', event.id, setCopied)}
                   title="Copy share link"
-                  className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                  className="hidden sm:flex p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
                 >
                   {copied
                     ? <span className="text-[10px] text-emerald-600 font-mono">Copied!</span>
@@ -320,7 +320,7 @@ function EventCard({
                     <button
                       onClick={() => isPro ? setNotifyState('confirm') : undefined}
                       title={isPro ? 'Email members about this event' : 'Pro feature — upgrade to send event emails'}
-                      className={`p-1.5 rounded transition-colors ${
+                      className={`hidden sm:flex p-1.5 rounded transition-colors ${
                         isPro
                           ? 'text-stone-300 hover:text-stone-700 hover:bg-stone-100'
                           : 'text-stone-200 cursor-not-allowed'

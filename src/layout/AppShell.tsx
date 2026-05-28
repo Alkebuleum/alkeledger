@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Sidebar, type PageId } from './Sidebar';
 import { TopBar } from './TopBar';
+import { PWAInstallBanner } from '@/components/PWAInstallBanner';
 import type { Organization, AppNotif } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
 import type { ReactNode } from 'react';
@@ -79,8 +80,9 @@ export function AppShell({ org, orgs, pendingOrgs, onSwitchOrg, page, onNewEntry
           onMarkRead={onMarkRead}
           onMarkAllRead={onMarkAllRead}
         />
-        <div className="flex-1 overflow-y-auto">{children}</div>
+        <div className="flex-1 overflow-y-auto pb-safe">{children}</div>
       </main>
+      <PWAInstallBanner />
     </div>
   );
 }

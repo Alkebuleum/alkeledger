@@ -356,7 +356,7 @@ export function Dues({ org, ledger, user, onRecordPayment, onApprove }: Props) {
           </div>
 
           {/* KPIs */}
-          <div className="grid sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <KPI label="Collected" value={fmt(collected, org.currency)} icon={Wallet} accent="emerald" />
             <KPI label="Paid" value={`${paid.length} / ${activeMembers.length}`} icon={CheckCircle2} accent="indigo" />
             <KPI label="Outstanding" value={`${outstanding}`} icon={AlertCircle} accent={outstanding > 0 ? 'rose' : 'stone'} />
