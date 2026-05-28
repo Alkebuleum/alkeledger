@@ -15,6 +15,10 @@
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
+        "source": "/e/**",
+        "function": "sharePreview"
+      },
+      {
         "source": "/share/**",
         "function": "sharePreview"
       },

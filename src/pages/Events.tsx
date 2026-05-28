@@ -12,47 +12,22 @@ interface Props {
 }
 
 function copyShareLink(orgSlug: string, type: 'event' | 'announcement', id: string, setCopied: (v: boolean) => void) {
-  const url = `${window.location.origin}/share/${orgSlug}/${type}/${id}`;
+  const url = type === 'event'
+    ? `${window.location.origin}/e/${id}`
+    : `${window.location.origin}/share/${orgSlug}/${type}/${id}`;
   navigator.clipboard.writeText(url).then(() => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   });
 }
 
-function shareEvent(event: OrgEvent, orgSlug: string) {
-  const url  = `${window.location.origin}/share/${orgSlug}/event/${event.id}`;
-  const date = event.startDate
-    ? new Date(event.startDate).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-    : '';
-  const time = formatRange(event.startDate, event.endDate, event.allDay);
-
-  const rsvps     = event.rsvps ?? {};
-  const attending = Object.values(rsvps).filter((r) => r.status === 'attending').length;
-  const maybe     = Object.values(rsvps).filter((r) => r.status === 'maybe').length;
-  const declining = Object.values(rsvps).filter((r) => r.status === 'declining').length;
-
-  const lines: string[] = [];
-  lines.push(`*${event.title}*`);
-  lines.push('');
-  lines.push(`📅 ${date} · ${time}`);
-  if (event.location) lines.push(`📍 ${event.location}`);
-  lines.push('');
-  lines.push('👥 RSVP Status');
-  lines.push(`✅ Attending: ${attending}`);
-  lines.push(`🤔 Maybe: ${maybe}`);
-  lines.push(`❌ Declining: ${declining}`);
-  lines.push('');
-  lines.push('Tap below to RSVP:');
-  lines.push(url);
-
-  const text   = lines.join('\n');
+function shareEvent(event: OrgEvent, orgName: string) {
+  const url    = `${window.location.origin}/e/${event.id}`;
+  const text   = `${orgName} is inviting you to an event on AlkeLedger. Tap below to view the details and confirm your RSVP.\n\n${url}`;
   const waUrl  = `https://wa.me/?text=${encodeURIComponent(text)}`;
-  // Only use the native share sheet on mobile — desktop OS share dialogs
-  // (Windows/macOS) mangle Unicode emoji before passing text to apps.
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
   if (navigator.share && isMobile) {
-    navigator.share({ title: event.title, text }).catch(() => window.open(waUrl, '_blank'));
+    navigator.share({ title: 'Event Invite', text }).catch(() => window.open(waUrl, '_blank'));
   } else {
     window.open(waUrl, '_blank');
   }
@@ -190,6 +165,7 @@ export function Events({ org, user }: Props) {
                   event={ev}
                   userId={user.uid}
                   orgSlug={org.slug ?? org.id}
+                  orgName={org.name}
                   isAdmin={isAdmin}
                   isPro={isPro}
                   onRsvp={(s) => handleRsvp(ev, s)}
@@ -210,6 +186,7 @@ export function Events({ org, user }: Props) {
               events={past}
               userId={user.uid}
               orgSlug={org.slug ?? org.id}
+              orgName={org.name}
               isAdmin={isAdmin}
               isPro={isPro}
               onEdit={(ev) => { setEditing(ev); setShowForm(true); }}
@@ -237,11 +214,12 @@ export function Events({ org, user }: Props) {
 type NotifyState = 'idle' | 'confirm' | 'sending' | 'sent' | 'error';
 
 function EventCard({
-  event, userId, orgSlug, isAdmin, isPro, onRsvp, onEdit, onDelete, onNotify,
+  event, userId, orgSlug, orgName, isAdmin, isPro, onRsvp, onEdit, onDelete, onNotify,
 }: {
   event: OrgEvent;
   userId: string;
   orgSlug: string;
+  orgName: string;
   isAdmin: boolean;
   isPro: boolean;
   onRsvp: (s: RsvpStatus) => void;
@@ -308,7 +286,7 @@ function EventCard({
                     : <Link2 className="w-3.5 h-3.5" />}
                 </button>
                 <button
-                  onClick={() => shareEvent(event, orgSlug)}
+                  onClick={() => shareEvent(event, orgName)}
                   title="Share event"
                   className="p-1.5 rounded text-stone-300 hover:text-[#25D366] hover:bg-emerald-50 transition-colors"
                 >
@@ -451,11 +429,12 @@ function EventCard({
 // ─── PastSection ──────────────────────────────────────────────────────────────
 
 function PastSection({
-  events, userId, orgSlug, isAdmin, isPro, onEdit, onDelete,
+  events, userId, orgSlug, orgName, isAdmin, isPro, onEdit, onDelete,
 }: {
   events: OrgEvent[];
   userId: string;
   orgSlug: string;
+  orgName: string;
   isAdmin: boolean;
   isPro: boolean;
   onEdit: (ev: OrgEvent) => void;
@@ -477,6 +456,7 @@ function PastSection({
           event={ev}
           userId={userId}
           orgSlug={orgSlug}
+          orgName={orgName}
           isAdmin={isAdmin}
           isPro={isPro}
           onRsvp={() => {}}
