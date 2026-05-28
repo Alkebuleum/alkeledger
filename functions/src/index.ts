@@ -557,8 +557,16 @@ export const sharePreview = onRequest(async (req, res) => {
     const dateStr  = formatEventDate(ev['startDate'] as string, ev['endDate'] as string | undefined, ev['allDay'] as boolean | undefined);
     const evLoc    = ev['location'] as string | undefined;
     const evDesc   = ev['description'] as string | undefined;
+
+    const rsvps    = (ev['rsvps'] as Record<string, {status: string}> | undefined) ?? {};
+    const attending = Object.values(rsvps).filter((r) => r.status === 'attending').length;
+    const maybe     = Object.values(rsvps).filter((r) => r.status === 'maybe').length;
+    const rsvpStr   = attending > 0 || maybe > 0
+      ? `${attending} attending${maybe > 0 ? ` · ${maybe} maybe` : ''}`
+      : '';
+
     const ogTitle  = `${evTitle} — ${orgName}`;
-    const ogDesc   = [dateStr, evLoc, evDesc].filter(Boolean).join(' · ').slice(0, 200);
+    const ogDesc   = [dateStr, evLoc, rsvpStr || evDesc].filter(Boolean).join(' · ').slice(0, 200);
     const eventsUrl = `${APP_BASE_URL}/${orgSlug}/events`;
 
     res.send(`<!DOCTYPE html>
