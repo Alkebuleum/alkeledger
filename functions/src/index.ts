@@ -263,6 +263,86 @@ export const redeemInvite = onCall(async (request) => {
   return { customToken, orgId, orgSlug, orgName: orgData['name'] as string };
 });
 
+// ─── sendInviteEmail ──────────────────────────────────────────────────────────
+// Server-side invite email — keeps the Brevo API key off the client bundle.
+
+export const sendInviteEmail = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Must be signed in to send invites.');
+  }
+
+  const { email, name, orgName, orgId, inviteCode, token } = request.data as {
+    email: string;
+    name: string;
+    orgName: string;
+    orgId: string;
+    inviteCode: string;
+    token: string | null;
+  };
+
+  if (!email || !orgId || !inviteCode) {
+    throw new HttpsError('invalid-argument', 'email, orgId, and inviteCode are required.');
+  }
+
+  const callerUid = request.auth.uid;
+  const callerSnap = await db.collection('memberships').doc(`${orgId}_${callerUid}`).get();
+  if (!callerSnap.exists) throw new HttpsError('permission-denied', 'Not a member of this org.');
+  const callerRole = (callerSnap.data() as Record<string, unknown>)?.role as string | undefined;
+  if (!['owner', 'admin'].includes(callerRole ?? '')) {
+    throw new HttpsError('permission-denied', 'Only admins can send invites.');
+  }
+
+  const brevoKey    = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.BREVO_SENDER_EMAIL ?? 'noreply@alkeledger.app';
+
+  const joinLink = token
+    ? `${APP_BASE_URL}/join/${inviteCode}?t=${token}`
+    : `${APP_BASE_URL}/join/${inviteCode}`;
+
+  if (!brevoKey) {
+    logger.info(`[DEV INVITE] ${name} <${email}> → ${joinLink}`);
+    return { success: true };
+  }
+
+  const htmlContent = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:32px 20px;background:#FAF8F4">
+      <div style="background:#0E1015;border-radius:4px;padding:20px;text-align:center;margin-bottom:24px">
+        <span style="color:#FAF8F4;font-size:22px;font-weight:700;letter-spacing:-.02em">AlkeLedger</span>
+      </div>
+      <h1 style="font-size:20px;font-weight:700;color:#0E1015;margin:0 0 8px">Hi ${esc(name) || 'there'},</h1>
+      <p style="color:#57534e;margin:0 0 24px;font-size:15px;line-height:1.6">
+        You've been invited to join <strong>${esc(orgName)}</strong> on AlkeLedger — a ledger and accountability platform for organizations.
+      </p>
+      <a href="${joinLink}" style="display:block;background:#0E1015;color:#FAF8F4;text-decoration:none;padding:14px;text-align:center;font-weight:600;font-size:16px;margin-bottom:24px">
+        View workspace &amp; join →
+      </a>
+      <div style="background:white;border:1px solid #e7e5e4;padding:16px;text-align:center;margin-bottom:24px">
+        <div style="font-size:11px;color:#78716c;margin-bottom:6px;text-transform:uppercase;letter-spacing:.1em">Or use invite code manually</div>
+        <span style="font-size:32px;font-weight:800;letter-spacing:.3em;color:#0E1015">${esc(inviteCode)}</span>
+      </div>
+      <p style="color:#a8a29e;font-size:12px;margin:0;text-align:center">If you didn't expect this, you can safely ignore it.</p>
+    </div>
+  `;
+
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sender: { name: 'AlkeLedger', email: senderEmail },
+      to: [{ email, name }],
+      subject: `You're invited to join ${orgName} on AlkeLedger`,
+      htmlContent,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json() as { message?: string };
+    throw new HttpsError('internal', err.message ?? 'Email delivery failed');
+  }
+
+  return { success: true };
+});
+
 // ─── notifyEventCreated ───────────────────────────────────────────────────────
 // Sends event invitation emails with one-click RSVP buttons to all active
 // members of the org. Called from the client immediately after creating an event.
@@ -287,6 +367,14 @@ export const notifyEventCreated = onCall(async (request) => {
 
   if (!orgId || !eventId || !event?.title) {
     throw new HttpsError('invalid-argument', 'orgId, eventId, and event data are required.');
+  }
+
+  const callerUid = request.auth.uid;
+  const callerSnap = await db.collection('memberships').doc(`${orgId}_${callerUid}`).get();
+  if (!callerSnap.exists) throw new HttpsError('permission-denied', 'Not a member of this org.');
+  const callerRole = (callerSnap.data() as Record<string, unknown>)?.role as string | undefined;
+  if (!['owner', 'admin'].includes(callerRole ?? '')) {
+    throw new HttpsError('permission-denied', 'Only admins can send event notifications.');
   }
 
   const brevoKey    = process.env.BREVO_API_KEY;
@@ -464,6 +552,14 @@ export const notifyPollCreated = onCall(async (request) => {
 
   if (!orgId || !pollId || !poll?.title) {
     throw new HttpsError('invalid-argument', 'orgId, pollId, and poll data are required.');
+  }
+
+  const callerUid = request.auth.uid;
+  const callerSnap = await db.collection('memberships').doc(`${orgId}_${callerUid}`).get();
+  if (!callerSnap.exists) throw new HttpsError('permission-denied', 'Not a member of this org.');
+  const callerRole = (callerSnap.data() as Record<string, unknown>)?.role as string | undefined;
+  if (!['owner', 'admin'].includes(callerRole ?? '')) {
+    throw new HttpsError('permission-denied', 'Only admins can send poll notifications.');
   }
 
   const brevoKey    = process.env.BREVO_API_KEY;
