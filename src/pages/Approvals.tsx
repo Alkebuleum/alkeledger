@@ -11,7 +11,7 @@ export function Approvals({ ledger, onDecide }: Props) {
   const pending = ledger.filter((l) => l.status === 'pending');
 
   return (
-    <div className="p-8 max-w-5xl space-y-4">
+    <div className="p-4 sm:p-8 max-w-5xl space-y-4">
       <div className="flex items-baseline justify-between">
         <p className="text-stone-600 text-sm">
           {pending.length} record{pending.length === 1 ? '' : 's'} awaiting decision.

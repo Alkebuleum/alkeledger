@@ -166,7 +166,7 @@ export function Documents({ org, user }: Props) {
                           href={d.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1.5 rounded text-stone-400 hover:text-stone-900 hover:bg-stone-100"
+                          className="p-1.5 rounded-md text-stone-400 hover:text-stone-900 hover:bg-stone-100"
                           title="View"
                         >
                           <Eye className="w-3.5 h-3.5" />
@@ -176,7 +176,7 @@ export function Documents({ org, user }: Props) {
                         <a
                           href={d.url}
                           download={d.name}
-                          className="p-1.5 rounded text-stone-400 hover:text-stone-900 hover:bg-stone-100"
+                          className="p-1.5 rounded-md text-stone-400 hover:text-stone-900 hover:bg-stone-100"
                           title="Download"
                         >
                           <Download className="w-3.5 h-3.5" />
@@ -185,7 +185,7 @@ export function Documents({ org, user }: Props) {
                       {isAdmin && (
                         <button
                           onClick={() => handleDelete(d)}
-                          className="p-1.5 rounded text-stone-300 hover:text-red-500 hover:bg-red-50"
+                          className="p-1.5 rounded-md text-stone-300 hover:text-red-500 hover:bg-red-50"
                           title="Delete"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

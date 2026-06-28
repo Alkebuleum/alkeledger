@@ -1,5 +1,8 @@
-import { Link2, Clock, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { useState } from 'react';
+import { Link2, Clock, CheckCircle2, ShieldCheck, Wallet, X, Copy } from 'lucide-react';
 import { fmt } from '@/lib/format';
+import { useNuruWallet } from '@/hooks/useNuruWallet';
+import { NuruConnectModal } from '@/components/NuruConnectModal';
 import type { LedgerEntry } from '@/types';
 
 interface Props {
@@ -7,11 +10,26 @@ interface Props {
   onAnchor: (id: string) => void | Promise<void>;
 }
 
+function truncateAddr(addr: string) {
+  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+}
+
 export function Anchors({ ledger, onAnchor }: Props) {
-  const ready = ledger.filter((l) => l.anchorStatus === 'ready');
-  const anchored = ledger.filter((l) => l.anchorStatus === 'anchored');
+  const ready       = ledger.filter((l) => l.anchorStatus === 'ready');
+  const anchored    = ledger.filter((l) => l.anchorStatus === 'anchored');
   const notAnchored = ledger.filter((l) => l.anchorStatus === 'not_anchored').length;
-  const failed = ledger.filter((l) => l.anchorStatus === 'failed').length;
+  const failed      = ledger.filter((l) => l.anchorStatus === 'failed').length;
+
+  const wallet = useNuruWallet();
+  const [showModal, setShowModal] = useState(false);
+  const [copied,    setCopied]    = useState(false);
+
+  async function copyAddr() {
+    if (!wallet.aaWallet) return;
+    await navigator.clipboard.writeText(wallet.aaWallet);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
 
   return (
     <div className="max-w-7xl">
@@ -23,18 +41,64 @@ export function Anchors({ ledger, onAnchor }: Props) {
 
           <div className="relative px-10 py-10 grid md:grid-cols-12 gap-8 items-end">
             <div className="md:col-span-7">
+              {/* Chain status */}
               <div className="text-[10px] uppercase tracking-[0.3em] text-emerald-300 font-mono mb-4 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                Alkebuleum mainnet · connected
+                {wallet.connected ? (
+                  <>
+                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                    Alkebuleum mainnet · connected
+                  </>
+                ) : (
+                  <>
+                    <span className="w-1.5 h-1.5 bg-stone-500 rounded-full" />
+                    Alkebuleum mainnet · wallet not connected
+                  </>
+                )}
               </div>
+
               <h2 className="font-display text-5xl md:text-6xl leading-[0.95] font-medium">
                 Proof, set in <em className="font-editorial italic font-light text-emerald-300">stone.</em>
               </h2>
               <p className="mt-5 font-editorial text-lg text-stone-300 leading-snug max-w-xl">
                 When an approval is granted, the record is hashed and queued for anchoring. The hash — and only the hash — is committed to the chain. Your books stay yours.
               </p>
+
+              {/* Wallet connect / status area */}
+              <div className="mt-6">
+                {wallet.connected ? (
+                  <div className="inline-flex items-center gap-3 bg-white/5 border border-white/10 rounded-md px-4 py-2.5">
+                    <Wallet className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <div className="flex flex-col">
+                      {wallet.primaryHandle && (
+                        <span className="text-xs text-stone-400 leading-none mb-0.5">{wallet.primaryHandle}</span>
+                      )}
+                      <span className="font-mono text-sm text-emerald-300">{truncateAddr(wallet.aaWallet!)}</span>
+                      {wallet.ain && (
+                        <span className="text-[10px] font-mono text-stone-500 mt-0.5">{wallet.ain}</span>
+                      )}
+                    </div>
+                    <button onClick={copyAddr} title="Copy address" className="text-stone-400 hover:text-stone-200 transition-colors ml-1">
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                    {copied && <span className="text-[10px] text-emerald-400 font-mono">Copied!</span>}
+                    <span className="w-px h-4 bg-white/10" />
+                    <button onClick={wallet.disconnect} title="Disconnect" className="text-stone-500 hover:text-stone-300 transition-colors">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowModal(true)}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-stone-900 text-sm font-semibold rounded-md transition-colors"
+                  >
+                    <Wallet className="w-4 h-4" />
+                    Connect Nuru wallet
+                  </button>
+                )}
+              </div>
             </div>
 
+            {/* Stats grid */}
             <div className="md:col-span-5 grid grid-cols-2 gap-px bg-[var(--bone)]/10">
               <div className="bg-[var(--ink)] p-5">
                 <div className="text-[10px] uppercase tracking-[0.22em] text-stone-500 font-mono">Anchored</div>
@@ -56,6 +120,16 @@ export function Anchors({ ledger, onAnchor }: Props) {
           </div>
         </div>
 
+        {/* Wallet required notice */}
+        {!wallet.connected && (
+          <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-md px-5 py-4">
+            <Wallet className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+            <p className="text-sm text-amber-800">
+              Connect your Nuru wallet to anchor records to the Alkebuleum blockchain. You can browse the queue and anchored history without connecting.
+            </p>
+          </div>
+        )}
+
         {/* How it works */}
         <div>
           <div className="flex items-baseline gap-4 mb-5 pb-3 border-b border-stone-300/60">
@@ -64,8 +138,8 @@ export function Anchors({ ledger, onAnchor }: Props) {
           </div>
           <div className="grid md:grid-cols-3 gap-px bg-stone-300/60 border border-stone-300/60">
             {[
-              { n: 'I', t: 'Hash on approval', d: 'A canonical SHA-256 hash is generated at the moment a record is approved.' },
-              { n: 'II', t: 'Commit to chain', d: 'The hash is written to the Alkebuleum blockchain. Private record data never leaves your workspace.' },
+              { n: 'I',   t: 'Hash on approval',  d: 'A canonical SHA-256 hash is generated at the moment a record is approved.' },
+              { n: 'II',  t: 'Commit to chain',    d: 'The hash is written to the Alkebuleum blockchain. Private record data never leaves your workspace.' },
               { n: 'III', t: 'Verifiable forever', d: 'Anyone holding the record can re-hash it and confirm the original has not changed since.' },
             ].map((s, i) => (
               <div key={i} className="bg-white p-6">
@@ -85,8 +159,10 @@ export function Anchors({ ledger, onAnchor }: Props) {
             <span className="flex-1 h-px bg-stone-300/60" />
             {ready.length > 0 && (
               <button
-                onClick={() => ready.forEach((r) => onAnchor(r.id))}
-                className="px-4 py-2 bg-[var(--ink)] text-[var(--bone)] text-xs font-medium tracking-wide uppercase flex items-center gap-2 hover:bg-stone-800"
+                onClick={() => wallet.connected && ready.forEach((r) => onAnchor(r.id))}
+                disabled={!wallet.connected}
+                title={wallet.connected ? undefined : 'Connect your Nuru wallet first'}
+                className="px-4 py-2 bg-[var(--ink)] text-[var(--bone)] text-xs font-medium tracking-wide uppercase rounded-md flex items-center gap-2 hover:bg-stone-800 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Link2 className="w-3.5 h-3.5" /> Anchor all · {ready.length}
               </button>
@@ -111,8 +187,10 @@ export function Anchors({ ledger, onAnchor }: Props) {
                   </div>
                   <div className="font-display text-xl tracking-tight text-stone-900">{fmt(e.amount)}</div>
                   <button
-                    onClick={() => onAnchor(e.id)}
-                    className="px-4 py-2 bg-[var(--ink)] text-[var(--bone)] text-xs font-medium uppercase tracking-wide hover:bg-stone-800 flex items-center gap-1.5"
+                    onClick={() => wallet.connected && onAnchor(e.id)}
+                    disabled={!wallet.connected}
+                    title={wallet.connected ? undefined : 'Connect your Nuru wallet first'}
+                    className="px-4 py-2 bg-[var(--ink)] text-[var(--bone)] text-xs font-medium uppercase tracking-wide rounded-md hover:bg-stone-800 flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Link2 className="w-3 h-3" /> Anchor
                   </button>
@@ -122,7 +200,7 @@ export function Anchors({ ledger, onAnchor }: Props) {
           )}
         </div>
 
-        {/* Anchored */}
+        {/* Anchored records */}
         <div>
           <div className="flex items-baseline gap-4 mb-5 pb-3 border-b border-stone-300/60">
             <span className="text-[10px] uppercase tracking-[0.3em] text-[var(--ledger-red)] font-mono">Of record</span>
@@ -157,6 +235,14 @@ export function Anchors({ ledger, onAnchor }: Props) {
           )}
         </div>
       </div>
+
+      {/* Connect modal */}
+      {showModal && (
+        <NuruConnectModal
+          onConnected={(conn) => { wallet.setConnected(conn); setShowModal(false); }}
+          onClose={() => setShowModal(false)}
+        />
+      )}
     </div>
   );
 }

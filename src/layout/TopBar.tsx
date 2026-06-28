@@ -14,52 +14,28 @@ interface Props {
   onMarkAllRead: () => void;
 }
 
-const titles: Record<PageId, string> = {
-  dashboard: 'Dashboard',
-  members: 'Members',
-  dues: 'Dues',
-  ledger: 'The Ledger',
-  announcements: 'Announcements',
-  events: 'Events & Meetings',
-  votes: 'Votes & Polls',
-  requests: 'Member Requests',
-  projects: 'Projects',
-  budgets: 'Budgets',
-  income: 'Income',
-  expenses: 'Expenses',
-  approvals: 'Approvals',
-  documents: 'Documents',
-  reports: 'Reports',
-  transparency: 'Public Transparency',
-  anchors: 'Proof & Anchoring',
-  settings: 'Settings',
-};
-
-export function TopBar({ org, page, onNewEntry, onMenuToggle, notifs, totalUnread, onMarkRead, onMarkAllRead }: Props) {
+export function TopBar({ org, page: _page, onNewEntry, onMenuToggle, notifs, totalUnread, onMarkRead, onMarkAllRead }: Props) {
   return (
-    <header className="border-b-2 border-[var(--ink)] bg-[var(--bone)] shrink-0">
-      <div className="px-4 sm:px-8 py-3 sm:py-5 flex items-center gap-3">
-        {/* Hamburger — visible only on mobile */}
+    <header className="border-b border-stone-200 bg-white shrink-0">
+      <div className="px-4 sm:px-6 py-3 flex items-center gap-3">
         <button
           onClick={onMenuToggle}
-          className="lg:hidden p-2 -ml-1 text-stone-700 hover:bg-stone-100 rounded"
+          className="lg:hidden p-2 -ml-1 text-stone-500 hover:bg-stone-100 rounded-lg transition-colors"
           aria-label="Open menu"
         >
           <Menu className="w-5 h-5" />
         </button>
 
         <div className="flex-1 min-w-0">
-          <div className="text-[10px] uppercase tracking-[0.25em] text-stone-500 font-mono truncate">{org.name}</div>
-          <h1 className="font-display text-2xl sm:text-3xl text-[var(--ink)] mt-0.5 tracking-[-0.02em] leading-tight">
-            {titles[page]}
-          </h1>
+          <div className="text-sm font-semibold text-stone-900 truncate">{org.name}</div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <button className="hidden sm:flex px-3 py-2 text-sm text-stone-700 hover:bg-stone-100 items-center gap-2 border border-stone-300">
-            <Search className="w-4 h-4" /> Search
+          <button className="hidden sm:flex items-center gap-2 px-3 py-2 text-sm text-stone-500 hover:bg-stone-100 rounded-lg border border-stone-200 transition-colors">
+            <Search className="w-4 h-4" />
+            <span>Search</span>
           </button>
-          <button className="sm:hidden p-2 text-stone-700 hover:bg-stone-100 border border-stone-300">
+          <button className="sm:hidden p-2 text-stone-500 hover:bg-stone-100 rounded-lg border border-stone-200 transition-colors">
             <Search className="w-4 h-4" />
           </button>
           <NotificationBell
@@ -70,7 +46,7 @@ export function TopBar({ org, page, onNewEntry, onMenuToggle, notifs, totalUnrea
           />
           <button
             onClick={onNewEntry}
-            className="px-3 sm:px-4 py-2 bg-[var(--ink)] text-[var(--bone)] text-sm font-medium hover:bg-stone-800 flex items-center gap-1.5"
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-[#0E1015] text-[#FAF8F4] text-sm font-medium rounded-lg hover:bg-stone-800 transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">New entry</span>

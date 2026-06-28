@@ -79,7 +79,7 @@ export function Announcements({ org, user }: Props) {
 
   return (
     <div className="p-4 sm:p-8 max-w-3xl space-y-4">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
         <div>
           <div className="text-[10px] uppercase tracking-[0.25em] text-[var(--ledger-red)] font-mono">§ Notices</div>
           <h2 className="font-display text-2xl mt-0.5">Announcements</h2>
@@ -87,9 +87,11 @@ export function Announcements({ org, user }: Props) {
         {isAdmin && (
           <button
             onClick={() => { setEditing(null); setShowForm(true); }}
-            className="px-3 py-2 bg-stone-900 text-stone-50 text-sm font-medium flex items-center gap-1.5 hover:bg-stone-800"
+            className="px-3 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md flex items-center gap-1.5 hover:bg-stone-800"
           >
-            <Plus className="w-4 h-4" /> New announcement
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">New announcement</span>
+            <span className="sm:hidden">New</span>
           </button>
         )}
       </div>
@@ -149,7 +151,7 @@ export function Announcements({ org, user }: Props) {
                     <button
                       onClick={() => handleShare(a)}
                       title="Copy share link"
-                      className="hidden sm:flex p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                      className="flex p-1.5 rounded-md text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
                     >
                       {copiedId === a.id
                         ? <span className="text-[10px] text-emerald-600 font-mono">Copied!</span>
@@ -160,21 +162,21 @@ export function Announcements({ org, user }: Props) {
                         <button
                           onClick={() => handleTogglePin(a)}
                           title={a.pinned ? 'Unpin' : 'Pin to top'}
-                          className={`p-1.5 rounded hover:bg-stone-100 transition-colors ${a.pinned ? 'text-stone-700' : 'text-stone-300 hover:text-stone-600'}`}
+                          className={`p-1.5 rounded-md hover:bg-stone-100 transition-colors ${a.pinned ? 'text-stone-700' : 'text-stone-300 hover:text-stone-600'}`}
                         >
                           <Pin className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => { setEditing(a); setShowForm(true); }}
                           title="Edit"
-                          className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                          className="p-1.5 rounded-md text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleDelete(a)}
                           title="Delete"
-                          className="p-1.5 rounded text-stone-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                          className="p-1.5 rounded-md text-stone-300 hover:text-red-500 hover:bg-red-50 transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -246,8 +248,8 @@ function AnnouncementModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-900/40 flex items-center justify-center p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-lg border border-stone-200 shadow-2xl rounded-lg overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-stone-900/40 flex items-end sm:items-center sm:justify-center sm:p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="bg-white w-full sm:max-w-lg border border-stone-200 shadow-2xl rounded-t-2xl sm:rounded-xl max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between">
           <h3 className="font-display text-xl">{isEdit ? 'Edit announcement' : 'New announcement'}</h3>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X className="w-5 h-5" /></button>
@@ -256,12 +258,12 @@ function AnnouncementModal({
         <div className="p-6 space-y-4">
           <div>
             <label className="text-xs text-stone-600 block mb-1.5">Priority</label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {(['normal', 'important', 'urgent'] as AnnouncementPriority[]).map((p) => (
                 <button
                   key={p}
                   onClick={() => setPriority(p)}
-                  className={`px-3 py-1.5 text-xs font-medium border rounded capitalize transition-colors ${
+                  className={`px-3 py-1.5 text-xs font-medium border rounded-md capitalize transition-colors ${
                     priority === p
                       ? p === 'urgent'    ? 'bg-red-600 text-white border-red-600'
                       : p === 'important' ? 'bg-blue-600 text-white border-blue-600'
@@ -281,7 +283,7 @@ function AnnouncementModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Annual General Meeting — June 18"
-              className="w-full px-3 py-2.5 border border-stone-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
+              className="w-full px-3 py-2.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
             />
           </div>
 
@@ -292,7 +294,7 @@ function AnnouncementModal({
               onChange={(e) => setBody(e.target.value)}
               rows={5}
               placeholder="What do members need to know?"
-              className="w-full px-3 py-2.5 border border-stone-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-stone-900 resize-none"
+              className="w-full px-3 py-2.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900 resize-none"
             />
             <p className="text-[11px] text-stone-400 mt-1">Line breaks are preserved in the post.</p>
           </div>
@@ -303,7 +305,7 @@ function AnnouncementModal({
           <button
             onClick={handleSave}
             disabled={saving || !title.trim() || !body.trim()}
-            className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium hover:bg-stone-800 disabled:opacity-40 rounded"
+            className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md hover:bg-stone-800 disabled:opacity-40"
           >
             {saving ? (isEdit ? 'Saving…' : 'Posting…') : (isEdit ? 'Save changes' : 'Post announcement')}
           </button>

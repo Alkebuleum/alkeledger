@@ -124,7 +124,7 @@ export function Votes({ org, user }: Props) {
         {isAdmin && (
           <button
             onClick={() => { setEditing(null); setShowForm(true); }}
-            className="px-3 py-2 bg-stone-900 text-stone-50 text-sm font-medium flex items-center gap-1.5 hover:bg-stone-800"
+            className="px-3 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md flex items-center gap-1.5 hover:bg-stone-800"
           >
             <Plus className="w-4 h-4" /> New vote
           </button>
@@ -307,14 +307,14 @@ function PollCard({
                 <button
                   onClick={() => copyShareLink(orgSlug, poll.id, setCopied)}
                   title="Copy share link"
-                  className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                  className="p-1.5 rounded-md text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
                 >
                   {copied ? <span className="text-[10px] text-emerald-600 font-mono">Copied!</span> : <Link2 className="w-3.5 h-3.5" />}
                 </button>
                 <button
                   onClick={() => sharePoll(poll, orgSlug)}
                   title="Share via WhatsApp"
-                  className="p-1.5 rounded text-stone-300 hover:text-[#25D366] hover:bg-emerald-50 transition-colors"
+                  className="p-1.5 rounded-md text-stone-300 hover:text-[#25D366] hover:bg-emerald-50 transition-colors"
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
                 </button>
@@ -322,7 +322,7 @@ function PollCard({
                   <button
                     onClick={() => isPro ? setNotifyState('confirm') : undefined}
                     title={isPro ? 'Email members about this vote' : 'Pro feature — upgrade to send emails'}
-                    className={`p-1.5 rounded transition-colors ${isPro ? 'text-stone-300 hover:text-stone-700 hover:bg-stone-100' : 'text-stone-200 cursor-not-allowed'}`}
+                    className={`p-1.5 rounded-md transition-colors ${isPro ? 'text-stone-300 hover:text-stone-700 hover:bg-stone-100' : 'text-stone-200 cursor-not-allowed'}`}
                   >
                     <Mail className="w-3.5 h-3.5" />
                   </button>
@@ -339,15 +339,15 @@ function PollCard({
                     Publish
                   </button>
                 )}
-                <button onClick={onEdit} className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100">
+                <button onClick={onEdit} className="p-1.5 rounded-md text-stone-300 hover:text-stone-700 hover:bg-stone-100">
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
                 {poll.status === 'active' && onClose && (
-                  <button onClick={onClose} title="Close voting" className="p-1.5 rounded text-stone-300 hover:text-amber-600 hover:bg-amber-50">
+                  <button onClick={onClose} title="Close voting" className="p-1.5 rounded-md text-stone-300 hover:text-amber-600 hover:bg-amber-50">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <button onClick={onDelete} className="p-1.5 rounded text-stone-300 hover:text-red-500 hover:bg-red-50">
+                <button onClick={onDelete} className="p-1.5 rounded-md text-stone-300 hover:text-red-500 hover:bg-red-50">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </>
@@ -369,11 +369,11 @@ function PollCard({
         {notifyState !== 'idle' && (
           <div className="mb-4 px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-md">
             {notifyState === 'confirm' && (
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="text-xs text-stone-700">Email all active members about this vote?</span>
                 <div className="flex gap-2 shrink-0">
                   <button onClick={() => setNotifyState('idle')} className="text-xs text-stone-500 hover:text-stone-900">Cancel</button>
-                  <button onClick={handleNotifyConfirm} className="text-xs font-medium text-white bg-stone-900 px-2.5 py-1 rounded hover:bg-stone-700">Send emails</button>
+                  <button onClick={handleNotifyConfirm} className="text-xs font-medium text-white bg-stone-900 px-2.5 py-1 rounded-md hover:bg-stone-700">Send emails</button>
                 </div>
               </div>
             )}
@@ -692,7 +692,7 @@ function PollModal({
           <button
             onClick={handleSave}
             disabled={saving || !canSave}
-            className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium hover:bg-stone-800 disabled:opacity-40 rounded"
+            className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md hover:bg-stone-800 disabled:opacity-40"
           >
             {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create vote'}
           </button>

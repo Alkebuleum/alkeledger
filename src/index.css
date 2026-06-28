@@ -12,6 +12,7 @@
   --ledger-red: #B23A2A;
   --verdigris: #2F5D50;
   --amber: #B47F3D;
+  --archival: #B47F3D;
 }
 
 html, body {
@@ -91,5 +92,10 @@ html, body {
   content: '▍';
   margin-left: 2px;
   animation: blink 1s steps(1) infinite;
-  color: var(--ledger-red);
+  color: #8CC5B0;
+}
+
+/* ── Landing page hero gradient ────────────────────────────────────────── */
+.hero-gradient {
+  background: linear-gradient(155deg, #ffffff 0%, #FAF8F4 55%, #F2EFE8 100%);
 }

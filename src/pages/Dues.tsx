@@ -274,7 +274,7 @@ export function Dues({ org, ledger, user, onRecordPayment, onApprove }: Props) {
         {isAdmin && (
           <button
             onClick={() => { setEditingPeriod(null); setShowForm(true); }}
-            className="px-3 py-1.5 bg-stone-900 text-stone-50 text-xs font-medium flex items-center gap-1.5 hover:bg-stone-800"
+            className="px-3 py-1.5 bg-stone-900 text-stone-50 text-xs font-medium rounded-md flex items-center gap-1.5 hover:bg-stone-800"
           >
             <Plus className="w-3.5 h-3.5" /> New period
           </button>
@@ -288,7 +288,7 @@ export function Dues({ org, ledger, user, onRecordPayment, onApprove }: Props) {
           {isAdmin && (
             <button
               onClick={() => setShowForm(true)}
-              className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium hover:bg-stone-800"
+              className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md hover:bg-stone-800"
             >
               Create first period
             </button>
@@ -348,7 +348,7 @@ export function Dues({ org, ledger, user, onRecordPayment, onApprove }: Props) {
             {isAdmin && (
               <button
                 onClick={() => { setEditingPeriod(selectedPeriod); setShowForm(true); }}
-                className="shrink-0 px-2.5 py-1.5 text-xs border border-stone-300 text-stone-600 hover:bg-stone-50 flex items-center gap-1"
+                className="shrink-0 px-2.5 py-1.5 text-xs border border-stone-300 text-stone-600 rounded-md hover:bg-stone-50 flex items-center gap-1"
               >
                 <Pencil className="w-3 h-3" /> Edit
               </button>
@@ -593,7 +593,7 @@ function MyPaymentCard({
       {(!myEntry || isRejected) && (
         <button
           onClick={onSubmit}
-          className="shrink-0 px-3 py-1.5 bg-stone-900 text-stone-50 text-xs font-medium flex items-center gap-1.5 hover:bg-stone-800"
+          className="shrink-0 px-3 py-1.5 bg-stone-900 text-stone-50 text-xs font-medium rounded-md flex items-center gap-1.5 hover:bg-stone-800"
         >
           <Upload className="w-3 h-3" />
           {isRejected ? 'Resubmit' : 'Submit payment'}
@@ -646,7 +646,7 @@ function PendingReviewRow({
         <button
           onClick={() => decide('approve')}
           disabled={deciding !== null}
-          className="px-2.5 py-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 flex items-center gap-1 disabled:opacity-50"
+          className="px-2.5 py-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md hover:bg-emerald-100 flex items-center gap-1 disabled:opacity-50"
         >
           <ThumbsUp className="w-3 h-3" />
           {deciding === 'approve' ? '…' : 'Approve'}
@@ -654,7 +654,7 @@ function PendingReviewRow({
         <button
           onClick={() => decide('reject')}
           disabled={deciding !== null}
-          className="px-2.5 py-1 text-xs bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 flex items-center gap-1 disabled:opacity-50"
+          className="px-2.5 py-1 text-xs bg-red-50 text-red-700 border border-red-200 rounded-md hover:bg-red-100 flex items-center gap-1 disabled:opacity-50"
         >
           <ThumbsDown className="w-3 h-3" />
           {deciding === 'reject' ? '…' : 'Reject'}
@@ -695,7 +695,7 @@ function NotSubmittedRow({
       <button
         onClick={handle}
         disabled={saving}
-        className="shrink-0 px-2.5 py-1 text-xs bg-stone-50 text-stone-700 border border-stone-300 hover:bg-stone-100 flex items-center gap-1 disabled:opacity-50"
+        className="shrink-0 px-2.5 py-1 text-xs bg-stone-50 text-stone-700 border border-stone-300 rounded-md hover:bg-stone-100 flex items-center gap-1 disabled:opacity-50"
         title="Record as paid directly (e.g. cash payment)"
       >
         <CheckCircle2 className="w-3 h-3" />
@@ -794,13 +794,13 @@ function SubmitPaymentModal({
           </p>
 
           <div className="flex gap-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2 border border-stone-200 text-sm text-stone-600 hover:bg-stone-50">
+            <button type="button" onClick={onClose} className="flex-1 py-2 border border-stone-200 rounded-md text-sm text-stone-600 hover:bg-stone-50">
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 py-2 bg-stone-900 text-stone-50 text-sm font-medium hover:bg-stone-800 disabled:opacity-40"
+              className="flex-1 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md hover:bg-stone-800 disabled:opacity-40"
             >
               {submitting ? 'Submitting…' : 'Submit for review'}
             </button>
@@ -842,7 +842,7 @@ function ReceiptViewModal({ url, onClose }: { url: string; onClose: () => void }
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium hover:bg-stone-800"
+                className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md hover:bg-stone-800"
               >
                 Open PDF
               </a>
@@ -987,11 +987,11 @@ function PeriodFormModal({
             </div>
           </div>
           <div className="flex gap-2 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 py-2 border border-stone-200 text-sm text-stone-600 hover:bg-stone-50">
+            <button type="button" onClick={onClose} className="flex-1 py-2 border border-stone-200 rounded-md text-sm text-stone-600 hover:bg-stone-50">
               Cancel
             </button>
             <button type="submit" disabled={saving || !name || !deadline}
-              className="flex-1 py-2 bg-stone-900 text-stone-50 text-sm font-medium hover:bg-stone-800 disabled:opacity-40"
+              className="flex-1 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md hover:bg-stone-800 disabled:opacity-40"
             >
               {saving ? 'Saving…' : existing ? 'Save changes' : 'Create period'}
             </button>

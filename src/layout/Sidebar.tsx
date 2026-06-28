@@ -42,9 +42,7 @@ export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExi
 
   const nav: NavItem[] = useMemo(() => {
     const common: NavItem[] = [{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }];
-    const memberTail: NavItem[] = [
-      { id: 'documents', label: 'Documents', icon: FileText },
-    ];
+    const memberTail: NavItem[] = [{ id: 'documents', label: 'Documents', icon: FileText }];
     const adminTail: NavItem[] = [
       { id: 'reports',  label: 'Reports',          icon: BarChart3   },
       { id: 'anchors',  label: 'Proof & Anchoring', icon: ShieldCheck },
@@ -68,25 +66,28 @@ export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExi
 
     return [
       ...common,
-      { id: 'projects',  label: 'Projects',  icon: FolderKanban    },
-      { id: 'budgets',   label: 'Budgets',   icon: PieChart        },
-      { id: 'income',    label: 'Income',    icon: ArrowDownToLine },
-      { id: 'expenses',  label: 'Expenses',  icon: ArrowUpFromLine },
-      { id: 'approvals', label: 'Approvals', icon: FileCheck       },
+      { id: 'projects',     label: 'Projects',         icon: FolderKanban    },
+      { id: 'budgets',      label: 'Budgets',           icon: PieChart        },
+      { id: 'income',       label: 'Income',            icon: ArrowDownToLine },
+      { id: 'expenses',     label: 'Expenses',          icon: ArrowUpFromLine },
+      { id: 'approvals',    label: 'Approvals',         icon: FileCheck       },
       ...memberTail,
-      { id: 'transparency', label: 'Transparency Page', icon: Globe },
+      { id: 'transparency', label: 'Transparency Page', icon: Globe           },
       ...(isAdmin ? adminTail : []),
     ];
   }, [org.type, isAdmin]);
 
+  const initials = user.displayName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+
   return (
     <aside className="w-64 h-full border-r border-stone-200 bg-white flex flex-col">
-      <div className="px-5 py-5 border-b border-stone-200 flex items-center justify-between">
+      {/* Brand */}
+      <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
         <Brand small />
         {onClose && (
           <button
             onClick={onClose}
-            className="lg:hidden text-stone-400 hover:text-stone-900 p-1"
+            className="lg:hidden text-stone-400 hover:text-stone-700 p-1 rounded-lg hover:bg-stone-100 transition-colors"
             aria-label="Close menu"
           >
             <X className="w-5 h-5" />
@@ -96,6 +97,7 @@ export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExi
 
       <OrgSwitcher orgs={orgs} pendingOrgs={pendingOrgs} current={org} onSwitch={onSwitchOrg} />
 
+      {/* Nav */}
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
         {nav.map((item) => {
           const to     = item.id === 'dashboard' ? `/${slug}` : `/${slug}/${item.id}`;
@@ -105,15 +107,17 @@ export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExi
             <Link
               key={item.id}
               to={to}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
-                active ? 'bg-stone-900 text-stone-50' : 'text-stone-700 hover:bg-stone-100'
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+                active
+                  ? 'bg-[#0E1015] text-white'
+                  : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
               }`}
             >
               <item.icon className="w-4 h-4 shrink-0" />
               <span className="flex-1">{item.label}</span>
               {badge > 0 && (
-                <span className={`min-w-[18px] h-4.5 text-[9px] font-bold rounded-full flex items-center justify-center px-1 leading-none ${
-                  active ? 'bg-white/20 text-white' : 'bg-[var(--ledger-red)] text-white'
+                <span className={`min-w-[18px] h-5 text-[10px] font-bold rounded-full flex items-center justify-center px-1.5 leading-none ${
+                  active ? 'bg-white/20 text-white' : 'bg-[#B23A2A] text-white'
                 }`}>
                   {badge > 99 ? '99+' : badge}
                 </span>
@@ -123,24 +127,25 @@ export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExi
         })}
       </nav>
 
-      <div className="p-3 border-t border-stone-200 space-y-1">
+      {/* User footer */}
+      <div className="p-3 border-t border-stone-100 space-y-1">
         {onNewOrg && (
           <button
             onClick={onNewOrg}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-md"
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
           >
             <Plus className="w-3.5 h-3.5" /> New workspace
           </button>
         )}
         <div className="flex items-center gap-3 px-2 py-2">
-          <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-xs font-semibold shrink-0">
-            {user.displayName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+          <div className="w-8 h-8 rounded-full bg-[#0E1015] text-white flex items-center justify-center text-xs font-semibold shrink-0">
+            {initials}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-stone-900 truncate">{user.displayName}</div>
-            <div className="text-[11px] text-stone-500 truncate">{user.email}</div>
+            <div className="text-[11px] text-stone-400 truncate">{user.email}</div>
           </div>
-          <button onClick={onExit} className="text-stone-400 hover:text-stone-900 shrink-0" title="Sign out">
+          <button onClick={onExit} className="text-stone-400 hover:text-stone-700 shrink-0 transition-colors" title="Sign out">
             <LogOut className="w-4 h-4" />
           </button>
         </div>

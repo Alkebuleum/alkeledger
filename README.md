@@ -161,35 +161,75 @@ npm install -g firebase-tools
 firebase login
 ```
 
-### Build and deploy (hosting only)
+---
+
+> ### ⚠️ Critical rule — always build before deploying the frontend
+>
+> `firebase deploy --only hosting` **never builds the app**. It only uploads whatever
+> is already in `dist/`. If you skip `npm run build`, the old bundle stays live and
+> none of your frontend changes will appear in production. Always run the build first.
+
+---
+
+### Most common: frontend + Cloud Functions changed
+
+Run these in order — the build must come before the deploy:
+
+```bash
+npm run build
+firebase deploy --only hosting,functions
+```
+
+### Frontend only changed
 
 ```bash
 npm run build
 firebase deploy --only hosting
 ```
 
-Live URL: **https://bracket-f99ff.web.app**
+### Cloud Functions only changed (no frontend changes)
 
-### Deploy everything (hosting + functions + rules)
+Functions do **not** need a frontend build — they compile themselves during deploy:
+
+```bash
+firebase deploy --only functions
+```
+
+### Rules / indexes only changed
+
+```bash
+firebase deploy --only firestore:rules,firestore:indexes,storage:rules
+```
+
+### Full deploy (everything)
 
 ```bash
 npm run build
 firebase deploy
 ```
 
-### Deploy rules/indexes only (no rebuild needed)
+Live URL: **https://bracket-f99ff.web.app** / **https://app.alkeledger.com**
 
-```bash
-firebase deploy --only firestore:rules,firestore:indexes,storage:rules
+---
+
+### Cloud Function environment variables
+
+Secrets for Cloud Functions live in `functions/.env` (gitignored). This file must
+exist locally before deploying functions. Required keys:
+
+```
+BREVO_API_KEY=        # Brevo transactional email API key
+BREVO_SENDER_EMAIL=   # Verified sender address in Brevo
+APP_BASE_URL=         # https://app.alkeledger.com
 ```
 
-### Deploy Cloud Functions only
+The `functions/.env` file is picked up automatically by `firebase deploy --only functions`.
 
-```bash
-firebase deploy --only functions
-```
+---
 
-> **Note for AI assistants:** The `.firebaserc` at the repo root already points to `bracket-f99ff`. You do not need to run `firebase use --add`. Just build and deploy.
+> **Note for AI assistants:** The `.firebaserc` at the repo root already points to
+> `bracket-f99ff`. Do not run `firebase use --add`. Always run `npm run build` before
+> any deploy that includes hosting. Never skip the build step.
 
 ---
 

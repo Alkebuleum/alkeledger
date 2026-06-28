@@ -172,7 +172,7 @@ export function Settings({ org, user, onDelete, onSaveSettings }: Props) {
                   />
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-stone-300 hover:border-stone-500 text-stone-600"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-stone-300 rounded-md hover:border-stone-500 text-stone-600"
                   >
                     <ImagePlus className="w-3.5 h-3.5" />
                     {logoPreview ? 'Change logo' : 'Upload logo'}
@@ -202,7 +202,7 @@ export function Settings({ org, user, onDelete, onSaveSettings }: Props) {
               <button
                 onClick={handleSaveProfile}
                 disabled={savingProfile}
-                className="flex items-center gap-1.5 px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium hover:bg-stone-800 disabled:opacity-40"
+                className="flex items-center gap-1.5 px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md hover:bg-stone-800 disabled:opacity-40"
               >
                 <Save className="w-3.5 h-3.5" />
                 {savingProfile ? 'Saving…' : 'Save profile'}
@@ -300,7 +300,7 @@ export function Settings({ org, user, onDelete, onSaveSettings }: Props) {
               <button
                 onClick={handleSaveSettings}
                 disabled={saving}
-                className="flex items-center gap-1.5 px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium hover:bg-stone-800 disabled:opacity-40"
+                className="flex items-center gap-1.5 px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md hover:bg-stone-800 disabled:opacity-40"
               >
                 <Save className="w-3.5 h-3.5" />
                 {saving ? 'Saving…' : 'Save settings'}
@@ -339,7 +339,7 @@ export function Settings({ org, user, onDelete, onSaveSettings }: Props) {
               <button
                 onClick={handleEnablePush}
                 disabled={pushRequesting}
-                className="flex items-center gap-1.5 px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium hover:bg-stone-800 disabled:opacity-40"
+                className="flex items-center gap-1.5 px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md hover:bg-stone-800 disabled:opacity-40"
               >
                 <Bell className="w-3.5 h-3.5" />
                 {pushRequesting ? 'Enabling…' : 'Enable push notifications'}
@@ -377,7 +377,7 @@ export function Settings({ org, user, onDelete, onSaveSettings }: Props) {
             {!showDanger && (
               <button
                 onClick={() => setShowDanger(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-700 border border-red-300 rounded hover:bg-red-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-700 border border-red-300 rounded-md hover:bg-red-50"
               >
                 <Trash2 className="w-3.5 h-3.5" /> Delete workspace
               </button>

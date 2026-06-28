@@ -52,7 +52,7 @@ function formatEventDate(startDate: string, endDate?: string, allDay?: boolean):
 
 // ─── requestOtp ───────────────────────────────────────────────────────────────
 
-export const requestOtp = onCall(async (request) => {
+export const requestOtp = onCall({ cors: true }, async (request) => {
   const email = ((request.data as { email?: string }).email ?? '').trim().toLowerCase();
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -105,7 +105,7 @@ export const requestOtp = onCall(async (request) => {
 
 // ─── verifyOtp ────────────────────────────────────────────────────────────────
 
-export const verifyOtp = onCall(async (request) => {
+export const verifyOtp = onCall({ cors: true }, async (request) => {
   const { email: rawEmail, code: rawCode } = request.data as { email?: string; code?: string };
   const email = (rawEmail ?? '').trim().toLowerCase();
   const code  = (rawCode  ?? '').trim();
@@ -144,7 +144,7 @@ export const verifyOtp = onCall(async (request) => {
 
 // ─── getOrgPreviewByCode ──────────────────────────────────────────────────────
 
-export const getOrgPreviewByCode = onCall(async (request) => {
+export const getOrgPreviewByCode = onCall({ cors: true }, async (request) => {
   const { code, token } = request.data as { code?: string; token?: string };
   if (!code || typeof code !== 'string') {
     throw new HttpsError('invalid-argument', 'Invite code is required.');
@@ -196,7 +196,7 @@ export const getOrgPreviewByCode = onCall(async (request) => {
 
 // ─── redeemInvite ─────────────────────────────────────────────────────────────
 
-export const redeemInvite = onCall(async (request) => {
+export const redeemInvite = onCall({ cors: true }, async (request) => {
   const { token, name } = request.data as { token?: string; name?: string };
 
   if (!token || typeof token !== 'string') {
@@ -266,7 +266,7 @@ export const redeemInvite = onCall(async (request) => {
 // ─── sendInviteEmail ──────────────────────────────────────────────────────────
 // Server-side invite email — keeps the Brevo API key off the client bundle.
 
-export const sendInviteEmail = onCall(async (request) => {
+export const sendInviteEmail = onCall({ cors: true }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Must be signed in to send invites.');
   }
@@ -347,7 +347,7 @@ export const sendInviteEmail = onCall(async (request) => {
 // Sends event invitation emails with one-click RSVP buttons to all active
 // members of the org. Called from the client immediately after creating an event.
 
-export const notifyEventCreated = onCall(async (request) => {
+export const notifyEventCreated = onCall({ cors: true }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Must be signed in to send notifications.');
   }
@@ -539,7 +539,7 @@ export const notifyEventCreated = onCall(async (request) => {
 // ─── notifyPollCreated ────────────────────────────────────────────────────────
 // Emails all active members a link to vote on a new poll. Pro feature.
 
-export const notifyPollCreated = onCall(async (request) => {
+export const notifyPollCreated = onCall({ cors: true }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Must be signed in to send notifications.');
   }
@@ -663,7 +663,7 @@ export const notifyPollCreated = onCall(async (request) => {
 // Validates a per-member RSVP token from an email link and records the response.
 // Does NOT require Firebase authentication — the token is the proof of identity.
 
-export const handleEmailRsvp = onCall(async (request) => {
+export const handleEmailRsvp = onCall({ cors: true }, async (request) => {
   const { orgId, eventId, memberId, token, status } = request.data as {
     orgId: string;
     eventId: string;
@@ -1007,7 +1007,7 @@ export const publicOrgData = onRequest({ cors: true }, async (req, res) => {
 
 // ─── createNotifications ──────────────────────────────────────────────────────
 
-export const createNotifications = onCall(async (request) => {
+export const createNotifications = onCall({ cors: true }, async (request) => {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
 
   const { orgId, type, title, body, link } = (request.data ?? {}) as {

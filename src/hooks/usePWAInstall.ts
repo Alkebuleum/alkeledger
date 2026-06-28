@@ -11,8 +11,11 @@ export function usePWAInstall() {
 
   useEffect(() => {
     function onBeforeInstall(e: Event) {
-      e.preventDefault();
-      setPrompt(e as BeforeInstallPromptEvent);
+      e.preventDefault(); // always suppress the browser's automatic mini-bar
+      const host = window.location.hostname;
+      if (host === 'app.alkeledger.com' || host === 'localhost') {
+        setPrompt(e as BeforeInstallPromptEvent);
+      }
     }
     function onInstalled() {
       setInstalled(true);

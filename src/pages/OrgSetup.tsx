@@ -17,44 +17,29 @@ interface Props {
 type Mode = 'create' | 'join';
 
 export function OrgSetup({ onCreate, onJoin, onCancel, user }: Props) {
-  const [mode, setMode] = useState<Mode>('create');
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [name, setName] = useState('');
-  const [type, setType] = useState<OrgType | null>(null);
-  const [currency, setCurrency] = useState('USD');
+  const [mode, setMode]           = useState<Mode>('create');
+  const [step, setStep]           = useState<1 | 2 | 3>(1);
+  const [name, setName]           = useState('');
+  const [type, setType]           = useState<OrgType | null>(null);
+  const [currency, setCurrency]   = useState('USD');
   const [inviteCode, setInviteCode] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [saving, setSaving]       = useState(false);
+  const [error, setError]         = useState('');
 
   const [searchParams] = useSearchParams();
   useEffect(() => {
     const code = searchParams.get('invite');
-    if (code) {
-      setInviteCode(code.toUpperCase());
-      setMode('join');
-    }
+    if (code) { setInviteCode(code.toUpperCase()); setMode('join'); }
   }, []);
 
   const initials =
-    name
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((w) => w[0].toUpperCase())
-      .join('') || 'NEW';
+    name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || 'NEW';
 
   const handleCreate = async () => {
     if (!type) return;
-    setSaving(true);
-    setError('');
+    setSaving(true); setError('');
     try {
-      await onCreate({
-        name,
-        type,
-        currency,
-        logoInitials: initials,
-        tagline: type === 'membership' ? 'Membership organization' : 'Project / nonprofit',
-      });
+      await onCreate({ name, type, currency, logoInitials: initials, tagline: type === 'membership' ? 'Membership organization' : 'Project / nonprofit' });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
       setSaving(false);
@@ -63,8 +48,7 @@ export function OrgSetup({ onCreate, onJoin, onCancel, user }: Props) {
 
   const handleJoin = async () => {
     if (!inviteCode.trim() || !onJoin) return;
-    setSaving(true);
-    setError('');
+    setSaving(true); setError('');
     try {
       await onJoin(inviteCode.trim().toUpperCase());
     } catch (e) {
@@ -74,71 +58,70 @@ export function OrgSetup({ onCreate, onJoin, onCancel, user }: Props) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-5 py-12 bg-[var(--bone)]">
+    <div className="min-h-screen flex items-center justify-center px-5 py-12 bg-[#FAF8F4]">
       <div className="w-full max-w-2xl">
+
+        {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <Brand />
           <div className="flex items-center gap-3">
-            <span className="text-sm text-stone-500">Signed in as {user.email}</span>
+            <span className="text-sm text-stone-400">Signed in as {user.email}</span>
             {onCancel && (
-              <button onClick={onCancel} className="text-sm text-stone-500 hover:text-stone-900">
+              <button onClick={onCancel} className="text-sm text-stone-500 hover:text-stone-900 transition-colors">
                 Cancel
               </button>
             )}
           </div>
         </div>
 
-        {/* Mode switcher */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => setMode('create')}
-            className={`px-4 py-2 text-sm font-medium border ${mode === 'create' ? 'bg-stone-900 text-stone-50 border-stone-900' : 'bg-white border-stone-300 text-stone-700 hover:border-stone-400'}`}
-          >
-            Create workspace
-          </button>
-          <button
-            onClick={() => setMode('join')}
-            className={`px-4 py-2 text-sm font-medium border ${mode === 'join' ? 'bg-stone-900 text-stone-50 border-stone-900' : 'bg-white border-stone-300 text-stone-700 hover:border-stone-400'}`}
-          >
-            Join with invite code
-          </button>
+        {/* Mode switcher — pill tabs */}
+        <div className="flex gap-1 p-1 bg-stone-100 rounded-xl mb-6">
+          {(['create', 'join'] as Mode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                mode === m ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              {m === 'create' ? 'Create workspace' : 'Join with invite code'}
+            </button>
+          ))}
         </div>
 
-        <div className="bg-white border border-stone-200 p-8 shadow-sm">
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 sm:p-8">
 
           {/* ── Join mode ──────────────────────────────────────────────── */}
           {mode === 'join' && (
             <div>
-              <h1 className="font-display text-3xl text-stone-900 mb-2">Join a workspace</h1>
-              <p className="text-stone-500 text-sm mb-6">
+              <h1 className="font-display text-2xl font-semibold text-stone-900 mb-1">Join a workspace</h1>
+              <p className="text-stone-500 text-sm mb-7">
                 Enter the 6-character invite code from your organization admin.
               </p>
-
               <div className="space-y-5">
                 <div>
-                  <label className="text-sm text-stone-600">Invite code</label>
-                  <div className="mt-1.5 relative">
-                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                  <label className="block text-sm font-medium text-stone-700 mb-1.5">Invite code</label>
+                  <div className="relative">
+                    <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
                     <input
                       value={inviteCode}
                       onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                       placeholder="ABC123"
                       maxLength={8}
-                      className="w-full pl-10 pr-3 py-2.5 border border-stone-300 rounded-md focus:outline-none focus:ring-2 focus:ring-stone-900 font-mono text-lg tracking-widest uppercase"
+                      className="w-full pl-10 pr-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E1015]/10 focus:border-[#0E1015] font-mono text-lg tracking-widest uppercase transition-colors"
                     />
                   </div>
                 </div>
-
-                {error && <p className="text-sm text-red-600">{error}</p>}
-
+                {error && (
+                  <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
+                )}
                 <button
                   disabled={!inviteCode.trim() || saving}
                   onClick={handleJoin}
-                  className="w-full py-2.5 bg-stone-900 text-stone-50 text-sm font-medium hover:bg-stone-800 disabled:opacity-40"
+                  className="w-full py-3 bg-[#0E1015] text-[#FAF8F4] text-sm font-medium rounded-lg hover:bg-stone-800 disabled:opacity-40 transition-colors"
                 >
                   {saving ? 'Joining…' : 'Request to join'}
                 </button>
-
                 <p className="text-xs text-stone-400 text-center">
                   You'll be added as a pending member until an admin approves you.
                 </p>
@@ -149,10 +132,22 @@ export function OrgSetup({ onCreate, onJoin, onCancel, user }: Props) {
           {/* ── Create mode ─────────────────────────────────────────────── */}
           {mode === 'create' && (
             <>
-              <div className="flex items-center gap-2 mb-1 text-xs uppercase tracking-[0.2em] text-stone-500">
-                Step {step} of 3
+              {/* Step progress */}
+              <div className="flex items-center gap-2 mb-6">
+                {[1, 2, 3].map((s) => (
+                  <div key={s} className="flex items-center gap-2">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
+                      s < step ? 'bg-[#2F5D50] text-white' : s === step ? 'bg-[#0E1015] text-white' : 'bg-stone-100 text-stone-400'
+                    }`}>
+                      {s < step ? <Check className="w-3.5 h-3.5" /> : s}
+                    </div>
+                    {s < 3 && <div className={`h-px w-8 ${s < step ? 'bg-[#2F5D50]' : 'bg-stone-200'}`} />}
+                  </div>
+                ))}
+                <span className="ml-2 text-sm text-stone-400">Step {step} of 3</span>
               </div>
-              <h1 className="font-display text-3xl text-stone-900 mb-6">
+
+              <h1 className="font-display text-2xl font-semibold text-stone-900 mb-6">
                 {step === 1 && 'Name your workspace'}
                 {step === 2 && 'What kind of organization?'}
                 {step === 3 && 'Review and create'}
@@ -161,20 +156,20 @@ export function OrgSetup({ onCreate, onJoin, onCancel, user }: Props) {
               {step === 1 && (
                 <div className="space-y-5">
                   <div>
-                    <label className="text-sm text-stone-600">Organization name</label>
+                    <label className="block text-sm font-medium text-stone-700 mb-1.5">Organization name</label>
                     <input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g. Cedar Valley Council"
-                      className="mt-1.5 w-full px-3 py-2.5 border border-stone-300 rounded-md focus:outline-none focus:ring-2 focus:ring-stone-900"
+                      className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E1015]/10 focus:border-[#0E1015] transition-colors"
                     />
                   </div>
                   <div>
-                    <label className="text-sm text-stone-600">Default currency</label>
+                    <label className="block text-sm font-medium text-stone-700 mb-1.5">Default currency</label>
                     <select
                       value={currency}
                       onChange={(e) => setCurrency(e.target.value)}
-                      className="mt-1.5 w-full px-3 py-2.5 border border-stone-300 rounded-md focus:outline-none focus:ring-2 focus:ring-stone-900 bg-white"
+                      className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E1015]/10 focus:border-[#0E1015] bg-white transition-colors"
                     >
                       <option>USD</option><option>EUR</option><option>GBP</option>
                       <option>NGN</option><option>KES</option><option>ZAR</option>
@@ -211,20 +206,22 @@ export function OrgSetup({ onCreate, onJoin, onCancel, user }: Props) {
                   <Row label="Organization type" value={type === 'membership' ? 'Membership' : type === 'project' ? 'Project / Nonprofit' : '—'} />
                   <Row label="Default currency" value={currency} />
                   <Row label="Owner" value={user.displayName} />
-                  <div className="mt-6 p-4 rounded-md bg-stone-50 ring-1 ring-stone-200 flex gap-3">
-                    <ShieldCheck className="w-5 h-5 text-emerald-700 flex-none" />
-                    <p className="text-stone-700">
+                  <div className="mt-6 p-4 rounded-xl bg-[#EEF4F1] border border-[#C2D9D1] flex gap-3">
+                    <ShieldCheck className="w-5 h-5 text-[#2F5D50] flex-none mt-0.5" />
+                    <p className="text-stone-700 text-sm leading-relaxed">
                       Approved records are hashed (SHA-256) and queued for blockchain anchoring. Only the proof goes on-chain — your records stay private.
                     </p>
                   </div>
-                  {error && <p className="text-sm text-red-600">{error}</p>}
+                  {error && (
+                    <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
+                  )}
                 </div>
               )}
 
               <div className="mt-8 flex items-center justify-between">
                 <button
                   onClick={() => step > 1 && setStep((step - 1) as 1 | 2 | 3)}
-                  className={`text-sm ${step === 1 ? 'invisible' : 'text-stone-600 hover:text-stone-900'}`}
+                  className={`text-sm transition-colors ${step === 1 ? 'invisible' : 'text-stone-500 hover:text-stone-900'}`}
                 >
                   ← Back
                 </button>
@@ -232,7 +229,7 @@ export function OrgSetup({ onCreate, onJoin, onCancel, user }: Props) {
                   <button
                     disabled={(step === 1 && !name.trim()) || (step === 2 && !type)}
                     onClick={() => setStep((step + 1) as 1 | 2 | 3)}
-                    className="px-5 py-2.5 bg-stone-900 text-stone-50 rounded-md text-sm font-medium disabled:opacity-40 hover:bg-stone-800"
+                    className="px-6 py-2.5 bg-[#0E1015] text-[#FAF8F4] rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-stone-800 transition-colors"
                   >
                     Continue →
                   </button>
@@ -240,7 +237,7 @@ export function OrgSetup({ onCreate, onJoin, onCancel, user }: Props) {
                   <button
                     disabled={saving}
                     onClick={handleCreate}
-                    className="px-5 py-2.5 bg-stone-900 text-stone-50 rounded-md text-sm font-medium hover:bg-stone-800 disabled:opacity-50"
+                    className="px-6 py-2.5 bg-[#0E1015] text-[#FAF8F4] rounded-lg text-sm font-medium hover:bg-stone-800 disabled:opacity-50 transition-colors"
                   >
                     {saving ? 'Creating…' : 'Create workspace'}
                   </button>
@@ -267,19 +264,20 @@ function TypeCard({ active, onClick, icon: Icon, title, body, bullets }: TypeCar
   return (
     <button
       onClick={onClick}
-      className={`text-left p-5 rounded-lg ring-1 transition-all ${
-        active ? 'ring-stone-900 bg-stone-900 text-stone-50' : 'ring-stone-200 bg-white hover:ring-stone-400'
+      className={`text-left p-5 rounded-xl border-2 transition-all ${
+        active ? 'border-[#0E1015] bg-[#0E1015] text-white' : 'border-stone-200 bg-white hover:border-stone-400'
       }`}
     >
-      <div className={`w-9 h-9 rounded-md flex items-center justify-center mb-3 ${active ? 'bg-stone-50 text-stone-900' : 'bg-stone-900 text-stone-50'}`}>
-        <Icon className="w-5 h-5" />
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${active ? 'bg-white/15' : 'bg-stone-100'}`}>
+        <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-stone-700'}`} />
       </div>
-      <div className="font-display text-xl mb-1">{title}</div>
-      <p className={`text-xs mb-3 ${active ? 'text-stone-300' : 'text-stone-600'}`}>{body}</p>
-      <ul className="text-xs space-y-1">
+      <div className="font-display text-lg font-semibold mb-1">{title}</div>
+      <p className={`text-xs mb-3 leading-relaxed ${active ? 'text-white/70' : 'text-stone-500'}`}>{body}</p>
+      <ul className="text-xs space-y-1.5">
         {bullets.map((b) => (
-          <li key={b} className="flex items-center gap-1.5">
-            <Check className="w-3 h-3" /> {b}
+          <li key={b} className="flex items-center gap-2">
+            <Check className={`w-3 h-3 flex-shrink-0 ${active ? 'text-white/80' : 'text-[#2F5D50]'}`} />
+            {b}
           </li>
         ))}
       </ul>

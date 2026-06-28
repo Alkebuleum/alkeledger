@@ -95,10 +95,13 @@ export default function App() {
   );
 
   if (!user) {
+    const isAppDomain = window.location.hostname === 'app.alkeledger.com';
     return (
       <Routes>
         <Route path="/" element={
-          <Landing onStart={() => navigate('/signin')} onDemo={() => navigate('/signin')} />
+          isAppDomain
+            ? <Navigate to="/signin" replace />
+            : <Landing onStart={() => navigate('/signin')} onDemo={() => navigate('/signin')} />
         } />
         <Route path="/signin" element={
           <SignIn

@@ -293,7 +293,7 @@ function RequestsTab({
                       {r.status === 'pending' && (
                         <button
                           onClick={() => onDecide(r)}
-                          className="px-3 py-1.5 text-xs border border-stone-300 text-stone-700 hover:bg-stone-100 rounded"
+                          className="px-3 py-1.5 text-xs border border-stone-300 text-stone-700 hover:bg-stone-100 rounded-md"
                         >
                           Review
                         </button>
@@ -301,7 +301,7 @@ function RequestsTab({
                       {r.status === 'approved' && (
                         <button
                           onClick={() => onMarkPaid(r)}
-                          className="px-3 py-1.5 text-xs bg-emerald-600 text-white hover:bg-emerald-700 rounded font-medium"
+                          className="px-3 py-1.5 text-xs bg-emerald-600 text-white hover:bg-emerald-700 rounded-md font-medium"
                         >
                           Mark as paid
                         </button>
@@ -383,11 +383,11 @@ function BenefitsTab({
 
                 {isAdmin && (
                   <div className="flex items-center gap-1 shrink-0">
-                    <button onClick={() => onToggleActive(b)} title={b.active ? 'Deactivate' : 'Activate'} className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100">
+                    <button onClick={() => onToggleActive(b)} title={b.active ? 'Deactivate' : 'Activate'} className="p-1.5 rounded-md text-stone-300 hover:text-stone-700 hover:bg-stone-100">
                       {b.active ? <ToggleRight className="w-4 h-4 text-emerald-500" /> : <ToggleLeft className="w-4 h-4" />}
                     </button>
-                    <button onClick={() => onEdit(b)} className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100"><Pencil className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => onDelete(b)} className="p-1.5 rounded text-stone-300 hover:text-red-500 hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => onEdit(b)} className="p-1.5 rounded-md text-stone-300 hover:text-stone-700 hover:bg-stone-100"><Pencil className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => onDelete(b)} className="p-1.5 rounded-md text-stone-300 hover:text-red-500 hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 )}
               </div>

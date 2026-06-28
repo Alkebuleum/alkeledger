@@ -71,16 +71,48 @@ export function Ledger({ ledger, org }: Props) {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl ring-1 ring-stone-200 overflow-hidden overflow-x-auto">
+      {/* Mobile: card list */}
+      <div className="sm:hidden space-y-2">
+        {filtered.map((e) => (
+          <div key={e.id} className="bg-white rounded-xl ring-1 ring-stone-200 p-4">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-stone-900">{e.description}</div>
+                <div className="text-[11px] text-stone-400 mt-0.5">{e.category} · {e.createdAt}</div>
+              </div>
+              <div className={`text-sm font-semibold font-mono shrink-0 ${e.type === 'income' ? 'text-emerald-700' : 'text-stone-900'}`}>
+                {e.type === 'income' ? '+' : '−'}{fmt(e.amount, e.currency)}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 min-w-0">
+              <StatusPill value={e.status} />
+              {e.hash && (
+                <div className="flex items-center gap-1 text-[10px] font-mono text-stone-400 min-w-0">
+                  <Hash className="w-2.5 h-2.5 shrink-0" />
+                  <span className="truncate">{e.hash}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <div className="bg-white rounded-xl ring-1 ring-stone-200 py-12 text-center text-stone-500 text-sm">
+            No entries match this filter.
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden sm:block bg-white rounded-xl ring-1 ring-stone-200 overflow-hidden overflow-x-auto">
         <table className="w-full text-sm min-w-[600px]">
           <thead className="bg-stone-50 text-[11px] uppercase tracking-widest text-stone-500">
             <tr>
               <th className="text-left px-5 py-3 font-medium">Date</th>
               <th className="text-left px-5 py-3 font-medium">Description</th>
-              <th className="text-left px-5 py-3 font-medium hidden sm:table-cell">Category</th>
+              <th className="text-left px-5 py-3 font-medium">Category</th>
               <th className="text-right px-5 py-3 font-medium">Amount</th>
               <th className="text-left px-5 py-3 font-medium">Status</th>
-              <th className="text-left px-5 py-3 font-medium hidden sm:table-cell">Proof</th>
+              <th className="text-left px-5 py-3 font-medium">Proof</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100">
@@ -91,14 +123,14 @@ export function Ledger({ ledger, org }: Props) {
                   <div className="text-stone-900">{e.description}</div>
                   <div className="text-[11px] text-stone-500">{e.id} · {e.createdBy}</div>
                 </td>
-                <td className="px-5 py-3 text-stone-600 hidden sm:table-cell">{e.category}</td>
+                <td className="px-5 py-3 text-stone-600">{e.category}</td>
                 <td className={`px-5 py-3 text-right font-medium whitespace-nowrap ${
                   e.type === 'income' ? 'text-emerald-700' : 'text-stone-900'
                 }`}>
                   {e.type === 'income' ? '+' : '−'}{fmt(e.amount, e.currency)}
                 </td>
                 <td className="px-5 py-3"><StatusPill value={e.status} /></td>
-                <td className="px-5 py-3 hidden sm:table-cell">
+                <td className="px-5 py-3">
                   {e.hash ? (
                     <div className="flex items-center gap-1.5 text-[11px] font-mono text-stone-600">
                       <Hash className="w-3 h-3" /> {e.hash}
@@ -111,7 +143,7 @@ export function Ledger({ ledger, org }: Props) {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-5 py-12 text-center text-stone-500 text-sm">
+                <td colSpan={6} className="px-5 py-12 text-center text-stone-500 text-sm">
                   No entries match this filter.
                 </td>
               </tr>

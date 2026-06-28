@@ -2,6 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // If opened as an installed PWA from the wrong domain, redirect to app.alkeledger.com
+      (function () {
+        var standalone = window.matchMedia('(display-mode: standalone)').matches
+          || window.navigator.standalone === true;
+        var host = window.location.hostname;
+        if (standalone && host !== 'app.alkeledger.com' && host !== 'localhost') {
+          window.location.replace(
+            'https://app.alkeledger.com'
+            + window.location.pathname
+            + window.location.search
+            + window.location.hash
+          );
+        }
+      })();
+    </script>
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />

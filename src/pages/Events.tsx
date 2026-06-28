@@ -155,7 +155,7 @@ export function Events({ org, user }: Props) {
         {isAdmin && (
           <button
             onClick={() => { setEditing(null); setShowForm(true); }}
-            className="px-3 py-2 bg-stone-900 text-stone-50 text-sm font-medium flex items-center gap-1.5 hover:bg-stone-800"
+            className="px-3 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md flex items-center gap-1.5 hover:bg-stone-800"
           >
             <Plus className="w-4 h-4" /> New event
           </button>
@@ -280,29 +280,36 @@ function EventCard({
   );
 
   return (
-    <article className={`bg-white border border-stone-200 rounded-lg overflow-hidden ${event.cancelled ? 'opacity-60' : ''}`}>
-      <div className="p-5">
-        <div className="flex gap-4">
+    <article className={`bg-white border border-stone-200 rounded-xl overflow-hidden ${event.cancelled ? 'opacity-60' : ''}`}>
+      <div className="p-4 sm:p-5">
+
+        {/* ── Header row: date badge + title + share icons ── */}
+        <div className="flex gap-3 sm:gap-4">
           {/* Date badge */}
-          <div className="shrink-0 w-14 text-center">
-            <div className="text-[10px] uppercase tracking-widest font-mono text-stone-400">{fmt.month}</div>
-            <div className="text-3xl font-display text-stone-900 leading-none">{fmt.day}</div>
+          <div className="shrink-0 w-12 h-14 sm:w-14 sm:h-16 rounded-xl bg-stone-900 text-white flex flex-col items-center justify-center">
+            <span className="text-[9px] sm:text-[10px] uppercase font-mono text-white/50 leading-none tracking-wider">
+              {fmt.month}
+            </span>
+            <span className="text-2xl sm:text-3xl font-display font-semibold leading-none mt-0.5">
+              {fmt.day}
+            </span>
           </div>
 
-          {/* Content */}
+          {/* Title + meta */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div>
+            <div className="flex items-start justify-between gap-1">
+              <div className="min-w-0 flex-1">
                 {event.cancelled && (
-                  <span className="text-[10px] uppercase tracking-widest font-mono text-red-500 mr-2">Cancelled</span>
+                  <span className="text-[10px] uppercase tracking-widest font-mono text-red-500 block mb-0.5">Cancelled</span>
                 )}
-                <h3 className="font-display text-xl text-stone-900 leading-snug">{event.title}</h3>
+                <h3 className="font-display text-lg sm:text-xl text-stone-900 leading-tight">{event.title}</h3>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              {/* Share icons — compact on mobile, full set on desktop */}
+              <div className="flex items-center gap-0.5 shrink-0 -mt-0.5">
                 <button
                   onClick={() => copyShareLink(orgSlug, 'event', event.id, setCopied)}
                   title="Copy share link"
-                  className="hidden sm:flex p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                  className="p-1.5 rounded-md text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
                 >
                   {copied
                     ? <span className="text-[10px] text-emerald-600 font-mono">Copied!</span>
@@ -310,140 +317,147 @@ function EventCard({
                 </button>
                 <button
                   onClick={() => shareEvent(event, orgSlug)}
-                  title="Share event"
-                  className="p-1.5 rounded text-stone-300 hover:text-[#25D366] hover:bg-emerald-50 transition-colors"
+                  title="Share via WhatsApp"
+                  className="p-1.5 rounded-md text-stone-300 hover:text-[#25D366] hover:bg-emerald-50 transition-colors"
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
                 </button>
+                {/* Desktop-only admin icons */}
                 {isAdmin && !past && (
-                  <>
+                  <div className="hidden sm:flex items-center gap-0.5">
                     <button
                       onClick={() => isPro ? setNotifyState('confirm') : undefined}
-                      title={isPro ? 'Email members about this event' : 'Pro feature — upgrade to send event emails'}
-                      className={`hidden sm:flex p-1.5 rounded transition-colors ${
-                        isPro
-                          ? 'text-stone-300 hover:text-stone-700 hover:bg-stone-100'
-                          : 'text-stone-200 cursor-not-allowed'
-                      }`}
+                      title={isPro ? 'Email members about this event' : 'Pro feature'}
+                      className={`p-1.5 rounded-md transition-colors ${isPro ? 'text-stone-300 hover:text-stone-700 hover:bg-stone-100' : 'text-stone-200 cursor-not-allowed'}`}
                     >
                       <Mail className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={onEdit}   className="p-1.5 rounded text-stone-300 hover:text-stone-700 hover:bg-stone-100"><Pencil className="w-3.5 h-3.5" /></button>
-                    <button onClick={onDelete} className="p-1.5 rounded text-stone-300 hover:text-red-500  hover:bg-red-50"  ><Trash2 className="w-3.5 h-3.5" /></button>
-                  </>
+                    <button onClick={onEdit}   className="p-1.5 rounded-md text-stone-300 hover:text-stone-700 hover:bg-stone-100"><Pencil className="w-3.5 h-3.5" /></button>
+                    <button onClick={onDelete} className="p-1.5 rounded-md text-stone-300 hover:text-red-500 hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
                 )}
               </div>
             </div>
 
             {/* Meta */}
-            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
-              <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {fmt.full} · {formatRange(event.startDate, event.endDate, event.allDay)}
-              </span>
+            <div className="mt-1.5 space-y-0.5 text-xs text-stone-500">
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-3 h-3 shrink-0 text-stone-400" />
+                <span className="truncate">{fmt.full} · {formatRange(event.startDate, event.endDate, event.allDay)}</span>
+              </div>
               {event.location && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3 h-3" /> {event.location}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="w-3 h-3 shrink-0 text-stone-400" />
+                  <span className="truncate">{event.location}</span>
+                </div>
               )}
             </div>
+          </div>
+        </div>
 
-            {event.description && (
-              <p className="mt-2.5 text-sm text-stone-700 leading-relaxed whitespace-pre-line">{event.description}</p>
+        {/* Description */}
+        {event.description && (
+          <p className="mt-3 text-sm text-stone-700 leading-relaxed whitespace-pre-line">{event.description}</p>
+        )}
+
+        {/* Email notify strip */}
+        {notifyState !== 'idle' && (
+          <div className="mt-3 px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-md">
+            {notifyState === 'confirm' && (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-xs text-stone-700">Email all active members about this event?</span>
+                <div className="flex gap-2 shrink-0">
+                  <button onClick={() => setNotifyState('idle')} className="text-xs text-stone-500 hover:text-stone-900">Cancel</button>
+                  <button onClick={handleNotifyConfirm} className="text-xs font-medium text-white bg-stone-900 px-2.5 py-1 rounded-md hover:bg-stone-700">Send emails</button>
+                </div>
+              </div>
+            )}
+            {notifyState === 'sending' && <p className="text-xs text-stone-500">Sending emails…</p>}
+            {notifyState === 'sent'    && <p className="text-xs text-emerald-600 font-medium">Emails sent to all active members.</p>}
+            {notifyState === 'error'   && <p className="text-xs text-red-500">Failed to send. Please try again.</p>}
+          </div>
+        )}
+
+        {/* RSVP section */}
+        {!event.cancelled && (
+          <div className="mt-4 space-y-2">
+            {!past && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-stone-500 mr-1">RSVP:</span>
+                {RSVP_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => onRsvp(opt.value)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                      myRsvp === opt.value ? opt.active : opt.idle
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             )}
 
-            {/* Email notify confirmation strip */}
-            {notifyState !== 'idle' && (
-              <div className="mt-3 px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-md">
-                {notifyState === 'confirm' && (
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs text-stone-700">Email all active members about this event?</span>
-                    <div className="flex gap-2 shrink-0">
-                      <button
-                        onClick={() => setNotifyState('idle')}
-                        className="text-xs text-stone-500 hover:text-stone-900"
-                      >Cancel</button>
-                      <button
-                        onClick={handleNotifyConfirm}
-                        className="text-xs font-medium text-white bg-stone-900 px-2.5 py-1 rounded hover:bg-stone-700"
-                      >Send emails</button>
-                    </div>
-                  </div>
-                )}
-                {notifyState === 'sending' && (
-                  <p className="text-xs text-stone-500">Sending emails…</p>
-                )}
-                {notifyState === 'sent' && (
-                  <p className="text-xs text-emerald-600 font-medium">Emails sent to all active members.</p>
-                )}
-                {notifyState === 'error' && (
-                  <p className="text-xs text-red-500">Failed to send. Please try again.</p>
+            {/* Attendee counts */}
+            {Object.keys(event.rsvps ?? {}).length > 0 && (
+              <div className="flex items-center gap-3 text-xs">
+                {rsvpCounts.attending > 0 && <span className="text-emerald-700 font-medium">{rsvpCounts.attending} attending</span>}
+                {rsvpCounts.maybe     > 0 && <span className="text-amber-600 font-medium">{rsvpCounts.maybe} maybe</span>}
+                {rsvpCounts.declining > 0 && <span className="text-stone-400">{rsvpCounts.declining} declining</span>}
+                {isAdmin && (
+                  <button
+                    onClick={() => setShowAttendees((v) => !v)}
+                    className="ml-auto flex items-center gap-1 text-stone-400 hover:text-stone-700"
+                  >
+                    <Users className="w-3 h-3" />
+                    {showAttendees ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                  </button>
                 )}
               </div>
             )}
 
-            {/* RSVP section */}
-            {!event.cancelled && (
-              <div className="mt-4 space-y-2">
-                {!past && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-stone-500 mr-1">RSVP:</span>
-                    {RSVP_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => onRsvp(opt.value)}
-                        className={`px-3 py-1 rounded text-xs font-medium border transition-colors ${
-                          myRsvp === opt.value ? opt.active : opt.idle
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
+            {/* Attendee list */}
+            {showAttendees && attendees.length > 0 && (
+              <div className="mt-2 border border-stone-100 rounded-md overflow-hidden">
+                {attendees.map(([uid, rsvp]) => (
+                  <div key={uid} className="flex items-center justify-between px-3 py-2 text-xs border-b border-stone-50 last:border-0">
+                    <span className="text-stone-700 font-medium">{rsvp.name}</span>
+                    <span className={`capitalize font-medium ${
+                      rsvp.status === 'attending' ? 'text-emerald-600' :
+                      rsvp.status === 'maybe'     ? 'text-amber-500' : 'text-stone-400'
+                    }`}>{rsvp.status}</span>
                   </div>
-                )}
-
-                {/* Attendee counts */}
-                {Object.keys(event.rsvps ?? {}).length > 0 && (
-                  <div className="flex items-center gap-3 text-xs">
-                    {rsvpCounts.attending > 0 && (
-                      <span className="text-emerald-700 font-medium">{rsvpCounts.attending} attending</span>
-                    )}
-                    {rsvpCounts.maybe > 0 && (
-                      <span className="text-amber-600 font-medium">{rsvpCounts.maybe} maybe</span>
-                    )}
-                    {rsvpCounts.declining > 0 && (
-                      <span className="text-stone-400">{rsvpCounts.declining} declining</span>
-                    )}
-                    {isAdmin && (
-                      <button
-                        onClick={() => setShowAttendees((v) => !v)}
-                        className="ml-auto flex items-center gap-1 text-stone-400 hover:text-stone-700"
-                      >
-                        <Users className="w-3 h-3" />
-                        {showAttendees ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Attendee list (admin) */}
-                {showAttendees && attendees.length > 0 && (
-                  <div className="mt-2 border border-stone-100 rounded-md overflow-hidden">
-                    {attendees.map(([uid, rsvp]) => (
-                      <div key={uid} className="flex items-center justify-between px-3 py-2 text-xs border-b border-stone-50 last:border-0">
-                        <span className="text-stone-700 font-medium">{rsvp.name}</span>
-                        <span className={`capitalize font-medium ${
-                          rsvp.status === 'attending' ? 'text-emerald-600' :
-                          rsvp.status === 'maybe'     ? 'text-amber-500' : 'text-stone-400'
-                        }`}>{rsvp.status}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                ))}
               </div>
             )}
           </div>
-        </div>
+        )}
+
+        {/* Mobile-only admin action strip */}
+        {isAdmin && !past && (
+          <div className="sm:hidden mt-4 pt-3 border-t border-stone-100 flex items-center gap-2">
+            <button
+              onClick={onEdit}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-stone-200 rounded-md text-stone-600 hover:bg-stone-50"
+            >
+              <Pencil className="w-3 h-3" /> Edit
+            </button>
+            <button
+              onClick={onDelete}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-red-100 rounded-md text-red-500 hover:bg-red-50"
+            >
+              <Trash2 className="w-3 h-3" /> Delete
+            </button>
+            {isPro && (
+              <button
+                onClick={() => setNotifyState('confirm')}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-stone-200 rounded-md text-stone-600 hover:bg-stone-50 ml-auto"
+              >
+                <Mail className="w-3 h-3" /> Notify
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </article>
   );
@@ -539,21 +553,21 @@ function EventModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-900/40 flex items-center justify-center p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-lg border border-stone-200 shadow-2xl rounded-lg overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-stone-900/40 flex items-end sm:items-center sm:justify-center sm:p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="bg-white w-full sm:max-w-lg border border-stone-200 shadow-2xl rounded-t-2xl sm:rounded-xl max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between">
           <h3 className="font-display text-xl">{isEdit ? 'Edit event' : 'New event'}</h3>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="p-6 space-y-4">
           <div>
             <label className="text-xs text-stone-600 block mb-1.5">Title <span className="text-red-400">*</span></label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Annual General Meeting"
-              className="w-full px-3 py-2.5 border border-stone-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
+              className="w-full px-3 py-2.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
             />
           </div>
 
@@ -563,7 +577,7 @@ function EventModal({
               type="checkbox"
               checked={allDay}
               onChange={(e) => setAllDay(e.target.checked)}
-              className="rounded"
+              className="rounded-md"
             />
             <label htmlFor="allDay" className="text-sm text-stone-600">All-day event</label>
           </div>
@@ -577,7 +591,7 @@ function EventModal({
                 type={allDay ? 'date' : 'datetime-local'}
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2.5 border border-stone-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
+                className="w-full px-3 py-2.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
               />
             </div>
             {!allDay && (
@@ -588,7 +602,7 @@ function EventModal({
                   value={endDate}
                   min={startDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-stone-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
+                  className="w-full px-3 py-2.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
                 />
               </div>
             )}
@@ -600,7 +614,7 @@ function EventModal({
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="e.g. Community Hall, Room 4B or Zoom"
-              className="w-full px-3 py-2.5 border border-stone-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
+              className="w-full px-3 py-2.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
             />
           </div>
 
@@ -611,7 +625,7 @@ function EventModal({
               onChange={(e) => setDescription(e.target.value)}
               rows={4}
               placeholder="What's on the agenda?"
-              className="w-full px-3 py-2.5 border border-stone-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-stone-900 resize-none"
+              className="w-full px-3 py-2.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900 resize-none"
             />
           </div>
         </div>
@@ -621,7 +635,7 @@ function EventModal({
           <button
             onClick={handleSave}
             disabled={saving || !canSave}
-            className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium hover:bg-stone-800 disabled:opacity-40 rounded"
+            className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md hover:bg-stone-800 disabled:opacity-40"
           >
             {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create event'}
           </button>

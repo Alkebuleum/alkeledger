@@ -44,10 +44,10 @@ export function NewEntryModal({ org, user, onClose, onSave }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4"
       onClick={onClose}
     >
-      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl ring-1 ring-stone-200 shadow-2xl w-full max-w-lg overflow-hidden">
+      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-t-2xl sm:rounded-xl ring-1 ring-stone-200 shadow-2xl w-full sm:max-w-lg overflow-hidden max-h-[92vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between">
           <h3 className="font-display text-xl">New ledger entry</h3>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900">
@@ -71,7 +71,7 @@ export function NewEntryModal({ org, user, onClose, onSave }: Props) {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-stone-600">Amount</label>
               <div className="mt-1 relative">
