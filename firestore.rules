@@ -137,11 +137,6 @@ service cloud.firestore {
         allow delete: if canManage(orgId);
       }
 
-      match /announcements/{annId} {
-        allow read: if isMemberOfOrg(orgId);
-        allow write: if canManage(orgId);
-      }
-
       match /requests/{reqId} {
         allow read: if isMemberOfOrg(orgId);
         allow create: if isMemberOfOrg(orgId);
@@ -176,6 +171,11 @@ service cloud.firestore {
       }
 
       match /benefits/{benefitId} {
+        allow read: if isMemberOfOrg(orgId);
+        allow create, update, delete: if canManage(orgId);
+      }
+
+      match /positions/{positionId} {
         allow read: if isMemberOfOrg(orgId);
         allow create, update, delete: if canManage(orgId);
       }

@@ -82,7 +82,7 @@ export function RsvpConfirm() {
               <h2 className="font-display text-2xl mb-2">RSVP failed</h2>
               <p className="text-stone-500 text-sm">{error}</p>
               <a href="/" className="block mt-6 text-sm text-stone-500 hover:text-stone-900 underline">
-                Go to AlkeLedger
+                Go to Scribe
               </a>
             </div>
           )}
@@ -118,10 +118,10 @@ export function RsvpConfirm() {
               </div>
 
               <a
-                href={result.orgSlug ? `/${result.orgSlug}/events` : '/'}
+                href={result.orgSlug ? `/${result.orgSlug}/calendar` : '/'}
                 className="block mt-5 text-sm text-stone-500 hover:text-stone-900 underline"
               >
-                View event in AlkeLedger →
+                View event in Scribe →
               </a>
             </div>
           )}

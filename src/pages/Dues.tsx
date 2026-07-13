@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Wallet, CheckCircle2, AlertCircle, Clock, Plus, X, Pencil,
-  Upload, Eye, ThumbsUp, ThumbsDown, ImageIcon,
+  Upload, Eye, EyeOff, ThumbsUp, ThumbsDown, ImageIcon,
 } from 'lucide-react';
 import { StatusPill } from '@/components/StatusPill';
 import { Panel } from '@/components/Panel';
@@ -84,6 +84,12 @@ interface Props {
 export function Dues({ org, ledger, user, onRecordPayment, onApprove }: Props) {
   const role = useRole(org.id, user.uid);
   const isAdmin = can.manage(role);
+
+  // Lets an admin preview the simplified member view for their own account —
+  // a UI-only toggle, not a real role change: their own data/permissions are
+  // untouched, this just swaps which branch of this page renders.
+  const [previewAsMember, setPreviewAsMember] = useState(false);
+  const showAdminView = isAdmin && !previewAsMember;
 
   const [periods, setPeriods] = useState<DuesPeriod[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -178,6 +184,15 @@ export function Dues({ org, ledger, user, onRecordPayment, onApprove }: Props) {
       : selectedPeriod.amountIndividual;
   }, [selectedPeriod, members, user.uid]);
 
+  // This member's own dues history across every period — kept separate from
+  // periodEntries (which only covers whichever period is selected) so a
+  // member can see past payments without switching periods.
+  const myAllEntries = useMemo(() =>
+    ledger
+      .filter((e) => e.category === 'Dues' && e.memberId === user.uid)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+  [ledger, user.uid]);
+
   function cardStats(p: DuesPeriod) {
     const paidIds = new Set(
       ledger
@@ -268,209 +283,248 @@ export function Dues({ org, ledger, user, onRecordPayment, onApprove }: Props) {
   return (
     <div className="p-4 sm:p-8 max-w-5xl space-y-6">
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-stone-500 uppercase tracking-widest">Dues Periods</span>
-        {isAdmin && (
-          <button
-            onClick={() => { setEditingPeriod(null); setShowForm(true); }}
-            className="px-3 py-1.5 bg-stone-900 text-stone-50 text-xs font-medium rounded-md flex items-center gap-1.5 hover:bg-stone-800"
-          >
-            <Plus className="w-3.5 h-3.5" /> New period
-          </button>
-        )}
-      </div>
-
-      {/* Period cards */}
-      {periods.length === 0 ? (
-        <div className="border border-dashed border-stone-300 rounded-lg p-12 text-center space-y-3">
-          <p className="text-stone-500 text-sm">No dues periods configured yet.</p>
-          {isAdmin && (
+      {isAdmin && (
+        previewAsMember ? (
+          <div className="flex items-center justify-between gap-3 bg-indigo-50 border border-indigo-200 rounded-md px-3.5 py-2.5">
+            <span className="text-xs text-indigo-800 font-medium">Previewing the member view — this is only for you, no data changed.</span>
             <button
-              onClick={() => setShowForm(true)}
-              className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md hover:bg-stone-800"
+              onClick={() => setPreviewAsMember(false)}
+              className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-indigo-700 border border-indigo-300 rounded-md bg-white hover:bg-indigo-100"
             >
-              Create first period
+              <EyeOff className="w-3.5 h-3.5" /> Exit preview
             </button>
-          )}
-        </div>
-      ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {periods.map((p) => {
-            const { paidCount, collectedAmt } = cardStats(p);
-            return (
-              <PeriodCard
-                key={p.id}
-                period={p}
-                isSelected={p.id === selectedId}
-                paidCount={paidCount}
-                totalCount={activeMembers.length}
-                collected={collectedAmt}
-                currency={org.currency}
-                onClick={() => setSelectedId(p.id)}
-              />
-            );
-          })}
-        </div>
+          </div>
+        ) : (
+          <div className="flex justify-end">
+            <button
+              onClick={() => setPreviewAsMember(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-stone-500 border border-stone-200 rounded-md hover:bg-stone-50 hover:text-stone-700"
+            >
+              <Eye className="w-3.5 h-3.5" /> Preview as member
+            </button>
+          </div>
+        )
       )}
 
-      {/* Selected period detail */}
-      {selectedPeriod && (
+      {showAdminView ? (
         <>
-          {/* Period title */}
-          <div className="flex items-start gap-3 pt-2 border-t border-stone-200">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-display text-xl text-stone-900">{selectedPeriod.name}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${TYPE_COLORS[selectedPeriod.type]}`}>
-                  {TYPE_LABELS[selectedPeriod.type]}
-                </span>
-                <StatusPill value={selectedPeriod.status} />
-              </div>
-              <div className="text-xs text-stone-500 mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
-                {selectedPeriod.periodStart && selectedPeriod.periodEnd && (
-                  <span>Covers {selectedPeriod.periodStart} → {selectedPeriod.periodEnd}</span>
-                )}
-                <span>
-                  Deadline:{' '}
-                  <span className={isOverdue(selectedPeriod.deadline) ? 'text-rose-600 font-medium' : ''}>
-                    {selectedPeriod.deadline}
-                  </span>
-                </span>
-                {selectedPeriod.amountIndividual > 0 && (
-                  <span>Individual: <strong>{fmt(selectedPeriod.amountIndividual, org.currency)}</strong></span>
-                )}
-                {selectedPeriod.amountOrganization > 0 && (
-                  <span>Organization: <strong>{fmt(selectedPeriod.amountOrganization, org.currency)}</strong></span>
-                )}
-              </div>
-            </div>
-            {isAdmin && (
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-stone-500 uppercase tracking-widest">Dues Periods</span>
+            <button
+              onClick={() => { setEditingPeriod(null); setShowForm(true); }}
+              className="px-3 py-1.5 bg-stone-900 text-stone-50 text-xs font-medium rounded-md flex items-center gap-1.5 hover:bg-stone-800"
+            >
+              <Plus className="w-3.5 h-3.5" /> New period
+            </button>
+          </div>
+
+          {/* Period cards — only shown when there's an actual choice to make.
+              With a single period, clicking a redundant card that just
+              re-shows the auto-selected detail below adds a confusing extra
+              step for no reason. */}
+          {periods.length === 0 ? (
+            <div className="border border-dashed border-stone-300 rounded-lg p-12 text-center space-y-3">
+              <p className="text-stone-500 text-sm">No dues periods configured yet.</p>
               <button
-                onClick={() => { setEditingPeriod(selectedPeriod); setShowForm(true); }}
-                className="shrink-0 px-2.5 py-1.5 text-xs border border-stone-300 text-stone-600 rounded-md hover:bg-stone-50 flex items-center gap-1"
+                onClick={() => setShowForm(true)}
+                className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md hover:bg-stone-800"
               >
-                <Pencil className="w-3 h-3" /> Edit
+                Create first period
               </button>
-            )}
-          </div>
-
-          {/* KPIs */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <KPI label="Collected" value={fmt(collected, org.currency)} icon={Wallet} accent="emerald" />
-            <KPI label="Paid" value={`${paid.length} / ${activeMembers.length}`} icon={CheckCircle2} accent="indigo" />
-            <KPI label="Outstanding" value={`${outstanding}`} icon={AlertCircle} accent={outstanding > 0 ? 'rose' : 'stone'} />
-            <KPI
-              label="Deadline"
-              value={deadlineLabel(selectedPeriod.deadline)}
-              icon={Clock}
-              accent={isOverdue(selectedPeriod.deadline) ? 'rose' : 'stone'}
-            />
-          </div>
-
-          {/* My payment status (visible to everyone) */}
-          {!myPaid && selectedPeriod.status !== 'closed' && (
-            <MyPaymentCard
-              myEntry={myEntry}
-              rate={myRate}
-              currency={org.currency}
-              onSubmit={() => setShowSubmitPayment(true)}
-              onViewReceipt={setViewingReceipt}
-            />
-          )}
-
-          {/* Admin: pending review */}
-          {isAdmin && pendingEntries.length > 0 && (
-            <Panel title={`Pending review (${pendingEntries.length})`}>
-              <div className="divide-y divide-stone-100">
-                {pendingEntries.map((e) => {
-                  const member = members.find((m) => m.id === e.memberId);
-                  return (
-                    <PendingReviewRow
-                      key={e.id}
-                      entry={e}
-                      memberName={member?.name ?? e.createdBy}
-                      onApprove={() => onApprove(e.id, 'approved')}
-                      onReject={() => onApprove(e.id, 'rejected')}
-                      onViewReceipt={e.receiptUrl ? () => setViewingReceipt(e.receiptUrl!) : undefined}
-                    />
-                  );
-                })}
-              </div>
-            </Panel>
-          )}
-
-          {/* Admin: not submitted */}
-          {isAdmin && notSubmitted.length > 0 && (
-            <Panel title={`Not submitted (${notSubmitted.length})`}>
-              <div className="divide-y divide-stone-100">
-                {notSubmitted.map((m) => {
-                  const rate = m.memberType === 'organization'
-                    ? selectedPeriod.amountOrganization
-                    : selectedPeriod.amountIndividual;
-                  return (
-                    <NotSubmittedRow
-                      key={m.id}
-                      member={m}
-                      rate={rate}
-                      currency={org.currency}
-                      onMarkPaid={() => handleAdminMarkPaid(m)}
-                    />
-                  );
-                })}
-              </div>
-            </Panel>
-          )}
-
-          {/* Payment history */}
-          <Panel title={`Payment history (${periodEntries.length})`}>
-            <div className="overflow-x-auto -mx-5 -mb-5">
-              <table className="w-full text-sm min-w-[480px]">
-                <thead className="bg-stone-50 text-[11px] uppercase tracking-widest text-stone-500">
-                  <tr>
-                    <th className="text-left px-5 py-3 font-medium">Member</th>
-                    <th className="text-left px-5 py-3 font-medium">Date</th>
-                    <th className="text-right px-5 py-3 font-medium">Amount</th>
-                    <th className="text-left px-5 py-3 font-medium">Status</th>
-                    <th className="px-5 py-3 font-medium" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100">
-                  {periodEntries.map((e) => {
-                    const member = members.find((m) => m.id === e.memberId);
-                    return (
-                      <tr key={e.id} className="hover:bg-stone-50">
-                        <td className="px-5 py-3 text-stone-900">{member?.name ?? e.description}</td>
-                        <td className="px-5 py-3 text-stone-600">{e.createdAt}</td>
-                        <td className="px-5 py-3 text-right font-medium text-emerald-700">
-                          {fmt(e.amount, org.currency)}
-                        </td>
-                        <td className="px-5 py-3"><StatusPill value={e.status} /></td>
-                        <td className="px-5 py-3 text-right">
-                          {e.receiptUrl && (
-                            <button
-                              onClick={() => setViewingReceipt(e.receiptUrl!)}
-                              className="text-xs text-stone-500 hover:text-stone-900 flex items-center gap-1 ml-auto"
-                            >
-                              <ImageIcon className="w-3 h-3" /> Receipt
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {periodEntries.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-5 py-10 text-center text-stone-400 text-sm">
-                        No payments recorded for this period yet.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
             </div>
-          </Panel>
+          ) : periods.length > 1 ? (
+            <div>
+              <p className="text-xs text-stone-500 mb-2">Select a period to manage:</p>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {periods.map((p) => {
+                  const { paidCount, collectedAmt } = cardStats(p);
+                  return (
+                    <PeriodCard
+                      key={p.id}
+                      period={p}
+                      isSelected={p.id === selectedId}
+                      paidCount={paidCount}
+                      totalCount={activeMembers.length}
+                      collected={collectedAmt}
+                      currency={org.currency}
+                      onClick={() => setSelectedId(p.id)}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Selected period detail */}
+          {selectedPeriod && (
+            <>
+              {/* Managing bar — ties the panels below back to whichever period is
+                  selected above, so it's unmistakable what changed and why */}
+              <div className="flex items-start gap-3 bg-stone-100 border border-stone-200 rounded-lg px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">Managing</div>
+                  <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                    <span className="font-display text-lg text-stone-900 truncate">{selectedPeriod.name}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${TYPE_COLORS[selectedPeriod.type]}`}>
+                      {TYPE_LABELS[selectedPeriod.type]}
+                    </span>
+                    <StatusPill value={selectedPeriod.status} />
+                  </div>
+                  <div className="text-xs text-stone-500 mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
+                    <span>
+                      Deadline:{' '}
+                      <span className={isOverdue(selectedPeriod.deadline) ? 'text-rose-600 font-medium' : ''}>
+                        {selectedPeriod.deadline}
+                      </span>
+                    </span>
+                    {selectedPeriod.amountIndividual > 0 && (
+                      <span>Individual: <strong>{fmt(selectedPeriod.amountIndividual, org.currency)}</strong></span>
+                    )}
+                    {selectedPeriod.amountOrganization > 0 && (
+                      <span>Organization: <strong>{fmt(selectedPeriod.amountOrganization, org.currency)}</strong></span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setEditingPeriod(selectedPeriod); setShowForm(true); }}
+                  className="shrink-0 px-2.5 py-1.5 text-xs border border-stone-300 text-stone-600 rounded-md bg-white hover:bg-stone-50 flex items-center gap-1"
+                >
+                  <Pencil className="w-3 h-3" /> Edit
+                </button>
+              </div>
+
+              {/* KPIs */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <KPI label="Collected" value={fmt(collected, org.currency)} icon={Wallet} accent="emerald" />
+                <KPI label="Paid" value={`${paid.length} / ${activeMembers.length}`} icon={CheckCircle2} accent="indigo" />
+                <KPI label="Outstanding" value={`${outstanding}`} icon={AlertCircle} accent={outstanding > 0 ? 'rose' : 'stone'} />
+                <KPI
+                  label="Deadline"
+                  value={deadlineLabel(selectedPeriod.deadline)}
+                  icon={Clock}
+                  accent={isOverdue(selectedPeriod.deadline) ? 'rose' : 'stone'}
+                />
+              </div>
+
+              {/* Admin's own payment status — admins are often paying members too */}
+              {!myPaid && selectedPeriod.status !== 'closed' && (
+                <MyPaymentCard
+                  myEntry={myEntry}
+                  rate={myRate}
+                  currency={org.currency}
+                  onSubmit={() => setShowSubmitPayment(true)}
+                  onViewReceipt={setViewingReceipt}
+                />
+              )}
+
+              {/* Pending review */}
+              {pendingEntries.length > 0 && (
+                <Panel title={`Pending review (${pendingEntries.length})`}>
+                  <div className="divide-y divide-stone-100">
+                    {pendingEntries.map((e) => {
+                      const member = members.find((m) => m.id === e.memberId);
+                      return (
+                        <PendingReviewRow
+                          key={e.id}
+                          entry={e}
+                          memberName={member?.name ?? e.createdBy}
+                          onApprove={() => onApprove(e.id, 'approved')}
+                          onReject={() => onApprove(e.id, 'rejected')}
+                          onViewReceipt={e.receiptUrl ? () => setViewingReceipt(e.receiptUrl!) : undefined}
+                        />
+                      );
+                    })}
+                  </div>
+                </Panel>
+              )}
+
+              {/* Not submitted */}
+              {notSubmitted.length > 0 && (
+                <Panel title={`Not submitted (${notSubmitted.length})`}>
+                  <div className="divide-y divide-stone-100">
+                    {notSubmitted.map((m) => {
+                      const rate = m.memberType === 'organization'
+                        ? selectedPeriod.amountOrganization
+                        : selectedPeriod.amountIndividual;
+                      return (
+                        <NotSubmittedRow
+                          key={m.id}
+                          member={m}
+                          rate={rate}
+                          currency={org.currency}
+                          onMarkPaid={() => handleAdminMarkPaid(m)}
+                        />
+                      );
+                    })}
+                  </div>
+                </Panel>
+              )}
+
+              {/* Payment history — every member's payments for this period */}
+              <Panel title={`Payment history (${periodEntries.length})`}>
+                <div className="overflow-x-auto -mx-5 -mb-5">
+                  <table className="w-full text-sm min-w-[480px]">
+                    <thead className="bg-stone-50 text-[11px] uppercase tracking-widest text-stone-500">
+                      <tr>
+                        <th className="text-left px-5 py-3 font-medium">Member</th>
+                        <th className="text-left px-5 py-3 font-medium">Date</th>
+                        <th className="text-right px-5 py-3 font-medium">Amount</th>
+                        <th className="text-left px-5 py-3 font-medium">Status</th>
+                        <th className="px-5 py-3 font-medium" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {periodEntries.map((e) => {
+                        const member = members.find((m) => m.id === e.memberId);
+                        return (
+                          <tr key={e.id} className="hover:bg-stone-50">
+                            <td className="px-5 py-3 text-stone-900">{member?.name ?? e.description}</td>
+                            <td className="px-5 py-3 text-stone-600">{e.createdAt}</td>
+                            <td className="px-5 py-3 text-right font-medium text-emerald-700">
+                              {fmt(e.amount, org.currency)}
+                            </td>
+                            <td className="px-5 py-3"><StatusPill value={e.status} /></td>
+                            <td className="px-5 py-3 text-right">
+                              {e.receiptUrl && (
+                                <button
+                                  onClick={() => setViewingReceipt(e.receiptUrl!)}
+                                  className="text-xs text-stone-500 hover:text-stone-900 flex items-center gap-1 ml-auto"
+                                >
+                                  <ImageIcon className="w-3 h-3" /> Receipt
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {periodEntries.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="px-5 py-10 text-center text-stone-400 text-sm">
+                            No payments recorded for this period yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </Panel>
+            </>
+          )}
         </>
+      ) : (
+        <MemberDuesView
+          periods={periods}
+          selectedId={selectedId}
+          setSelectedId={setSelectedId}
+          selectedPeriod={selectedPeriod}
+          myEntry={myEntry}
+          myRate={myRate}
+          currency={org.currency}
+          onSubmit={() => setShowSubmitPayment(true)}
+          onViewReceipt={setViewingReceipt}
+          myAllEntries={myAllEntries}
+        />
       )}
 
       {/* Modals */}
@@ -598,6 +652,164 @@ function MyPaymentCard({
           <Upload className="w-3 h-3" />
           {isRejected ? 'Resubmit' : 'Submit payment'}
         </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Member view — the "just let me pay my dues" experience ──────────────────
+// Deliberately shows none of the admin/treasurer aggregate views (period
+// comparison grid, KPIs, everyone-else's payment history): a non-technical
+// member only needs "what do I owe" and "how do I pay it."
+
+function MemberDuesView({
+  periods, selectedId, setSelectedId, selectedPeriod, myEntry, myRate, currency, onSubmit, onViewReceipt, myAllEntries,
+}: {
+  periods: DuesPeriod[];
+  selectedId: string | null;
+  setSelectedId: (id: string) => void;
+  selectedPeriod: DuesPeriod | null;
+  myEntry: LedgerEntry | null;
+  myRate: number;
+  currency: string;
+  onSubmit: () => void;
+  onViewReceipt: (url: string) => void;
+  myAllEntries: LedgerEntry[];
+}) {
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="font-display text-2xl text-stone-900">Dues</h1>
+        <p className="text-sm text-stone-500 mt-0.5">Keep your membership dues up to date.</p>
+      </div>
+
+      {periods.length === 0 ? (
+        <div className="border border-dashed border-stone-300 rounded-lg p-10 text-center text-stone-500 text-sm">
+          No dues periods have been set up yet.
+        </div>
+      ) : (
+        <>
+          {periods.length > 1 && (
+            <div>
+              <label className="text-xs text-stone-500 block mb-1">Period</label>
+              <select
+                value={selectedId ?? ''}
+                onChange={(e) => setSelectedId(e.target.value)}
+                className="w-full sm:w-auto px-3 py-2 border border-stone-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-900"
+              >
+                {periods.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {selectedPeriod && (
+            <MemberDuesCard
+              period={selectedPeriod}
+              myEntry={myEntry}
+              rate={myRate}
+              currency={currency}
+              onSubmit={onSubmit}
+              onViewReceipt={onViewReceipt}
+            />
+          )}
+        </>
+      )}
+
+      {myAllEntries.length > 0 && (
+        <div>
+          <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-widest mb-2">Your payment history</h2>
+          <div className="border border-stone-200 rounded-lg divide-y divide-stone-100 bg-white">
+            {myAllEntries.map((e) => (
+              <div key={e.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm text-stone-900 truncate">{e.description}</div>
+                  <div className="text-xs text-stone-500 mt-0.5">{e.createdAt}</div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-sm font-medium text-stone-900">{fmt(e.amount, e.currency)}</span>
+                  <StatusPill value={e.status} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MemberDuesCard({
+  period, myEntry, rate, currency, onSubmit, onViewReceipt,
+}: {
+  period: DuesPeriod;
+  myEntry: LedgerEntry | null;
+  rate: number;
+  currency: string;
+  onSubmit: () => void;
+  onViewReceipt: (url: string) => void;
+}) {
+  const isPaid     = myEntry?.status === 'approved' || myEntry?.status === 'anchored';
+  const isPending  = myEntry?.status === 'pending';
+  const isRejected = myEntry?.status === 'rejected';
+  const overdue    = !isPaid && isOverdue(period.deadline);
+  const label      = deadlineLabel(period.deadline);
+
+  return (
+    <div className={`rounded-xl border-2 p-5 sm:p-6 ${
+      isPaid    ? 'border-emerald-200 bg-emerald-50' :
+      isPending ? 'border-amber-200 bg-amber-50' :
+      overdue   ? 'border-rose-300 bg-rose-50' :
+                  'border-stone-200 bg-white'
+    }`}>
+      <div className="text-xs font-medium text-stone-500 uppercase tracking-wide">{period.name}</div>
+
+      {isPaid ? (
+        <>
+          <div className="flex items-center gap-2 mt-2">
+            <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+            <span className="text-lg font-semibold text-stone-900">You're all paid up</span>
+          </div>
+          <p className="text-sm text-stone-600 mt-1">
+            Paid {fmt(myEntry!.amount, currency)} on {myEntry!.approvedAt ?? myEntry!.createdAt}.
+          </p>
+        </>
+      ) : isPending ? (
+        <>
+          <div className="flex items-center gap-2 mt-2">
+            <Clock className="w-6 h-6 text-amber-600 shrink-0" />
+            <span className="text-lg font-semibold text-stone-900">Payment under review</span>
+          </div>
+          <p className="text-sm text-stone-600 mt-1">
+            Submitted {myEntry!.createdAt}. An admin will confirm it soon.
+          </p>
+          {myEntry!.receiptUrl && (
+            <button
+              onClick={() => onViewReceipt(myEntry!.receiptUrl!)}
+              className="text-sm text-stone-600 underline hover:no-underline mt-2"
+            >
+              View what you submitted
+            </button>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="text-3xl font-display font-semibold text-stone-900 mt-2">
+            {rate > 0 ? fmt(rate, currency) : 'Amount TBD'}
+          </div>
+          <p className={`text-sm mt-1 ${overdue ? 'text-rose-600 font-medium' : 'text-stone-500'}`}>
+            {isRejected && 'Your last submission was rejected — please try again. '}
+            {label === period.deadline ? `Due by ${period.deadline}` : label}
+          </p>
+          <button
+            onClick={onSubmit}
+            className="mt-4 w-full sm:w-auto px-5 py-3 bg-stone-900 text-stone-50 text-sm font-semibold rounded-lg hover:bg-stone-800 flex items-center justify-center gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            {isRejected ? 'Resubmit payment' : 'Pay now'}
+          </button>
+        </>
       )}
     </div>
   );

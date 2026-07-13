@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, X, MapPin, Clock, Pencil, Trash2, CalendarDays, Users, ChevronDown, ChevronUp, Link2, Mail, MessageCircle } from 'lucide-react';
-import { listEvents, createEvent, updateEvent, deleteEvent, setRsvp, notifyEventMembers } from '@/services/events';
+import { Plus, X, MapPin, Clock, Pencil, Trash2, CalendarDays, Users, ChevronDown, ChevronUp, Link2, Mail, MessageCircle, ImagePlus } from 'lucide-react';
+import { listEvents, createEvent, updateEvent, deleteEvent, setRsvp, notifyEventMembers, uploadEventImage, deleteEventImage } from '@/services/events';
+import { processCoverImage } from '@/lib/image';
 import { notifyCreated } from '@/services/notifications';
 import { can, useRole } from '@/hooks/useRole';
 import type { OrgEvent, Organization, RsvpStatus } from '@/types';
@@ -12,8 +13,8 @@ interface Props {
   user: AuthUser;
 }
 
-function copyShareLink(orgSlug: string, type: 'event' | 'announcement', id: string, setCopied: (v: boolean) => void) {
-  const url = `${window.location.origin}/share/${orgSlug}/${type}/${id}`;
+function copyShareLink(orgSlug: string, id: string, setCopied: (v: boolean) => void) {
+  const url = `${window.location.origin}/share/${orgSlug}/event/${id}`;
   navigator.clipboard.writeText(url).then(() => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -150,7 +151,7 @@ export function Events({ org, user }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <div className="text-[10px] uppercase tracking-[0.25em] text-[var(--ledger-red)] font-mono">§ Calendar</div>
-          <h2 className="font-display text-2xl mt-0.5">Events & Meetings</h2>
+          <h2 className="font-display text-2xl mt-0.5">Calendar</h2>
         </div>
         {isAdmin && (
           <button
@@ -281,6 +282,9 @@ function EventCard({
 
   return (
     <article className={`bg-white border border-stone-200 rounded-xl overflow-hidden ${event.cancelled ? 'opacity-60' : ''}`}>
+      {event.imageUrl && (
+        <img src={event.imageUrl} alt="" className="w-full aspect-[16/9] object-cover border-b border-stone-100" />
+      )}
       <div className="p-4 sm:p-5">
 
         {/* ── Header row: date badge + title + share icons ── */}
@@ -307,7 +311,7 @@ function EventCard({
               {/* Share icons — compact on mobile, full set on desktop */}
               <div className="flex items-center gap-0.5 shrink-0 -mt-0.5">
                 <button
-                  onClick={() => copyShareLink(orgSlug, 'event', event.id, setCopied)}
+                  onClick={() => copyShareLink(orgSlug, event.id, setCopied)}
                   title="Copy share link"
                   className="p-1.5 rounded-md text-stone-300 hover:text-stone-700 hover:bg-stone-100 transition-colors"
                 >
@@ -521,35 +525,95 @@ function EventModal({
   const [endDate,     setEndDate]     = useState(editing?.endDate     ?? '');
   const [allDay,      setAllDay]      = useState(editing?.allDay      ?? false);
   const [saving, setSaving] = useState(false);
+  const [error,  setError]  = useState('');
+
+  const [imageFile,       setImageFile]       = useState<File | null>(null);
+  const [imagePreview,    setImagePreview]    = useState<string | null>(editing?.imageUrl ?? null);
+  const [imageRemoved,    setImageRemoved]    = useState(false);
+  const [imageProcessing, setImageProcessing] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const isEdit = editing !== null;
   const canSave = title.trim() && startDate;
 
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageRemoved(false);
+    setImageProcessing(true);
+    setError('');
+    try {
+      // Crop to the same 16:9 frame the card displays, so the preview
+      // shown here is exactly what ends up on the event card — no
+      // surprise crop after upload.
+      const { file: processed, previewUrl } = await processCoverImage(file);
+      setImageFile(processed);
+      setImagePreview(previewUrl);
+    } catch {
+      setError('Could not process that image. Try a different file.');
+    } finally {
+      setImageProcessing(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setImageRemoved(true);
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
+
   const handleSave = async () => {
     if (!canSave) return;
     setSaving(true);
-    const data = {
-      title: title.trim(),
-      description: description.trim() || undefined,
-      location: location.trim() || undefined,
-      startDate,
-      endDate: endDate || undefined,
-      allDay,
-    };
-    if (isEdit) {
-      await updateEvent(org.id, editing.id, data);
-    } else {
-      const orgSlug = org.slug ?? org.id;
-      const created = await createEvent(org.id, {
-        ...data,
-        createdBy: user.displayName,
-        createdByUid: user.uid,
-      });
-      notifyCreated(org.id, 'event', data.title, data.description?.slice(0, 120) ?? '', `/${orgSlug}/events?openEvent=${created.id}`);
+    setError('');
+
+    try {
+      let newImage: { url: string; storagePath: string } | null = null;
+      if (imageFile) {
+        newImage = await uploadEventImage(org.id, imageFile);
+      }
+
+      const data = {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        location: location.trim() || undefined,
+        startDate,
+        endDate: endDate || undefined,
+        allDay,
+      };
+      if (isEdit) {
+        await updateEvent(org.id, editing.id, {
+          ...data,
+          ...(newImage
+            ? { imageUrl: newImage.url, imageStoragePath: newImage.storagePath }
+            : imageRemoved
+            ? { imageUrl: null, imageStoragePath: null }
+            : {}),
+        });
+      } else {
+        const orgSlug = org.slug ?? org.id;
+        const created = await createEvent(org.id, {
+          ...data,
+          ...(newImage ? { imageUrl: newImage.url, imageStoragePath: newImage.storagePath } : {}),
+          createdBy: user.displayName,
+          createdByUid: user.uid,
+        });
+        notifyCreated(org.id, 'event', data.title, data.description?.slice(0, 120) ?? '', `/${orgSlug}/calendar?openEvent=${created.id}`);
+      }
+      // Old image is only deleted once its replacement (or removal) is confirmed saved —
+      // deleting first would leave the event pointing at a gone file if the save then failed
+      if ((newImage || imageRemoved) && editing?.imageStoragePath) {
+        await deleteEventImage(editing.imageStoragePath);
+      }
+      onSaved();
+      onClose();
+    } catch (err) {
+      console.error(err);
+      setError('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    onSaved();
-    onClose();
   };
 
   return (
@@ -569,6 +633,47 @@ function EventModal({
               placeholder="e.g. Annual General Meeting"
               className="w-full px-3 py-2.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
             />
+          </div>
+
+          <div>
+            <label className="text-xs text-stone-600 block mb-1.5">Image</label>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={imageProcessing}
+              onChange={handleImageChange}
+            />
+            {imagePreview ? (
+              <div className="relative">
+                {/* Same 16:9 frame the event card displays — this preview is the exact crop that gets uploaded */}
+                <img src={imagePreview} alt="" className="w-full aspect-[16/9] object-cover rounded-md border border-stone-200" />
+                <button
+                  onClick={handleRemoveImage}
+                  title="Remove image"
+                  className="absolute top-1.5 right-1.5 p-1 rounded-full bg-stone-900/70 text-white hover:bg-stone-900"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={imageProcessing}
+                  className="mt-1.5 text-xs text-stone-600 underline disabled:opacity-40"
+                >
+                  {imageProcessing ? 'Processing…' : 'Change image'}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                disabled={imageProcessing}
+                className="w-full aspect-[16/9] flex flex-col items-center justify-center gap-1.5 border border-dashed border-stone-300 rounded-md text-stone-400 hover:border-stone-400 hover:text-stone-600 disabled:opacity-40"
+              >
+                <ImagePlus className="w-5 h-5" />
+                <span className="text-xs">{imageProcessing ? 'Processing…' : 'Add a cover image (optional)'}</span>
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -630,12 +735,13 @@ function EventModal({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-stone-100 flex justify-between">
+        <div className="px-6 py-4 border-t border-stone-100 flex items-center justify-between gap-3">
           <button onClick={onClose} className="text-sm text-stone-600 hover:text-stone-900">Cancel</button>
+          {error && <span className="text-xs text-red-500 flex-1 text-right">{error}</span>}
           <button
             onClick={handleSave}
-            disabled={saving || !canSave}
-            className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md hover:bg-stone-800 disabled:opacity-40"
+            disabled={saving || !canSave || imageProcessing}
+            className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md hover:bg-stone-800 disabled:opacity-40 shrink-0"
           >
             {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create event'}
           </button>

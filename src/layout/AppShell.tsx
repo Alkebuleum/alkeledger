@@ -38,7 +38,7 @@ export function AppShell({ org, orgs, pendingOrgs, onSwitchOrg, page, onNewEntry
   const slug = org.slug ?? org.id;
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="h-dvh flex overflow-hidden">
       {/* Mobile backdrop */}
       {sidebarOpen && (
         <div
@@ -81,7 +81,7 @@ export function AppShell({ org, orgs, pendingOrgs, onSwitchOrg, page, onNewEntry
           onMarkRead={onMarkRead}
           onMarkAllRead={onMarkAllRead}
         />
-        <div className="flex-1 overflow-y-auto overflow-x-hidden pb-safe">{children}</div>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden pb-safe bg-[#F6F4ED]">{children}</div>
         <BottomNav
           org={org}
           page={page}

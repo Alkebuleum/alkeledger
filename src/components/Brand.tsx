@@ -7,16 +7,16 @@ export function Brand({ small = false }: Props) {
     <div className="flex items-end gap-2.5">
       <img
         src="/logo.svg"
-        alt="AlkeLedger"
+        alt="Scribe"
         className={small ? 'h-6 w-auto pb-1' : 'h-9 w-auto pb-1.5'}
       />
       <div className="leading-tight">
-        <div className={`font-display ${small ? 'text-base' : 'text-lg'} text-stone-900`}>
-          <span className="font-bold">Alke</span><span className="font-light">Ledger</span>
+        <div className={`font-serif font-semibold ${small ? 'text-base' : 'text-lg'} text-stone-900`}>
+          Scribe
         </div>
         {!small && (
           <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">
-            Ledger · Records · Proof
+            Record · Seal · Prove
           </div>
         )}
       </div>

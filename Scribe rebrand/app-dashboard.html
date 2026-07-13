@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Record — Acme Holdings · Scribe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#171B21;--ink-2:#232935;--vellum:#EFE9DC;--paper:#F6F4ED;--card:#FDFCF8;
+    --wax:#8A1E2D;--wax-lt:#B3453C;--verd:#3E6257;--graphite:#8A8F99;--rule:#DCD6C6;--rule-soft:#EAE6D9;
+    --serif:'Spectral',Georgia,serif;--sans:'Inter',system-ui,sans-serif;--mono:'IBM Plex Mono',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--sans);color:var(--ink);background:var(--paper);font-size:14px}
+  a{text-decoration:none;color:inherit}
+  :focus-visible{outline:2px solid var(--wax);outline-offset:2px;border-radius:3px}
+  .app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+  @media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{display:none}}
+
+  /* ---------- sidebar ---------- */
+  .sidebar{
+    background:var(--ink);color:#A9AEB8;display:flex;flex-direction:column;
+    padding:20px 14px;position:sticky;top:0;height:100vh;
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--serif);font-size:18px;font-weight:600;color:var(--vellum);padding:4px 10px 18px}
+  .org{
+    display:flex;align-items:center;gap:9px;background:var(--ink-2);
+    border:1px solid rgba(239,233,220,.1);border-radius:6px;padding:9px 11px;
+    font-size:12.5px;font-weight:500;color:var(--vellum);margin-bottom:20px;cursor:pointer;
+  }
+  .org .dot{width:20px;height:20px;border-radius:5px;background:var(--verd);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;color:var(--vellum)}
+  .org .chev{margin-left:auto;opacity:.5;font-size:10px}
+  .nav-group{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:#5F6570;padding:14px 10px 7px;text-transform:uppercase}
+  .nitem{
+    display:flex;align-items:center;gap:10px;padding:8.5px 10px;border-radius:6px;
+    font-size:13.5px;font-weight:500;cursor:pointer;margin-bottom:1px;
+  }
+  .nitem:hover{background:rgba(239,233,220,.06);color:var(--vellum)}
+  .nitem.active{background:rgba(239,233,220,.1);color:var(--vellum)}
+  .nitem.active .nbar{background:var(--wax-lt)}
+  .nbar{width:14px;height:4px;border-radius:2px;background:#5F6570;flex-shrink:0}
+  .side-bottom{margin-top:auto;padding:14px 10px 4px;border-top:1px solid rgba(239,233,220,.1)}
+  .user{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--vellum);margin-bottom:12px}
+  .avatar{width:26px;height:26px;border-radius:50%;background:var(--wax);display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:600;color:var(--vellum)}
+  .integrity{font-family:var(--mono);font-size:10px;color:#5F6570;letter-spacing:.05em}
+  .integrity .ok{color:#7FA99A}
+
+  /* ---------- topbar ---------- */
+  .topbar{
+    display:flex;align-items:center;gap:16px;padding:14px 26px;
+    border-bottom:1px solid var(--rule);background:rgba(246,244,237,.9);
+    position:sticky;top:0;z-index:10;backdrop-filter:blur(8px);
+  }
+  .search{
+    flex:1;max-width:460px;display:flex;align-items:center;gap:9px;
+    background:var(--card);border:1px solid var(--rule);border-radius:6px;
+    padding:8.5px 12px;color:#A6AAB2;font-size:13.5px;
+  }
+  .search .kbd{margin-left:auto;font-family:var(--mono);font-size:10px;border:1px solid var(--rule);border-radius:4px;padding:1.5px 5px;color:var(--graphite)}
+  .btn{
+    display:inline-flex;align-items:center;gap:7px;border-radius:5px;cursor:pointer;
+    font-family:var(--sans);font-size:13.5px;font-weight:500;padding:9px 15px;border:1px solid transparent;
+  }
+  .btn.wax{background:var(--wax);color:var(--vellum)}
+  .btn.wax:hover{background:#761826}
+  .btn.ghost{background:transparent;border-color:var(--rule);color:var(--ink)}
+  .btn.ghost:hover{background:var(--card)}
+  .topbar .btn.wax{margin-left:auto}
+
+  /* ---------- content ---------- */
+  .content{padding:30px 26px 60px;display:grid;grid-template-columns:1fr 350px;gap:24px;align-items:start}
+  @media(max-width:1120px){.content{grid-template-columns:1fr}.detail{display:none}}
+  .page-head h1{font-family:var(--serif);font-weight:600;font-size:27px;letter-spacing:-.01em}
+  .page-head .meta{font-family:var(--mono);font-size:11px;color:var(--graphite);margin-top:5px;letter-spacing:.04em}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0 8px}
+  .filter{
+    font-size:12.5px;font-weight:500;padding:6px 13px;border-radius:99px;
+    border:1px solid var(--rule);background:transparent;color:#5A5F67;cursor:pointer;
+  }
+  .filter.active{background:var(--ink);border-color:var(--ink);color:var(--vellum)}
+  .filter:hover:not(.active){background:var(--card)}
+
+  .daylabel{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:var(--graphite);text-transform:uppercase;margin:26px 0 8px;display:flex;align-items:center;gap:12px}
+  .daylabel::after{content:'';flex:1;height:1px;background:var(--rule)}
+  .entry{
+    display:grid;grid-template-columns:18px 1fr auto;gap:13px;align-items:start;
+    background:var(--card);border:1px solid var(--rule);border-radius:7px;
+    padding:14px 16px;margin-bottom:8px;cursor:pointer;transition:border-color .15s, box-shadow .15s;
+  }
+  .entry:hover{border-color:#C8C1AD}
+  .entry.selected{border-color:var(--ink);box-shadow:0 6px 18px -10px rgba(23,27,33,.3)}
+  .ebar{width:18px;height:5px;border-radius:2px;background:var(--ink);margin-top:7px}
+  .entry.sealed-row .ebar{background:var(--wax)}
+  .entry .title{font-size:14px;font-weight:600;line-height:1.35}
+  .entry .sub{font-size:12.5px;color:#5A5F67;margin-top:3px}
+  .entry .right{text-align:right}
+  .entry .hash{font-family:var(--mono);font-size:10.5px;color:var(--graphite)}
+  .entry .time{font-family:var(--mono);font-size:10.5px;color:var(--graphite);margin-top:3px}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;padding:3px 8px;border-radius:3px;margin-top:7px}
+  .chip.sealed{background:var(--wax);color:var(--vellum)}
+  .chip.verified{background:rgba(62,98,87,.1);color:var(--verd);border:1px solid rgba(62,98,87,.3)}
+  .chip.draft{background:transparent;color:var(--graphite);border:1px dashed var(--rule)}
+  .type-tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--graphite)}
+
+  /* ---------- detail panel ---------- */
+  .detail{
+    background:var(--card);border:1px solid var(--rule);border-radius:8px;
+    padding:22px;position:sticky;top:78px;
+  }
+  .detail .dt-type{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--wax)}
+  .detail h2{font-family:var(--serif);font-weight:600;font-size:20px;line-height:1.25;margin:8px 0 12px}
+  .kv{display:grid;grid-template-columns:86px 1fr;gap:7px 12px;font-size:12.5px;padding:14px 0;border-top:1px solid var(--rule-soft);border-bottom:1px solid var(--rule-soft)}
+  .kv .k{font-family:var(--mono);font-size:10.5px;color:var(--graphite);letter-spacing:.06em;padding-top:1px}
+  .kv .v{color:var(--ink)}
+  .kv .v.mono{font-family:var(--mono);font-size:11px;word-break:break-all}
+  .kv .v.link{color:var(--wax);cursor:pointer}
+  .attach{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--rule-soft);font-size:12.5px}
+  .attach .fbar{width:14px;height:4px;border-radius:2px;background:var(--graphite)}
+  .attach .size{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--graphite)}
+  .detail-actions{display:grid;gap:9px;margin-top:18px}
+  .detail-actions .btn{justify-content:center}
+  .btn.inkbtn{background:var(--ink);color:var(--vellum)}
+  .btn.inkbtn:hover{background:var(--ink-2)}
+  .verified-banner{
+    display:flex;align-items:center;gap:8px;margin-top:16px;
+    font-family:var(--mono);font-size:10.5px;color:var(--verd);letter-spacing:.06em;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 96 96" aria-hidden="true">
+        <rect x="20" y="11.75" width="56" height="9" rx="2" fill="#EFE9DC"/>
+        <rect x="20" y="27.25" width="26" height="9" rx="2" fill="#EFE9DC"/>
+        <rect x="20" y="42.75" width="56" height="9" rx="2" fill="#EFE9DC"/>
+        <rect x="50" y="58.25" width="26" height="9" rx="2" fill="#EFE9DC"/>
+        <rect x="20" y="73.75" width="56" height="9" rx="2" fill="#EFE9DC"/>
+        <rect x="80" y="73.75" width="5" height="9" rx="2" fill="#B3453C"/>
+      </svg>
+      Scribe
+    </div>
+
+    <div class="org"><span class="dot">AH</span> Acme Holdings <span class="chev">▾</span></div>
+
+    <div class="nav-group">Record</div>
+    <div class="nitem active"><span class="nbar"></span>Ledger</div>
+    <div class="nitem"><span class="nbar"></span>Drafts</div>
+    <div class="nitem"><span class="nbar"></span>Verify a record</div>
+
+    <div class="nav-group">Registry</div>
+    <div class="nitem"><span class="nbar"></span>Credentials</div>
+    <div class="nitem"><span class="nbar"></span>Documents</div>
+    <div class="nitem"><span class="nbar"></span>People</div>
+
+    <div class="nav-group">Organization</div>
+    <div class="nitem"><span class="nbar"></span>Exports &amp; proofs</div>
+    <div class="nitem"><span class="nbar"></span>Settings</div>
+
+    <div class="side-bottom">
+      <div class="user"><span class="avatar">MK</span> M. Kader</div>
+      <div class="integrity">chain #01847 · <span class="ok">intact ✓</span></div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <div>
+    <div class="topbar">
+      <div class="search">⌕ Search the record… <span class="kbd">⌘K</span></div>
+      <button class="btn wax">＋ New entry</button>
+    </div>
+
+    <div class="content">
+      <!-- LIST -->
+      <div>
+        <div class="page-head">
+          <h1>Ledger</h1>
+          <div class="meta">1,847 ENTRIES · LATEST SEALED 09:44:03 UTC · APPEND-ONLY</div>
+        </div>
+
+        <div class="filters">
+          <button class="filter active">All</button>
+          <button class="filter">Decisions</button>
+          <button class="filter">Transactions</button>
+          <button class="filter">Credentials</button>
+          <button class="filter">Documents</button>
+          <button class="filter">Milestones</button>
+        </div>
+
+        <div class="daylabel">Today · Sat 11 Jul 2026</div>
+
+        <div class="entry sealed-row selected">
+          <span class="ebar"></span>
+          <div>
+            <div class="title">Board resolution 2026-14 — approve Series B terms</div>
+            <div class="sub">Recorded by M. Kader · countersigned J. Okafor</div>
+            <span class="chip sealed">■ SEALED</span> <span class="chip verified">✓ VERIFIED</span>
+          </div>
+          <div class="right">
+            <div class="type-tag">DECISION</div>
+            <div class="hash">8f3a41…c21e</div>
+            <div class="time">09:41:07</div>
+          </div>
+        </div>
+
+        <div class="entry">
+          <span class="ebar"></span>
+          <div>
+            <div class="title">Credential issued — J. Okafor, Director</div>
+            <div class="sub">Valid until 11 Jul 2028 · publicly checkable</div>
+            <span class="chip sealed">■ SEALED</span>
+          </div>
+          <div class="right">
+            <div class="type-tag">CREDENTIAL</div>
+            <div class="hash">5d17be…09bb</div>
+            <div class="time">09:42:19</div>
+          </div>
+        </div>
+
+        <div class="entry">
+          <span class="ebar"></span>
+          <div>
+            <div class="title">Contract v3 attached — Meridian supply agreement</div>
+            <div class="sub">Recorded by A. Silva · 1 file fingerprinted</div>
+            <span class="chip sealed">■ SEALED</span>
+          </div>
+          <div class="right">
+            <div class="type-tag">DOCUMENT</div>
+            <div class="hash">e0c4a8…77ad</div>
+            <div class="time">09:44:02</div>
+          </div>
+        </div>
+
+        <div class="entry">
+          <span class="ebar" style="background:var(--graphite)"></span>
+          <div>
+            <div class="title">Q3 dividend distribution — draft</div>
+            <div class="sub">Awaiting countersignature · not yet part of the chain</div>
+            <span class="chip draft">◦ DRAFT</span>
+          </div>
+          <div class="right">
+            <div class="type-tag">TRANSACTION</div>
+            <div class="hash">—</div>
+            <div class="time">10:02:44</div>
+          </div>
+        </div>
+
+        <div class="daylabel">Thu 09 Jul 2026</div>
+
+        <div class="entry">
+          <span class="ebar"></span>
+          <div>
+            <div class="title">Milestone — SOC 2 Type II audit passed</div>
+            <div class="sub">Recorded by M. Kader · report attached</div>
+            <span class="chip sealed">■ SEALED</span> <span class="chip verified">✓ VERIFIED</span>
+          </div>
+          <div class="right">
+            <div class="type-tag">MILESTONE</div>
+            <div class="hash">77cd0e…9a3f</div>
+            <div class="time">15:20:11</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DETAIL -->
+      <aside class="detail">
+        <div class="dt-type">DECISION · REC #01847</div>
+        <h2>Board resolution 2026-14 — approve Series B terms</h2>
+
+        <div class="kv">
+          <span class="k">recorded</span><span class="v">11 Jul 2026 · 09:41:07 UTC</span>
+          <span class="k">by</span><span class="v">M. Kader (CFO)</span>
+          <span class="k">countersign</span><span class="v">J. Okafor (Director)</span>
+          <span class="k">hash</span><span class="v mono">8f3a41d92e0b…c21e</span>
+          <span class="k">prev</span><span class="v mono link">2b90ffae3d17…5510 ⇠ #01846</span>
+        </div>
+
+        <div class="attach"><span class="fbar"></span> resolution-2026-14.pdf <span class="size">412 KB</span></div>
+        <div class="attach"><span class="fbar"></span> term-sheet-final.pdf <span class="size">1.1 MB</span></div>
+
+        <div class="detail-actions">
+          <button class="btn inkbtn">Export proof</button>
+          <button class="btn ghost">Copy public verify link</button>
+        </div>
+
+        <div class="verified-banner">✓ VERIFIED · CHAIN INTACT · CHECKED 09:44:05 UTC</div>
+      </aside>
+    </div>
+  </div>
+</div>
+</body>
+</html>

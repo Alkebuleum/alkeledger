@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verify a record — Scribe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#171B21;--ink-2:#232935;--vellum:#EFE9DC;--paper:#F6F4ED;--card:#FDFCF8;
+    --wax:#8A1E2D;--wax-lt:#B3453C;--verd:#3E6257;--graphite:#8A8F99;--rule:#DCD6C6;--rule-soft:#EAE6D9;
+    --serif:'Spectral',Georgia,serif;--sans:'Inter',system-ui,sans-serif;--mono:'IBM Plex Mono',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--sans);color:var(--ink);background:var(--paper);font-size:14px}
+  a{text-decoration:none;color:inherit}
+  :focus-visible{outline:2px solid var(--wax);outline-offset:2px;border-radius:3px}
+  .app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+  @media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{display:none}}
+  .sidebar{background:var(--ink);color:#A9AEB8;display:flex;flex-direction:column;padding:20px 14px;position:sticky;top:0;height:100vh}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--serif);font-size:18px;font-weight:600;color:var(--vellum);padding:4px 10px 18px}
+  .org{display:flex;align-items:center;gap:9px;background:var(--ink-2);border:1px solid rgba(239,233,220,.1);border-radius:6px;padding:9px 11px;font-size:12.5px;font-weight:500;color:var(--vellum);margin-bottom:20px;cursor:pointer}
+  .org .dot{width:20px;height:20px;border-radius:5px;background:var(--verd);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;color:var(--vellum)}
+  .org .chev{margin-left:auto;opacity:.5;font-size:10px}
+  .nav-group{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:#5F6570;padding:14px 10px 7px;text-transform:uppercase}
+  .nitem{display:flex;align-items:center;gap:10px;padding:8.5px 10px;border-radius:6px;font-size:13.5px;font-weight:500;cursor:pointer;margin-bottom:1px}
+  .nitem:hover{background:rgba(239,233,220,.06);color:var(--vellum)}
+  .nitem.active{background:rgba(239,233,220,.1);color:var(--vellum)}
+  .nitem.active .nbar{background:var(--wax-lt)}
+  .nbar{width:14px;height:4px;border-radius:2px;background:#5F6570;flex-shrink:0}
+  .side-bottom{margin-top:auto;padding:14px 10px 4px;border-top:1px solid rgba(239,233,220,.1)}
+  .user{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--vellum);margin-bottom:12px}
+  .avatar{width:26px;height:26px;border-radius:50%;background:var(--wax);display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:600;color:var(--vellum)}
+  .integrity{font-family:var(--mono);font-size:10px;color:#5F6570;letter-spacing:.05em}
+  .integrity .ok{color:#7FA99A}
+  .topbar{display:flex;align-items:center;gap:16px;padding:14px 26px;border-bottom:1px solid var(--rule);background:rgba(246,244,237,.9);position:sticky;top:0;z-index:10;backdrop-filter:blur(8px)}
+  .search{flex:1;max-width:460px;display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:8.5px 12px;color:#A6AAB2;font-size:13.5px}
+  .search .kbd{margin-left:auto;font-family:var(--mono);font-size:10px;border:1px solid var(--rule);border-radius:4px;padding:1.5px 5px;color:var(--graphite)}
+  .btn{display:inline-flex;align-items:center;gap:7px;border-radius:5px;cursor:pointer;font-family:var(--sans);font-size:13.5px;font-weight:500;padding:9px 15px;border:1px solid transparent}
+  .btn.wax{background:var(--wax);color:var(--vellum)}
+  .btn.wax:hover{background:#761826}
+  .btn.inkbtn{background:var(--ink);color:var(--vellum)}
+  .btn.inkbtn:hover{background:var(--ink-2)}
+  .btn.ghost{background:transparent;border-color:var(--rule);color:var(--ink)}
+  .topbar .btn.wax{margin-left:auto}
+
+  .content{padding:38px 26px 70px;max-width:720px;margin:0 auto}
+  .page-head{text-align:center;margin-bottom:30px}
+  .page-head h1{font-family:var(--serif);font-weight:600;font-size:29px;letter-spacing:-.01em}
+  .page-head p{color:#5A5F67;font-size:14.5px;margin-top:9px;max-width:48ch;margin-left:auto;margin-right:auto}
+
+  .tool{background:var(--card);border:1px solid var(--rule);border-radius:9px;padding:22px}
+  .tabs{display:flex;gap:6px;margin-bottom:18px}
+  .tab{font-size:12.5px;font-weight:500;padding:7px 14px;border-radius:99px;border:1px solid var(--rule);color:#5A5F67;cursor:pointer;background:transparent}
+  .tab.active{background:var(--ink);border-color:var(--ink);color:var(--vellum)}
+  .input-row{display:flex;gap:10px}
+  .input-row input{
+    flex:1;font-family:var(--mono);font-size:13px;color:var(--ink);
+    background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:12px 14px;
+  }
+  .input-row input::placeholder{color:#A6AAB2;font-family:var(--sans)}
+  .input-row input:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 3px rgba(23,27,33,.07)}
+  .drop{
+    margin-top:12px;border:1px dashed var(--rule);border-radius:6px;padding:14px;
+    text-align:center;font-size:12.5px;color:var(--graphite);
+  }
+  .drop b{color:var(--ink);font-weight:500}
+
+  /* result: verified */
+  .result{border-radius:9px;margin-top:22px;overflow:hidden;border:1px solid rgba(62,98,87,.4)}
+  .verdict{
+    display:flex;align-items:center;gap:12px;padding:16px 20px;
+    background:var(--verd);color:var(--vellum);
+  }
+  .verdict .big{font-family:var(--mono);font-size:13px;letter-spacing:.12em;font-weight:500}
+  .verdict .sub{font-family:var(--mono);font-size:10px;opacity:.8;letter-spacing:.06em;margin-top:2px}
+  .rbody{background:var(--card);padding:20px}
+  .rbody h2{font-family:var(--serif);font-size:20px;font-weight:600;line-height:1.3}
+  .kv{display:grid;grid-template-columns:96px 1fr;gap:7px 14px;font-size:12.5px;padding:16px 0 4px}
+  .kv .k{font-family:var(--mono);font-size:10.5px;color:var(--graphite);letter-spacing:.06em;padding-top:1px}
+  .kv .v{color:var(--ink)}
+  .kv .v.mono{font-family:var(--mono);font-size:11px;word-break:break-all}
+  .checks{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .pass{font-family:var(--mono);font-size:10px;letter-spacing:.08em;padding:4px 9px;border-radius:3px;background:rgba(62,98,87,.1);color:var(--verd);border:1px solid rgba(62,98,87,.3)}
+
+  /* history incl. failed state */
+  .hist-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:var(--graphite);text-transform:uppercase;margin:36px 0 10px;display:flex;align-items:center;gap:12px}
+  .hist-label::after{content:'';flex:1;height:1px;background:var(--rule)}
+  .hrow{
+    display:grid;grid-template-columns:auto 1fr auto;gap:13px;align-items:center;
+    background:var(--card);border:1px solid var(--rule);border-radius:7px;
+    padding:13px 16px;margin-bottom:8px;font-size:13px;
+  }
+  .badge{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;padding:4px 9px;border-radius:3px;white-space:nowrap}
+  .badge.ok{background:rgba(62,98,87,.1);color:var(--verd);border:1px solid rgba(62,98,87,.3)}
+  .badge.fail{background:var(--wax);color:var(--vellum)}
+  .hrow .t{font-weight:500}
+  .hrow .m{font-family:var(--mono);font-size:10.5px;color:var(--graphite);margin-top:2px}
+  .hrow .when{font-family:var(--mono);font-size:10.5px;color:var(--graphite)}
+  .hrow.failed{border-color:rgba(138,30,45,.45)}
+  .hrow.failed .m b{color:var(--wax);font-weight:500}
+  .foot-note{font-family:var(--mono);font-size:10px;color:var(--graphite);letter-spacing:.05em;text-align:center;margin-top:30px;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 96 96" aria-hidden="true"><rect x="20" y="11.75" width="56" height="9" rx="2" fill="#EFE9DC"/><rect x="20" y="27.25" width="26" height="9" rx="2" fill="#EFE9DC"/><rect x="20" y="42.75" width="56" height="9" rx="2" fill="#EFE9DC"/><rect x="50" y="58.25" width="26" height="9" rx="2" fill="#EFE9DC"/><rect x="20" y="73.75" width="56" height="9" rx="2" fill="#EFE9DC"/><rect x="80" y="73.75" width="5" height="9" rx="2" fill="#B3453C"/></svg>
+      Scribe
+    </div>
+    <div class="org"><span class="dot">AH</span> Acme Holdings <span class="chev">▾</span></div>
+    <div class="nav-group">Record</div>
+    <div class="nitem"><span class="nbar"></span>Ledger</div>
+    <div class="nitem"><span class="nbar"></span>Drafts</div>
+    <div class="nitem active"><span class="nbar"></span>Verify a record</div>
+    <div class="nav-group">Registry</div>
+    <div class="nitem"><span class="nbar"></span>Credentials</div>
+    <div class="nitem"><span class="nbar"></span>Documents</div>
+    <div class="nitem"><span class="nbar"></span>People</div>
+    <div class="nav-group">Organization</div>
+    <div class="nitem"><span class="nbar"></span>Exports &amp; proofs</div>
+    <div class="nitem"><span class="nbar"></span>Settings</div>
+    <div class="side-bottom">
+      <div class="user"><span class="avatar">MK</span> M. Kader</div>
+      <div class="integrity">chain #01847 · <span class="ok">intact ✓</span></div>
+    </div>
+  </aside>
+
+  <div>
+    <div class="topbar">
+      <div class="search">⌕ Search the record… <span class="kbd">⌘K</span></div>
+      <button class="btn wax">＋ New entry</button>
+    </div>
+
+    <div class="content">
+      <div class="page-head">
+        <h1>Verify a record</h1>
+        <p>Paste a verify link, a record hash, or drop a proof file. Scribe checks it against the chain — the same check anyone outside your organization can run.</p>
+      </div>
+
+      <div class="tool">
+        <div class="tabs">
+          <button class="tab active">Link or hash</button>
+          <button class="tab">Proof file</button>
+          <button class="tab">Document fingerprint</button>
+        </div>
+        <div class="input-row">
+          <input value="alkescribe.com/v/8f3a41d92e0b…c21e" aria-label="Verify link or hash">
+          <button class="btn inkbtn">Verify</button>
+        </div>
+        <div class="drop">or drop a <b>.scribeproof</b> file here — verification runs locally, works offline</div>
+      </div>
+
+      <!-- VERIFIED RESULT -->
+      <div class="result">
+        <div class="verdict">
+          <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="11" fill="none" stroke="#EFE9DC" stroke-width="2.4"/><path d="M8 13.2 l3.4 3.4 L18 10" fill="none" stroke="#EFE9DC" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div>
+            <div class="big">VERIFIED · UNALTERED</div>
+            <div class="sub">CHECKED 11 JUL 2026 · 10:18:52 UTC</div>
+          </div>
+        </div>
+        <div class="rbody">
+          <h2>Board resolution 2026-14 — approve Series B terms</h2>
+          <div class="kv">
+            <span class="k">org</span><span class="v">Acme Holdings (acme-holdings)</span>
+            <span class="k">recorded</span><span class="v">11 Jul 2026 · 09:41:07 UTC</span>
+            <span class="k">sealed by</span><span class="v">M. Kader · countersigned J. Okafor</span>
+            <span class="k">hash</span><span class="v mono">8f3a41d92e0b44175aa0…c21e</span>
+            <span class="k">position</span><span class="v mono">#01847 of 1,847 · chain intact</span>
+          </div>
+          <div class="checks">
+            <span class="pass">✓ FINGERPRINT MATCHES</span>
+            <span class="pass">✓ CHAIN LINK VALID</span>
+            <span class="pass">✓ SIGNATURES VALID</span>
+            <span class="pass">✓ TIMESTAMP CONSISTENT</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTORY WITH FAILED STATE -->
+      <div class="hist-label">Recent checks</div>
+
+      <div class="hrow failed">
+        <span class="badge fail">✕ ALTERED</span>
+        <div>
+          <div class="t">meridian-agreement-v3 (uploaded copy)</div>
+          <div class="m">fingerprint mismatch — file differs from the record sealed at <b>#01845</b></div>
+        </div>
+        <span class="when">10:11:30</span>
+      </div>
+
+      <div class="hrow">
+        <span class="badge ok">✓ VERIFIED</span>
+        <div>
+          <div class="t">Credential — J. Okafor, Director</div>
+          <div class="m">#01846 · checked via public link</div>
+        </div>
+        <span class="when">09:58:02</span>
+      </div>
+
+      <div class="hrow">
+        <span class="badge ok">✓ VERIFIED</span>
+        <div>
+          <div class="t">SOC 2 Type II audit passed</div>
+          <div class="m">#01799 · proof file · verified offline</div>
+        </div>
+        <span class="when">Thu 09 Jul</span>
+      </div>
+
+      <div class="foot-note">VERIFICATION USES OPEN CRYPTOGRAPHY · RESULTS ARE REPRODUCIBLE OUTSIDE SCRIBE<br>A FAILED CHECK MEANS THE COPY DIFFERS FROM THE RECORD — THE CHAIN ITSELF REMAINS INTACT</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

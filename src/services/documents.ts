@@ -4,6 +4,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { USE_MOCK_DATA, db, storage } from '@/lib/firebase';
+import { isDemoOrgId } from '@/lib/demo';
 import { MOCK_DOCUMENTS } from '@/data/mock';
 import type { DocumentRecord } from '@/types';
 
@@ -20,7 +21,7 @@ function formatSize(bytes: number): string {
 }
 
 export async function listDocuments(orgId: string): Promise<DocumentRecord[]> {
-  if (USE_MOCK_DATA) return mockDocs.filter((d) => d.orgId === orgId);
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) return mockDocs.filter((d) => d.orgId === orgId);
   if (!db) return [];
   const snap = await getDocs(query(docsCol(orgId), orderBy('createdAt', 'desc')));
   return snap.docs.map((d) => {
@@ -49,7 +50,7 @@ export async function uploadDocument(
   const uploaded = new Date().toISOString().slice(0, 10);
   const size     = formatSize(file.size);
 
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     const doc: DocumentRecord = {
       id:       'd_' + Math.random().toString(36).slice(2, 9),
       orgId,
@@ -86,8 +87,29 @@ export async function uploadDocument(
   return { id: ref2.id, orgId, name: file.name, size, uploaded, category, url, storagePath, uploadedBy };
 }
 
+/**
+ * Uploads a file backing a `recordType: 'document'` ledger entry. Distinct storage
+ * namespace from the org's general Files library (`documents/`) since this file is
+ * evidence attached to an anchorable record, not general org storage — no separate
+ * Firestore doc is created here, the ledger entry itself is the record.
+ */
+export async function uploadLedgerDocument(orgId: string, file: File): Promise<{ url: string; storagePath: string }> {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
+    return { url: 'mock://ledger-document', storagePath: `ledger-documents/${orgId}/mock/${file.name}` };
+  }
+  if (!storage) throw new Error('Firebase not initialized');
+
+  const docId       = 'ld_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  const storagePath = `ledger-documents/${orgId}/${docId}/${file.name}`;
+  const storageRef  = ref(storage, storagePath);
+
+  await uploadBytes(storageRef, file);
+  const url = await getDownloadURL(storageRef);
+  return { url, storagePath };
+}
+
 export async function deleteDocument(orgId: string, docId: string, storagePath?: string): Promise<void> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     mockDocs = mockDocs.filter((d) => d.id !== docId);
     return;
   }

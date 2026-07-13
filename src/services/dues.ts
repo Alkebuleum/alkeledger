@@ -3,9 +3,17 @@ import {
   query, orderBy, Timestamp,
 } from 'firebase/firestore';
 import { USE_MOCK_DATA, db } from '@/lib/firebase';
+import { isDemoOrgId } from '@/lib/demo';
 import type { DuesPeriod } from '@/types';
 
-let mockPeriods: DuesPeriod[] = [];
+let mockPeriods: DuesPeriod[] = [
+  {
+    id: 'dp_test', orgId: 'org_meridian', name: '2026 Annual Dues', type: 'annual',
+    amountIndividual: 350, amountOrganization: 600,
+    periodStart: '2026-01-01', periodEnd: '2026-12-31',
+    deadline: '2026-07-20', status: 'active', createdBy: 'M. Okafor', createdAt: '2026-01-01',
+  },
+];
 
 function col(orgId: string) {
   return collection(db!, `organizations/${orgId}/duesPeriods`);
@@ -31,7 +39,7 @@ function toDoc(id: string, d: Record<string, unknown>): DuesPeriod {
 }
 
 export async function listDuesPeriods(orgId: string): Promise<DuesPeriod[]> {
-  if (USE_MOCK_DATA) return mockPeriods.filter((p) => p.orgId === orgId);
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) return mockPeriods.filter((p) => p.orgId === orgId);
   if (!db) return [];
   const snap = await getDocs(query(col(orgId), orderBy('createdAt', 'desc')));
   return snap.docs.map((d) => toDoc(d.id, d.data() as Record<string, unknown>));
@@ -48,7 +56,7 @@ export async function createDuesPeriod(
     createdAt: new Date().toISOString().slice(0, 10),
   };
 
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     mockPeriods = [period, ...mockPeriods];
     return period;
   }
@@ -75,7 +83,7 @@ export async function updateDuesPeriod(
   periodId: string,
   updates: Partial<Pick<DuesPeriod, 'name' | 'type' | 'amountIndividual' | 'amountOrganization' | 'periodStart' | 'periodEnd' | 'deadline' | 'status'>>,
 ): Promise<void> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     mockPeriods = mockPeriods.map((p) => p.id === periodId ? { ...p, ...updates } : p);
     return;
   }

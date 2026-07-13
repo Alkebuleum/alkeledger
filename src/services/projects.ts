@@ -1,9 +1,10 @@
 import { USE_MOCK_DATA } from '@/lib/firebase';
+import { isDemoOrgId } from '@/lib/demo';
 import { MOCK_PROJECTS } from '@/data/mock';
 import type { Project } from '@/types';
 
 export async function listProjects(orgId: string): Promise<Project[]> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     return MOCK_PROJECTS.filter((p) => p.orgId === orgId);
   }
   // 🔌 FIREBASE

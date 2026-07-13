@@ -47,7 +47,7 @@ export function PWAInstallBanner() {
       <div className="flex items-center gap-3 px-4 py-3 max-w-lg mx-auto">
         <img src="/icon.png" alt="" className="w-10 h-10 rounded-xl shrink-0 object-cover" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold leading-tight">Add AlkeLedger to your home screen</p>
+          <p className="text-sm font-semibold leading-tight">Add Scribe to your home screen</p>
           <p className="text-[11px] text-stone-400 mt-0.5 leading-tight">Quick access · works offline</p>
         </div>
         <button

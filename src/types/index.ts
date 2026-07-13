@@ -1,4 +1,15 @@
-export type OrgType = 'membership' | 'project';
+export type OrgType = 'membership' | 'project' | 'cooperative';
+
+export type ParticipationModel = 'equal' | 'unit' | 'contribution' | 'hybrid';
+export type VotingModel = 'oneMemberOneVote' | 'unitWeighted' | 'contributionWeighted' | 'hybrid';
+
+export interface CooperativeConfig {
+  participationModel: ParticipationModel;
+  positionLabel: string;        // e.g. "Participation Unit", "Membership Share"
+  votingModel: VotingModel;
+  totalAuthorizedUnits?: number;
+  unitValue?: number;           // price / contribution requirement per unit
+}
 
 export type Role =
   | 'owner'
@@ -19,8 +30,6 @@ export type MemberStatus = 'active' | 'pending' | 'suspended' | 'expired';
 export type ProjectStatus = 'planning' | 'active' | 'complete' | 'paused';
 
 export type RequestStatus = 'open' | 'closed';
-
-export type AnnouncementPriority = 'normal' | 'important' | 'urgent';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -64,6 +73,7 @@ export interface Organization {
   duesRates?: DuesRates;
   logoUrl?: string;
   plan?: 'free' | 'pro';
+  cooperativeConfig?: CooperativeConfig;
 }
 
 export interface OrgUser {
@@ -90,6 +100,20 @@ export interface Member {
   orgTitle?: string;
 }
 
+export type PositionStatus = 'active' | 'inactive';
+
+export interface Position {
+  id: string;
+  orgId: string;
+  memberId: string;
+  memberName: string;
+  units: number;
+  contributionNote?: string;   // free-text: what the units represent/were earned for
+  status: PositionStatus;
+  issuedBy: string;
+  issuedAt: string;
+}
+
 export interface Project {
   id: string;
   orgId: string;
@@ -102,9 +126,12 @@ export interface Project {
   completedMilestones: number;
 }
 
+export type RecordType = 'decision' | 'transaction' | 'credential' | 'document';
+
 export interface LedgerEntry {
   id: string;
   orgId: string;
+  recordType?: RecordType; // absent on legacy entries — treat as 'transaction'
   type: 'income' | 'expense';
   amount: number;
   currency: string;
@@ -123,6 +150,16 @@ export interface LedgerEntry {
   hash?: string;
   anchorStatus: AnchorStatus;
   txHash?: string;
+  // recordType === 'credential'
+  holderId?: string;
+  holderName?: string;
+  expiresAt?: string;
+  revokedAt?: string;
+  revokedBy?: string;
+  // recordType === 'document'
+  fileHash?: string;
+  // recordType === 'decision'
+  pollId?: string;
 }
 
 export interface DocumentRecord {
@@ -135,18 +172,6 @@ export interface DocumentRecord {
   url?: string;
   storagePath?: string;
   uploadedBy?: string;
-}
-
-export interface Announcement {
-  id: string;
-  orgId: string;
-  title: string;
-  body: string;
-  date: string;
-  priority: AnnouncementPriority;
-  pinned?: boolean;
-  createdBy: string;
-  createdByUid?: string;
 }
 
 export interface Benefit {
@@ -230,6 +255,8 @@ export interface OrgEvent {
   endDate?: string;    // YYYY-MM-DDTHH:mm
   allDay?: boolean;
   cancelled?: boolean;
+  imageUrl?: string;
+  imageStoragePath?: string;
   rsvps?: Record<string, EventRsvp>; // userId → rsvp
   createdBy: string;
   createdByUid?: string;
@@ -249,7 +276,7 @@ export interface Anchor {
 
 // ─── Notifications ───────────────────────────────────────────────────────────
 
-export type NotifType = 'announcement' | 'event' | 'poll' | 'dues' | 'request' | 'membership';
+export type NotifType = 'event' | 'poll' | 'dues' | 'request' | 'membership';
 
 export interface AppNotif {
   id: string;
@@ -289,4 +316,9 @@ export interface Poll {
   createdByUid?: string;
   createdAt: string;
   votes?: Record<string, PollVote>;
+  // Cooperative proposal fields (optional — only set for cooperative-workspace proposals)
+  proposalCategory?: string;
+  requestedBudget?: number;
+  fundingSource?: string;
+  timelineNote?: string;
 }

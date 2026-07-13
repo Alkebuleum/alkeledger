@@ -75,7 +75,7 @@ export function Documents({ org, user }: Props) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="text-[10px] uppercase tracking-[0.25em] text-[var(--ledger-red)] font-mono">§ Files</div>
-          <h2 className="font-display text-2xl mt-0.5">Documents</h2>
+          <h2 className="font-display text-2xl mt-0.5">Files</h2>
         </div>
         {isAdmin && (
           <button

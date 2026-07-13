@@ -136,7 +136,7 @@ export function Settings({ org, user, onDelete, onSaveSettings }: Props) {
       <Panel title="Workspace">
         <div className="space-y-4 text-sm">
           <Row label="Organization name" value={org.name} />
-          <Row label="Type" value={org.type === 'membership' ? 'Membership' : 'Project / Nonprofit'} />
+          <Row label="Type" value={org.type === 'membership' ? 'Membership' : org.type === 'cooperative' ? 'Community Cooperative' : 'Project / Nonprofit'} />
           <Row label="Default currency" value={org.currency} />
           <Row label="Created" value={org.createdAt} />
           <Row label="Workspace ID" value={<span className="font-mono text-xs">{org.id}</span>} />
@@ -324,7 +324,7 @@ export function Settings({ org, user, onDelete, onSaveSettings }: Props) {
 
       <Panel title="Notifications">
         <div className="space-y-3 text-sm">
-          <p className="text-stone-600">Get browser push notifications when new announcements, events, or votes are posted.</p>
+          <p className="text-stone-600">Get browser push notifications when new events or proposals are posted.</p>
           {permission === 'granted' ? (
             <div className="flex items-center gap-2 text-emerald-700">
               <CheckCircle2 className="w-4 h-4" />

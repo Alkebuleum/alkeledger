@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
   LayoutDashboard, BookOpen, Users, Wallet, MoreHorizontal,
-  FolderKanban, FileCheck,
+  FolderKanban, FileCheck, Layers, BarChart2,
 } from 'lucide-react';
 import type { PageId } from './Sidebar';
 import type { Organization } from '@/types';
@@ -29,6 +29,13 @@ export function BottomNav({ org, page, slug, onMore, unreadCounts }: Props) {
           { id: 'ledger',    label: 'Ledger',  icon: BookOpen,        href: `/${slug}/ledger` },
           { id: 'members',   label: 'Members', icon: Users,           href: `/${slug}/members` },
           { id: 'dues',      label: 'Dues',    icon: Wallet,          href: `/${slug}/dues` },
+        ]
+      : org.type === 'cooperative'
+      ? [
+          { id: 'dashboard', label: 'Home',      icon: LayoutDashboard, href: `/${slug}` },
+          { id: 'positions', label: 'Positions',  icon: Layers,          href: `/${slug}/positions` },
+          { id: 'proposals', label: 'Proposals',  icon: BarChart2,       href: `/${slug}/proposals` },
+          { id: 'projects',  label: 'Projects',   icon: FolderKanban,   href: `/${slug}/projects` },
         ]
       : [
           { id: 'dashboard', label: 'Home',      icon: LayoutDashboard, href: `/${slug}` },

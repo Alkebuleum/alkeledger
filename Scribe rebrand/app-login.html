@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in — Scribe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#171B21;--ink-2:#232935;--vellum:#EFE9DC;--paper:#F6F4ED;
+    --wax:#8A1E2D;--wax-lt:#B3453C;--verd:#3E6257;--graphite:#8A8F99;--rule:#DCD6C6;
+    --serif:'Spectral',Georgia,serif;--sans:'Inter',system-ui,sans-serif;--mono:'IBM Plex Mono',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--sans);color:var(--ink);background:var(--paper);min-height:100vh}
+  :focus-visible{outline:2px solid var(--wax);outline-offset:2px;border-radius:3px}
+  .split{display:grid;grid-template-columns:minmax(380px,44%) 1fr;min-height:100vh}
+  @media(max-width:880px){.split{grid-template-columns:1fr}.side{display:none}.mobile-brand{display:flex!important}}
+
+  /* ---------- left: ink panel ---------- */
+  .side{
+    background:var(--ink);color:var(--vellum);
+    display:flex;flex-direction:column;justify-content:space-between;
+    padding:44px 44px 32px;
+  }
+  .brand{display:flex;align-items:center;gap:11px;font-family:var(--serif);font-size:21px;font-weight:600}
+  .side-mid{max-width:400px}
+  .side h1{font-family:var(--serif);font-weight:500;font-size:31px;line-height:1.2;letter-spacing:-.01em}
+  .side h1 em{font-style:italic;color:var(--wax-lt)}
+  .mini-ledger{
+    margin-top:34px;background:var(--ink-2);border:1px solid rgba(239,233,220,.1);
+    border-radius:8px;overflow:hidden;font-size:12.5px;
+  }
+  .ml-head{padding:10px 14px;border-bottom:1px solid rgba(239,233,220,.1);font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:#7C828D}
+  .ml-row{
+    display:flex;align-items:center;gap:11px;padding:11px 14px;
+    border-bottom:1px solid rgba(239,233,220,.07);
+    opacity:0;transform:translateY(5px);
+  }
+  .ml-row.on{opacity:1;transform:none;transition:opacity .5s,transform .5s}
+  .ml-row:last-child{border-bottom:none}
+  .ml-bar{width:16px;height:4px;border-radius:2px;background:var(--vellum);flex-shrink:0}
+  .ml-row.seal .ml-bar{background:var(--wax-lt)}
+  .ml-row .t{color:#C9CDD5}
+  .ml-row .h{margin-left:auto;font-family:var(--mono);font-size:10px;color:#5F6570}
+  .chip{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;padding:3px 7px;border-radius:3px}
+  .chip.sealed{background:var(--wax);color:var(--vellum)}
+  .side-foot{font-family:var(--mono);font-size:10.5px;color:#5F6570;letter-spacing:.05em}
+  .side-foot .ok{color:#7FA99A}
+
+  /* ---------- right: form ---------- */
+  .main{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px}
+  .mobile-brand{display:none;align-items:center;gap:10px;font-family:var(--serif);font-size:20px;font-weight:600;margin-bottom:36px}
+  .card{width:100%;max-width:392px}
+  .card h2{font-family:var(--serif);font-weight:600;font-size:27px;letter-spacing:-.01em}
+  .card .sub{color:#5A5F67;font-size:14px;margin:8px 0 28px}
+  .sso{display:grid;gap:10px}
+  .sso button{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    font-family:var(--sans);font-size:14px;font-weight:500;color:var(--ink);
+    background:#FDFCF8;border:1px solid var(--rule);border-radius:5px;
+    padding:11px;cursor:pointer;transition:background .15s;
+  }
+  .sso button:hover{background:var(--paper)}
+  .divider{display:flex;align-items:center;gap:12px;margin:22px 0;color:var(--graphite);font-family:var(--mono);font-size:10.5px;letter-spacing:.14em}
+  .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--rule)}
+  label{display:block;font-size:12.5px;font-weight:600;margin:0 0 6px;letter-spacing:.02em}
+  input{
+    width:100%;font-family:var(--sans);font-size:14.5px;color:var(--ink);
+    background:#FDFCF8;border:1px solid var(--rule);border-radius:5px;
+    padding:11px 13px;margin-bottom:16px;
+  }
+  input::placeholder{color:#A6AAB2}
+  input:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 3px rgba(23,27,33,.08)}
+  .row-between{display:flex;justify-content:space-between;align-items:baseline}
+  .row-between a{font-size:12px;color:#5A5F67;border-bottom:1px solid transparent}
+  .row-between a:hover{border-color:#5A5F67}
+  .btn{
+    width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--ink);color:var(--vellum);border:none;border-radius:5px;
+    font-family:var(--sans);font-size:14.5px;font-weight:500;padding:13px;cursor:pointer;
+    transition:background .15s;margin-top:4px;
+  }
+  .btn:hover{background:var(--ink-2)}
+  .below{font-size:13px;color:#5A5F67;margin-top:22px;text-align:center}
+  .below a{color:var(--wax);font-weight:500}
+  .below a:hover{text-decoration:underline}
+  .verify-alt{
+    margin-top:34px;padding-top:22px;border-top:1px solid var(--rule);
+    text-align:center;font-size:13px;color:#5A5F67;
+  }
+  .verify-alt a{font-weight:500;color:var(--ink);border-bottom:1px solid var(--rule)}
+  .verify-alt a:hover{border-color:var(--ink)}
+  a{text-decoration:none;color:inherit}
+  @media (prefers-reduced-motion: reduce){.ml-row{opacity:1;transform:none;transition:none}}
+</style>
+</head>
+<body>
+<div class="split">
+
+  <!-- LEFT / INK -->
+  <aside class="side">
+    <a class="brand" href="https://alkescribe.com">
+      <svg width="26" height="26" viewBox="0 0 96 96" aria-hidden="true">
+        <rect x="20" y="11.75" width="56" height="9" rx="2" fill="#EFE9DC"/>
+        <rect x="20" y="27.25" width="26" height="9" rx="2" fill="#EFE9DC"/>
+        <rect x="20" y="42.75" width="56" height="9" rx="2" fill="#EFE9DC"/>
+        <rect x="50" y="58.25" width="26" height="9" rx="2" fill="#EFE9DC"/>
+        <rect x="20" y="73.75" width="56" height="9" rx="2" fill="#EFE9DC"/>
+        <rect x="80" y="73.75" width="5" height="9" rx="2" fill="#B3453C"/>
+      </svg>
+      Scribe
+    </a>
+
+    <div class="side-mid">
+      <h1>Your organization's history, <em>sealed</em> and ready to prove itself.</h1>
+      <div class="mini-ledger" id="miniLedger" aria-hidden="true">
+        <div class="ml-head">acme-holdings / record · append-only</div>
+        <div class="ml-row"><span class="ml-bar"></span><span class="t">Board resolution 2026-14</span><span class="h">8f3a…c21e</span></div>
+        <div class="ml-row"><span class="ml-bar"></span><span class="t">Credential issued · J. Okafor</span><span class="h">5d17…09bb</span></div>
+        <div class="ml-row seal"><span class="ml-bar"></span><span class="t">Entry sealed to chain</span><span class="chip sealed">■ SEALED</span></div>
+      </div>
+    </div>
+
+    <div class="side-foot">app.alkescribe.com · record integrity: <span class="ok">chain intact ✓</span></div>
+  </aside>
+
+  <!-- RIGHT / FORM -->
+  <main class="main">
+    <a class="mobile-brand" href="https://alkescribe.com">
+      <svg width="24" height="24" viewBox="0 0 96 96" aria-hidden="true">
+        <rect x="20" y="11.75" width="56" height="9" rx="2" fill="#171B21"/>
+        <rect x="20" y="27.25" width="26" height="9" rx="2" fill="#171B21"/>
+        <rect x="20" y="42.75" width="56" height="9" rx="2" fill="#171B21"/>
+        <rect x="50" y="58.25" width="26" height="9" rx="2" fill="#171B21"/>
+        <rect x="20" y="73.75" width="56" height="9" rx="2" fill="#171B21"/>
+        <rect x="80" y="73.75" width="5" height="9" rx="2" fill="#8A1E2D"/>
+      </svg>
+      Scribe
+    </a>
+
+    <div class="card">
+      <h2>Sign in</h2>
+      <p class="sub">Continue to your organization's record.</p>
+
+      <div class="sso">
+        <button type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.9-.1-1.5-.3-2.2H12v4.1h6.5c-.1 1.1-.8 2.7-2.4 3.8l3.8 2.9c2.3-2.1 3.6-5.1 3.6-8.6z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 7.9-2.9l-3.8-2.9c-1 .7-2.4 1.2-4.1 1.2-3.1 0-5.8-2.1-6.8-5l-3.9 3C3.3 21.3 7.3 24 12 24z"/><path fill="#FBBC05" d="M5.2 14.4c-.2-.7-.4-1.5-.4-2.4s.1-1.7.4-2.4l-4-3C.5 8.2 0 10 0 12s.5 3.8 1.3 5.4l3.9-3z"/><path fill="#EA4335" d="M12 4.7c1.8 0 3 .8 3.6 1.4l3.4-3.3C17 .9 15.2 0 12 0 7.3 0 3.3 2.7 1.3 6.6l4 3c1-2.9 3.6-4.9 6.7-4.9z"/></svg>
+          Continue with Google
+        </button>
+        <button type="button">
+          <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect width="11" height="11" fill="#F25022"/><rect x="13" width="11" height="11" fill="#7FBA00"/><rect y="13" width="11" height="11" fill="#00A4EF"/><rect x="13" y="13" width="11" height="11" fill="#FFB900"/></svg>
+          Continue with Microsoft
+        </button>
+      </div>
+
+      <div class="divider">OR</div>
+
+      <label for="email">Work email</label>
+      <input id="email" type="email" placeholder="you@company.com" autocomplete="email">
+
+      <div class="row-between">
+        <label for="pw">Password</label>
+        <a href="#">Forgot password?</a>
+      </div>
+      <input id="pw" type="password" placeholder="••••••••••" autocomplete="current-password">
+
+      <button class="btn" type="button">Sign in →</button>
+
+      <p class="below">New organization? <a href="#">Start your record</a></p>
+
+      <div class="verify-alt">
+        Just checking a record? <a href="#">Verify without an account →</a>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const rows = document.querySelectorAll('#miniLedger .ml-row');
+  if(reduce){ rows.forEach(r=>r.classList.add('on')); return; }
+  rows.forEach((r,i)=> setTimeout(()=> r.classList.add('on'), 600 + i*700));
+})();
+</script>
+</body>
+</html>

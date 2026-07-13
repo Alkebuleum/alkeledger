@@ -7,13 +7,13 @@ import {
 import { StatusPill } from '@/components/StatusPill';
 import { fmt } from '@/lib/format';
 import { listMembers, getMember } from '@/services/members';
-import { listAnnouncements } from '@/services/announcements';
 import { listProjects } from '@/services/projects';
 import { listEvents } from '@/services/events';
 import { listPolls } from '@/services/votes';
+import { listPositions } from '@/services/positions';
 import { can, useRole } from '@/hooks/useRole';
 import type {
-  LedgerEntry, Member, Announcement, Project, Organization, OrgEvent, Poll,
+  LedgerEntry, Member, Project, Organization, OrgEvent, Poll, Position,
 } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
 
@@ -29,18 +29,22 @@ export function Dashboard({ org, ledger, user }: Props) {
 
   const [members, setMembers]             = useState<Member[]>([]);
   const [myMember, setMyMember]           = useState<Member | null>(null);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [projects, setProjects]           = useState<Project[]>([]);
   const [events, setEvents]               = useState<OrgEvent[]>([]);
   const [polls, setPolls]                 = useState<Poll[]>([]);
+  const [positions, setPositions]         = useState<Position[]>([]);
 
   useEffect(() => {
-    listAnnouncements(org.id).then(setAnnouncements).catch(() => {});
     if (org.type === 'membership') {
       listMembers(org.id).then(setMembers).catch(() => {});
       getMember(org.id, user.uid).then(setMyMember).catch(() => {});
       listEvents(org.id).then(setEvents).catch(() => {});
       listPolls(org.id).then(setPolls).catch(() => {});
+    } else if (org.type === 'cooperative') {
+      listMembers(org.id).then(setMembers).catch(() => {});
+      listProjects(org.id).then(setProjects).catch(() => {});
+      listPolls(org.id).then(setPolls).catch(() => {});
+      listPositions(org.id).then(setPositions).catch(() => {});
     } else {
       listProjects(org.id).then(setProjects).catch(() => {});
     }
@@ -116,6 +120,146 @@ export function Dashboard({ org, ledger, user }: Props) {
   const sparkMax  = Math.max(...spark, 1);
   const sparkPath = spark.map((v, i) => `${(i / (spark.length - 1)) * 100},${100 - (v / sparkMax) * 100}`).join(' ');
 
+  const totalUnitsIssued = useMemo(
+    () => positions.filter((p) => p.status === 'active').reduce((s, p) => s + p.units, 0),
+    [positions],
+  );
+  const activeProjectsCount = useMemo(() => projects.filter((p) => p.status === 'active').length, [projects]);
+
+  // ── Cooperative org dashboard ─────────────────────────────────────────────
+  if (org.type === 'cooperative') {
+    return (
+      <div className="max-w-7xl p-4 sm:p-6 space-y-6">
+        <FinanceKPIs totals={totals} periodChange={periodChange} sparkPath={sparkPath} ledger={ledger} org={org} />
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-2xl border border-stone-200 p-5">
+            <div className="flex items-center gap-2 text-xs font-medium text-stone-400 uppercase tracking-wider mb-3">
+              <Users className="w-3.5 h-3.5" /> Members
+            </div>
+            <div className="font-display text-3xl font-semibold text-stone-900">{memberStats.active}</div>
+            <div className="text-xs text-stone-400 mt-1">active</div>
+            {memberStats.pending > 0 && (
+              <div className="mt-2 text-xs text-amber-600 font-medium">{memberStats.pending} pending approval</div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-stone-200 p-5">
+            <div className="text-xs font-medium text-stone-400 uppercase tracking-wider mb-3">
+              {org.cooperativeConfig?.positionLabel ?? 'Participation Unit'}s issued
+            </div>
+            <div className="font-display text-3xl font-semibold text-stone-900">{totalUnitsIssued.toLocaleString()}</div>
+            <div className="text-xs text-stone-400 mt-1">
+              {org.cooperativeConfig?.totalAuthorizedUnits
+                ? `of ${org.cooperativeConfig.totalAuthorizedUnits.toLocaleString()} authorized`
+                : 'unlimited authorization'}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-stone-200 p-5">
+            <div className="flex items-center gap-2 text-xs font-medium text-stone-400 uppercase tracking-wider mb-3">
+              <BarChart2 className="w-3.5 h-3.5" /> Active proposals
+            </div>
+            <div className="font-display text-3xl font-semibold text-stone-900">{activePolls.length}</div>
+            {unvotedPolls.length > 0 && (
+              <div className="mt-2 text-xs text-amber-600 font-medium">{unvotedPolls.length} awaiting your vote</div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-stone-200 p-5">
+            <div className="text-xs font-medium text-stone-400 uppercase tracking-wider mb-3">Active projects</div>
+            <div className="font-display text-3xl font-semibold text-stone-900">{activeProjectsCount}</div>
+            <div className="text-xs text-stone-400 mt-1">of {projects.length} total</div>
+          </div>
+        </div>
+
+        {activePolls.length > 0 && (
+          <div className="bg-white rounded-2xl border border-stone-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
+              <h2 className="text-base font-semibold text-stone-900 flex items-center gap-2">
+                <BarChart2 className="w-4 h-4 text-stone-400" /> Active proposals
+              </h2>
+              <Link to={`/${orgSlug}/proposals`} className="text-xs text-stone-400 hover:text-stone-700 flex items-center gap-1 transition-colors">
+                See all <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 divide-x divide-y divide-stone-100">
+              {activePolls.slice(0, 3).map((p) => {
+                const totalVotes = Object.keys(p.votes ?? {}).length;
+                const hasVoted   = !!p.votes?.[user.uid];
+                return (
+                  <Link key={p.id} to={`/${orgSlug}/proposals?openPoll=${p.id}`} className="block px-6 py-5 hover:bg-stone-50 transition-colors">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="text-sm font-medium text-stone-900 leading-snug">{p.title}</div>
+                      {hasVoted ? (
+                        <span className="text-[10px] px-2 py-0.5 bg-[#EEF4F1] text-[#2F5D50] border border-[#C2D9D1] rounded-full font-medium shrink-0">Voted</span>
+                      ) : (
+                        <span className="text-[10px] px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full font-medium shrink-0">Vote now</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-stone-400">
+                      {p.proposalCategory && <span>{p.proposalCategory}</span>}
+                      <span className="inline-flex items-center gap-1"><BarChart2 className="w-3 h-3" />{totalVotes} vote{totalVotes !== 1 ? 's' : ''}</span>
+                      {p.deadline && <span>· Due {new Date(p.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="grid lg:grid-cols-3 gap-4">
+          <RecentActivity ledger={ledger} />
+          <AuditTrail items={derivedAudit} />
+        </div>
+
+        <div className="bg-white rounded-2xl border border-stone-200">
+          <div className="px-6 py-4 border-b border-stone-100">
+            <h2 className="text-base font-semibold text-stone-900">Projects</h2>
+          </div>
+          {projects.length === 0 ? (
+            <p className="px-6 py-8 text-sm text-stone-400 text-center">No projects added yet.</p>
+          ) : (
+            <div className="grid md:grid-cols-2 divide-x divide-y divide-stone-100">
+              {projects.map((p) => {
+                const pct = Math.round((p.spent / p.budget) * 100);
+                return (
+                  <div key={p.id} className="p-6">
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="text-base font-semibold text-stone-900 leading-tight">{p.name}</h3>
+                      <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                        <StatusPill value={p.status} />
+                        {p.restricted && (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full font-medium">
+                            <Lock className="w-2.5 h-2.5" />Restricted
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="font-display text-2xl font-semibold text-stone-900 mb-3">
+                      {fmt(p.spent)} <span className="text-stone-400 text-lg font-normal">/ {fmt(p.budget)}</span>
+                    </div>
+                    <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden mb-2">
+                      <div
+                        className={`h-full rounded-full ${pct >= 100 ? 'bg-[#B23A2A]' : pct >= 80 ? 'bg-amber-500' : 'bg-[#2F5D50]'}`}
+                        style={{ width: `${Math.min(pct, 100)}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-stone-400">
+                      <span>{pct}% deployed</span>
+                      <span>{p.completedMilestones}/{p.milestones} milestones</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // ── Project org dashboard (unchanged) ────────────────────────────────────
   if (org.type !== 'membership') {
     return (
@@ -184,14 +328,14 @@ export function Dashboard({ org, ledger, user }: Props) {
           <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold text-amber-900">
-              {unvotedPolls.length} vote{unvotedPolls.length !== 1 ? 's' : ''} need{unvotedPolls.length === 1 ? 's' : ''} your response
+              {unvotedPolls.length} proposal{unvotedPolls.length !== 1 ? 's' : ''} need{unvotedPolls.length === 1 ? 's' : ''} your response
             </div>
             <div className="text-xs text-amber-700 mt-0.5 truncate">
               {unvotedPolls.map((p) => p.title).join(' · ')}
             </div>
           </div>
           <Link
-            to={`/${orgSlug}/votes`}
+            to={`/${orgSlug}/proposals`}
             className="shrink-0 px-3 py-1.5 bg-amber-600 text-white text-xs font-medium rounded-lg hover:bg-amber-700 transition-colors"
           >
             Vote now
@@ -199,71 +343,49 @@ export function Dashboard({ org, ledger, user }: Props) {
         </div>
       )}
 
-      {/* ── Main member grid ─────────────────────────────────────────────── */}
-      <div className="grid lg:grid-cols-3 gap-4">
-
-        {/* Upcoming events — spans 2 cols on large */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 overflow-hidden">
-          <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-stone-100">
-            <h2 className="text-base font-semibold text-stone-900 flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 text-stone-400" /> Upcoming events
-            </h2>
-            <Link to={`/${orgSlug}/events`} className="text-xs text-stone-400 hover:text-stone-700 flex items-center gap-1 transition-colors">
-              See all <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-
-          {upcomingEvents.length === 0 ? (
-            <p className="px-6 py-8 text-sm text-stone-400 text-center">No upcoming events scheduled.</p>
-          ) : (
-            <div className="divide-y divide-stone-100">
-              {upcomingEvents.map((ev) => {
-                const d = new Date(ev.startDate);
-                return (
-                  <Link
-                    key={ev.id}
-                    to={`/${orgSlug}/events?openEvent=${ev.id}`}
-                    className="flex gap-4 px-4 sm:px-6 py-4 hover:bg-stone-50 active:bg-stone-50 transition-colors"
-                  >
-                    <div className="w-12 h-12 shrink-0 rounded-xl bg-stone-900 text-white flex flex-col items-center justify-center">
-                      <span className="text-[9px] uppercase font-medium text-white/60 leading-none">
-                        {d.toLocaleDateString('en-US', { month: 'short' })}
-                      </span>
-                      <span className="font-display text-xl font-semibold leading-none">{d.getDate()}</span>
-                    </div>
-                    <div className="flex-1 min-w-0 py-0.5">
-                      <div className="text-sm font-semibold text-stone-900 leading-snug line-clamp-2">{ev.title}</div>
-                      <div className="flex flex-wrap items-center gap-x-2 mt-1 text-xs text-stone-400">
-                        <span>{d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                        {!ev.allDay && <span>· {d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>}
-                        {ev.location && <span>· {ev.location}</span>}
-                      </div>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-stone-300 shrink-0 self-center" />
-                  </Link>
-                );
-              })}
-            </div>
-          )}
+      {/* ── Upcoming events ───────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-stone-100">
+          <h2 className="text-base font-semibold text-stone-900 flex items-center gap-2">
+            <CalendarDays className="w-4 h-4 text-stone-400" /> Upcoming events
+          </h2>
+          <Link to={`/${orgSlug}/calendar`} className="text-xs text-stone-400 hover:text-stone-700 flex items-center gap-1 transition-colors">
+            See all <ArrowRight className="w-3 h-3" />
+          </Link>
         </div>
 
-        {/* Announcements */}
-        <div className="bg-white rounded-2xl border border-stone-200">
-          <div className="px-6 py-4 border-b border-stone-100">
-            <h2 className="text-base font-semibold text-stone-900">Announcements</h2>
-          </div>
+        {upcomingEvents.length === 0 ? (
+          <p className="px-6 py-8 text-sm text-stone-400 text-center">No upcoming events scheduled.</p>
+        ) : (
           <div className="divide-y divide-stone-100">
-            {announcements.length === 0 ? (
-              <p className="px-6 py-6 text-sm text-stone-400 text-center">No announcements yet.</p>
-            ) : announcements.slice(0, 4).map((a) => (
-              <div key={a.id} className="px-6 py-4">
-                <div className="text-xs text-stone-400 mb-1">{a.date}</div>
-                <div className="text-sm font-semibold text-stone-900 leading-snug">{a.title}</div>
-                {a.body && <div className="text-xs text-stone-500 mt-1 line-clamp-2">{a.body}</div>}
-              </div>
-            ))}
+            {upcomingEvents.map((ev) => {
+              const d = new Date(ev.startDate);
+              return (
+                <Link
+                  key={ev.id}
+                  to={`/${orgSlug}/calendar?openEvent=${ev.id}`}
+                  className="flex gap-4 px-4 sm:px-6 py-4 hover:bg-stone-50 active:bg-stone-50 transition-colors"
+                >
+                  <div className="w-12 h-12 shrink-0 rounded-xl bg-stone-900 text-white flex flex-col items-center justify-center">
+                    <span className="text-[9px] uppercase font-medium text-white/60 leading-none">
+                      {d.toLocaleDateString('en-US', { month: 'short' })}
+                    </span>
+                    <span className="font-display text-xl font-semibold leading-none">{d.getDate()}</span>
+                  </div>
+                  <div className="flex-1 min-w-0 py-0.5">
+                    <div className="text-sm font-semibold text-stone-900 leading-snug line-clamp-2">{ev.title}</div>
+                    <div className="flex flex-wrap items-center gap-x-2 mt-1 text-xs text-stone-400">
+                      <span>{d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                      {!ev.allDay && <span>· {d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>}
+                      {ev.location && <span>· {ev.location}</span>}
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-stone-300 shrink-0 self-center" />
+                </Link>
+              );
+            })}
           </div>
-        </div>
+        )}
       </div>
 
       {/* ── Active votes ─────────────────────────────────────────────────── */}
@@ -271,9 +393,9 @@ export function Dashboard({ org, ledger, user }: Props) {
         <div className="bg-white rounded-2xl border border-stone-200">
           <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
             <h2 className="text-base font-semibold text-stone-900 flex items-center gap-2">
-              <BarChart2 className="w-4 h-4 text-stone-400" /> Active votes
+              <BarChart2 className="w-4 h-4 text-stone-400" /> Active proposals
             </h2>
-            <Link to={`/${orgSlug}/votes`} className="text-xs text-stone-400 hover:text-stone-700 flex items-center gap-1 transition-colors">
+            <Link to={`/${orgSlug}/proposals`} className="text-xs text-stone-400 hover:text-stone-700 flex items-center gap-1 transition-colors">
               See all <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
@@ -282,7 +404,7 @@ export function Dashboard({ org, ledger, user }: Props) {
               const totalVotes = Object.keys(p.votes ?? {}).length;
               const hasVoted   = !!p.votes?.[user.uid];
               return (
-                <Link key={p.id} to={`/${orgSlug}/votes?openPoll=${p.id}`} className="block px-6 py-5 hover:bg-stone-50 transition-colors">
+                <Link key={p.id} to={`/${orgSlug}/proposals?openPoll=${p.id}`} className="block px-6 py-5 hover:bg-stone-50 transition-colors">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="text-sm font-medium text-stone-900 leading-snug">{p.title}</div>
                     {hasVoted ? (

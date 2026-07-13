@@ -7,7 +7,7 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   const { title, body } = payload.notification ?? {};
   const link = payload.fcmOptions?.link ?? '/';
-  self.registration.showNotification(title ?? 'AlkeLedger', {
+  self.registration.showNotification(title ?? 'Scribe', {
     body: body ?? '',
     icon: '/icon.png',
     badge: '/icon.png',

@@ -33,6 +33,7 @@ export function canonicalize(entry: LedgerEntry): string {
     projectId: entry.projectId ?? null,
     memberId: entry.memberId ?? null,
     receiptUrl: entry.receiptUrl ?? null,
+    fileHash: entry.fileHash ?? null,
     createdBy: entry.createdBy,
     createdAt: entry.createdAt,
     approvedBy: entry.approvedBy ?? null,
@@ -41,17 +42,31 @@ export function canonicalize(entry: LedgerEntry): string {
   return JSON.stringify(fields, Object.keys(fields).sort());
 }
 
+async function digestHex(data: ArrayBuffer): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  const bytes = Array.from(new Uint8Array(digest));
+  return bytes.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 /**
- * Compute SHA-256 of the canonical record. Returns a short 0x-prefixed
- * display hash (first 4 + last 4 bytes) for UI; full hash is logged.
+ * SHA-256 of a file's actual bytes — used for document-type entries so the
+ * hash reflects the uploaded content, not just the Storage URL it lands at.
+ * Returns the full hex digest: this is what gets anchored, so truncating it
+ * here would weaken the proof to whatever's left after slicing (e.g. an 8-hex
+ * -char/32-bit digest is brute-forceable in seconds). Truncate only for
+ * on-screen display, e.g. via a `truncateHash()` UI helper.
+ */
+export async function hashFile(file: File): Promise<string> {
+  return `0x${await digestHex(await file.arrayBuffer())}`;
+}
+
+/**
+ * Compute SHA-256 of the canonical record. Returns the full 0x-prefixed hex
+ * digest — same anchoring/truncation reasoning as hashFile().
  */
 export async function hashRecord(entry: LedgerEntry): Promise<string> {
   const canonical = canonicalize(entry);
-  const buf = new TextEncoder().encode(canonical);
-  const digest = await crypto.subtle.digest('SHA-256', buf);
-  const bytes = Array.from(new Uint8Array(digest));
-  const hex = bytes.map((b) => b.toString(16).padStart(2, '0')).join('');
-  return `0x${hex.slice(0, 4)}…${hex.slice(-4)}`;
+  return `0x${await digestHex(new TextEncoder().encode(canonical).buffer as ArrayBuffer)}`;
 }
 
 /**

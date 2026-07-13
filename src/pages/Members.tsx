@@ -615,7 +615,7 @@ function InviteCodeModal({
 
   function shareNative() {
     navigator.share({
-      title: `Join ${orgName} on AlkeLedger`,
+      title: `Join ${orgName} on Scribe`,
       text: `You're invited to join ${orgName}. Click to view the workspace.`,
       url: joinUrl,
     }).catch(() => {/* dismissed */});

@@ -2,6 +2,20 @@
  * Display formatting and shared style maps.
  */
 
+import type { LedgerEntry, RecordType } from '@/types';
+
+export const RECORD_TYPES: RecordType[] = ['decision', 'transaction', 'credential', 'document'];
+
+export const RECORD_TYPE_LABELS: Record<RecordType, string> = {
+  decision: 'Decisions',
+  transaction: 'Transactions',
+  credential: 'Credentials',
+  document: 'Documents',
+};
+
+/** Legacy entries predate the `recordType` field — every one of them is a financial transaction. */
+export const recordTypeOf = (entry: LedgerEntry): RecordType => entry.recordType ?? 'transaction';
+
 export const fmt = (n: number, currency = 'USD'): string =>
   new Intl.NumberFormat('en-US', {
     style: 'currency',

@@ -3,6 +3,8 @@ import {
   listAllOrgsForUser, createOrganization, joinOrganization,
   getOrgByInviteCode, deleteOrganization, updateOrgSettings,
 } from '@/services/organizations';
+import { hasDemoAccess } from '@/lib/demo';
+import { MOCK_ORGS } from '@/data/mock';
 import type { AuthUser } from './useAuth';
 import type { Organization, MemberType, DuesRates } from '@/types';
 
@@ -12,15 +14,15 @@ export function useOrgs(user: AuthUser | null) {
   // Track which uid's orgs are currently loaded. null = not yet loaded.
   const [loadedForUid, setLoadedForUid] = useState<string | null>(null);
 
-  const fetchOrgs = useCallback((uid: string) => {
+  const fetchOrgs = useCallback((uid: string, email: string | undefined) => {
     listAllOrgsForUser(uid)
       .then(({ active, pending }) => {
-        setOrgs(active);
+        setOrgs(hasDemoAccess(email) ? [...active, ...MOCK_ORGS] : active);
         setPendingOrgs(pending);
         setLoadedForUid(uid);
       })
       .catch(() => {
-        setOrgs([]);
+        setOrgs(hasDemoAccess(email) ? [...MOCK_ORGS] : []);
         setPendingOrgs([]);
         setLoadedForUid(uid);
       });
@@ -33,7 +35,7 @@ export function useOrgs(user: AuthUser | null) {
       setLoadedForUid(null);
       return;
     }
-    fetchOrgs(user.uid);
+    fetchOrgs(user.uid, user.email);
   }, [user?.uid]);
 
   // loading is true whenever a non-null user's orgs haven't been fetched yet.
@@ -75,7 +77,7 @@ export function useOrgs(user: AuthUser | null) {
     );
   };
 
-  const refreshOrgs = () => { if (user) fetchOrgs(user.uid); };
+  const refreshOrgs = () => { if (user) fetchOrgs(user.uid, user.email); };
 
   return { orgs, pendingOrgs, addOrg, joinOrg, removeOrg, saveOrgSettings, loading, refreshOrgs };
 }

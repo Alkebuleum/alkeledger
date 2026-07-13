@@ -3,6 +3,7 @@ import {
   query, where, serverTimestamp,
 } from 'firebase/firestore';
 import { USE_MOCK_DATA, db } from '@/lib/firebase';
+import { isDemoOrgId } from '@/lib/demo';
 import { MOCK_ORGS } from '@/data/mock';
 import type { Organization, MemberType, DuesRates } from '@/types';
 
@@ -85,7 +86,7 @@ export async function listOrganizationsForUser(userId: string): Promise<Organiza
 }
 
 export async function getOrganization(orgId: string): Promise<Organization | null> {
-  if (USE_MOCK_DATA) return mockOrgs.find((o) => o.id === orgId) ?? null;
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) return mockOrgs.find((o) => o.id === orgId) ?? null;
   if (!db) return null;
 
   const snap = await getDoc(doc(db, 'organizations', orgId));
@@ -148,7 +149,7 @@ export async function updateOrgSettings(
   orgId: string,
   settings: { allowedMemberTypes?: MemberType[]; duesRates?: DuesRates; tagline?: string; logoUrl?: string },
 ): Promise<void> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     mockOrgs = mockOrgs.map((o) =>
       o.id === orgId ? { ...o, ...settings } : o
     );
@@ -201,7 +202,7 @@ export async function joinOrganization(
   name: string,
   email: string,
 ): Promise<void> {
-  if (USE_MOCK_DATA || !db) return;
+  if (USE_MOCK_DATA || isDemoOrgId(orgId) || !db) return;
 
   const existing = await getDoc(doc(db, 'memberships', `${orgId}_${userId}`));
   if (existing.exists()) return;
@@ -220,7 +221,7 @@ export async function joinOrganization(
 }
 
 export async function deleteOrganization(orgId: string): Promise<void> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     mockOrgs = mockOrgs.filter((o) => o.id !== orgId);
     return;
   }

@@ -76,13 +76,13 @@ export const requestOtp = onCall({ cors: true }, async (request) => {
     method: 'POST',
     headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      sender: { name: 'AlkeLedger', email: senderEmail },
+      sender: { name: 'Scribe', email: senderEmail },
       to: [{ email }],
-      subject: `${code} — your AlkeLedger sign-in code`,
+      subject: `${code} — your Scribe sign-in code`,
       htmlContent: `
         <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:40px 24px;background:#fafaf9;border-radius:16px">
-          <div style="background:#1c1917;border-radius:12px;padding:20px 24px;margin-bottom:28px">
-            <span style="color:white;font-size:20px;font-weight:800;letter-spacing:-.03em">AlkeLedger</span>
+          <div style="background:#171B21;border-radius:12px;padding:20px 24px;margin-bottom:28px">
+            <span style="color:#EFE9DC;font-size:20px;font-weight:700;letter-spacing:-.01em">Scribe</span>
           </div>
           <h1 style="font-size:22px;font-weight:700;color:#1c1917;margin:0 0 8px">Your sign-in code</h1>
           <p style="color:#78716c;margin:0 0 28px;font-size:15px">Enter this 6-digit code to sign in. It expires in 10 minutes.</p>
@@ -305,20 +305,20 @@ export const sendInviteEmail = onCall({ cors: true }, async (request) => {
   }
 
   const htmlContent = `
-    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:32px 20px;background:#FAF8F4">
-      <div style="background:#0E1015;border-radius:4px;padding:20px;text-align:center;margin-bottom:24px">
-        <span style="color:#FAF8F4;font-size:22px;font-weight:700;letter-spacing:-.02em">AlkeLedger</span>
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:32px 20px;background:#F6F4ED">
+      <div style="background:#171B21;border-radius:4px;padding:20px;text-align:center;margin-bottom:24px">
+        <span style="color:#EFE9DC;font-size:22px;font-weight:700;letter-spacing:-.01em">Scribe</span>
       </div>
-      <h1 style="font-size:20px;font-weight:700;color:#0E1015;margin:0 0 8px">Hi ${esc(name) || 'there'},</h1>
+      <h1 style="font-size:20px;font-weight:700;color:#171B21;margin:0 0 8px">Hi ${esc(name) || 'there'},</h1>
       <p style="color:#57534e;margin:0 0 24px;font-size:15px;line-height:1.6">
-        You've been invited to join <strong>${esc(orgName)}</strong> on AlkeLedger — a ledger and accountability platform for organizations.
+        You've been invited to join <strong>${esc(orgName)}</strong> on Scribe — a ledger and accountability platform for organizations.
       </p>
-      <a href="${joinLink}" style="display:block;background:#0E1015;color:#FAF8F4;text-decoration:none;padding:14px;text-align:center;font-weight:600;font-size:16px;margin-bottom:24px">
+      <a href="${joinLink}" style="display:block;background:#171B21;color:#EFE9DC;text-decoration:none;padding:14px;text-align:center;font-weight:600;font-size:16px;margin-bottom:24px">
         View workspace &amp; join →
       </a>
       <div style="background:white;border:1px solid #e7e5e4;padding:16px;text-align:center;margin-bottom:24px">
         <div style="font-size:11px;color:#78716c;margin-bottom:6px;text-transform:uppercase;letter-spacing:.1em">Or use invite code manually</div>
-        <span style="font-size:32px;font-weight:800;letter-spacing:.3em;color:#0E1015">${esc(inviteCode)}</span>
+        <span style="font-size:32px;font-weight:800;letter-spacing:.3em;color:#171B21">${esc(inviteCode)}</span>
       </div>
       <p style="color:#a8a29e;font-size:12px;margin:0;text-align:center">If you didn't expect this, you can safely ignore it.</p>
     </div>
@@ -328,9 +328,9 @@ export const sendInviteEmail = onCall({ cors: true }, async (request) => {
     method: 'POST',
     headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      sender: { name: 'AlkeLedger', email: senderEmail },
+      sender: { name: 'Scribe', email: senderEmail },
       to: [{ email, name }],
-      subject: `You're invited to join ${orgName} on AlkeLedger`,
+      subject: `You're invited to join ${orgName} on Scribe`,
       htmlContent,
     }),
   });
@@ -397,7 +397,7 @@ export const notifyEventCreated = onCall({ cors: true }, async (request) => {
   if (membersSnap.empty) return { success: true, sent: 0 };
 
   const dateStr = formatEventDate(event.startDate, event.endDate, event.allDay);
-  const appEventsUrl = `${APP_BASE_URL}/${orgSlug}/events`;
+  const appEventsUrl = `${APP_BASE_URL}/${orgSlug}/calendar`;
 
   // Build and send emails in parallel
   const emailJobs = membersSnap.docs.map(async (memberDoc) => {
@@ -443,9 +443,9 @@ export const notifyEventCreated = onCall({ cors: true }, async (request) => {
 
       <!-- Header -->
       <tr>
-        <td style="background:#1c1917;padding:18px 28px;">
-          <span style="color:white;font-size:17px;font-weight:900;letter-spacing:-.02em;">Alke</span><span style="color:white;font-size:17px;font-weight:300;letter-spacing:-.02em;">Ledger</span>
-          <span style="color:#57534e;font-size:13px;margin-left:10px;">${esc(orgName)}</span>
+        <td style="background:#171B21;padding:18px 28px;">
+          <span style="color:#EFE9DC;font-size:17px;font-weight:700;letter-spacing:-.01em;">Scribe</span>
+          <span style="color:#8A8F99;font-size:13px;margin-left:10px;">${esc(orgName)}</span>
         </td>
       </tr>
 
@@ -488,7 +488,7 @@ export const notifyEventCreated = onCall({ cors: true }, async (request) => {
           </table>
 
           <p style="text-align:center;margin:0;">
-            <a href="${appEventsUrl}" style="color:#78716c;font-size:13px;text-decoration:underline;">View all events in AlkeLedger →</a>
+            <a href="${appEventsUrl}" style="color:#78716c;font-size:13px;text-decoration:underline;">View all events in Scribe →</a>
           </p>
         </td>
       </tr>
@@ -496,7 +496,7 @@ export const notifyEventCreated = onCall({ cors: true }, async (request) => {
       <!-- Footer -->
       <tr>
         <td style="padding:14px 28px;border-top:1px solid #e7e5e4;">
-          <p style="color:#a8a29e;font-size:11px;margin:0;">You're receiving this because you're a member of ${esc(orgName)} on AlkeLedger.</p>
+          <p style="color:#a8a29e;font-size:11px;margin:0;">You're receiving this because you're a member of ${esc(orgName)} on Scribe.</p>
         </td>
       </tr>
 
@@ -515,7 +515,7 @@ export const notifyEventCreated = onCall({ cors: true }, async (request) => {
       method: 'POST',
       headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sender: { name: `${orgName} via AlkeLedger`, email: senderEmail },
+        sender: { name: `${orgName} via Scribe`, email: senderEmail },
         to: [{ email: memberEmail, name: memberName }],
         subject: `📅 ${event.title} — ${orgName}`,
         htmlContent: html,
@@ -578,7 +578,7 @@ export const notifyPollCreated = onCall({ cors: true }, async (request) => {
 
   if (membersSnap.empty) return { success: true, sent: 0 };
 
-  const voteUrl = `${APP_BASE_URL}/${orgSlug}/votes?openPoll=${pollId}`;
+  const voteUrl = `${APP_BASE_URL}/${orgSlug}/proposals?openPoll=${pollId}`;
 
   const emailJobs = membersSnap.docs.map(async (memberDoc) => {
     const member      = memberDoc.data();
@@ -599,9 +599,9 @@ export const notifyPollCreated = onCall({ cors: true }, async (request) => {
   <tr><td align="center">
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fafaf9;border:1px solid #e7e5e4;">
       <tr>
-        <td style="background:#1c1917;padding:18px 28px;">
-          <span style="color:white;font-size:17px;font-weight:900;letter-spacing:-.02em;">Alke</span><span style="color:white;font-size:17px;font-weight:300;letter-spacing:-.02em;">Ledger</span>
-          <span style="color:#57534e;font-size:13px;margin-left:10px;">${esc(orgName)}</span>
+        <td style="background:#171B21;padding:18px 28px;">
+          <span style="color:#EFE9DC;font-size:17px;font-weight:700;letter-spacing:-.01em;">Scribe</span>
+          <span style="color:#8A8F99;font-size:13px;margin-left:10px;">${esc(orgName)}</span>
         </td>
       </tr>
       <tr>
@@ -639,7 +639,7 @@ export const notifyPollCreated = onCall({ cors: true }, async (request) => {
       method: 'POST',
       headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sender: { name: `${orgName} via AlkeLedger`, email: senderEmail },
+        sender: { name: `${orgName} via Scribe`, email: senderEmail },
         to: [{ email: memberEmail, name: memberName }],
         subject: `🗳️ Vote now: ${poll.title} — ${orgName}`,
         htmlContent: html,
@@ -736,7 +736,7 @@ export const sharePreview = onRequest(async (req, res) => {
   const parts = req.path.split('/').filter(Boolean);
   const [, orgSlug, type, id] = parts; // parts[0] = 'share'
 
-  if (!orgSlug || !type || !id || !['event', 'announcement', 'poll'].includes(type)) {
+  if (!orgSlug || !type || !id || !['event', 'poll'].includes(type)) {
     res.status(404).send('Not found');
     return;
   }
@@ -754,7 +754,7 @@ export const sharePreview = onRequest(async (req, res) => {
 
   const ogImage  = `${APP_BASE_URL}/icon.png`;
   const shareUrl = `${APP_BASE_URL}/share/${orgSlug}/${type}/${id}`;
-  const css = `*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fafaf9;display:flex;align-items:flex-start;justify-content:center;min-height:100vh;margin:0;padding:32px 20px}.card{max-width:480px;width:100%}.logo{font-size:18px;font-weight:900;color:#1c1917;letter-spacing:-.02em;margin-bottom:28px}.logo span{font-weight:300}.badge{font-size:10px;text-transform:uppercase;letter-spacing:.2em;color:#b45309;font-family:monospace;margin-bottom:6px}h1{font-size:22px;font-weight:700;color:#1c1917;margin:0 0 12px;line-height:1.3}.meta{font-size:13px;color:#78716c;margin-bottom:6px}.desc{font-size:14px;color:#57534e;margin:14px 0 0;line-height:1.65;white-space:pre-line}hr{border:none;border-top:1px solid #e7e5e4;margin:20px 0}.rsvp-label{font-size:11px;text-transform:uppercase;letter-spacing:.15em;color:#78716c;margin-bottom:10px}.rsvp-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.btn{display:inline-block;padding:10px 20px;text-decoration:none;font-size:14px;font-weight:600;border-radius:6px}.btn-a{background:#059669;color:#fff}.btn-m{background:#d97706;color:#fff}.btn-d{background:#78716c;color:#fff}.btn-open{display:block;text-align:center;padding:10px 16px;font-size:13px;color:#78716c;text-decoration:none;border:1px solid #e7e5e4;border-radius:6px;margin-top:8px}.body-text{font-size:15px;color:#1c1917;line-height:1.7;white-space:pre-line;margin:0 0 20px}`;
+  const css = `*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fafaf9;display:flex;align-items:flex-start;justify-content:center;min-height:100vh;margin:0;padding:32px 20px}.card{max-width:480px;width:100%}.logo{font-size:18px;font-weight:700;color:#1c1917;letter-spacing:-.01em;margin-bottom:28px}.badge{font-size:10px;text-transform:uppercase;letter-spacing:.2em;color:#b45309;font-family:monospace;margin-bottom:6px}h1{font-size:22px;font-weight:700;color:#1c1917;margin:0 0 12px;line-height:1.3}.meta{font-size:13px;color:#78716c;margin-bottom:6px}.desc{font-size:14px;color:#57534e;margin:14px 0 0;line-height:1.65;white-space:pre-line}hr{border:none;border-top:1px solid #e7e5e4;margin:20px 0}.rsvp-label{font-size:11px;text-transform:uppercase;letter-spacing:.15em;color:#78716c;margin-bottom:10px}.rsvp-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.btn{display:inline-block;padding:10px 20px;text-decoration:none;font-size:14px;font-weight:600;border-radius:6px}.btn-a{background:#059669;color:#fff}.btn-m{background:#d97706;color:#fff}.btn-d{background:#78716c;color:#fff}.btn-open{display:block;text-align:center;padding:10px 16px;font-size:13px;color:#78716c;text-decoration:none;border:1px solid #e7e5e4;border-radius:6px;margin-top:8px}.body-text{font-size:15px;color:#1c1917;line-height:1.7;white-space:pre-line;margin:0 0 20px}`;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'public, max-age=300');
@@ -772,7 +772,7 @@ export const sharePreview = onRequest(async (req, res) => {
 
     const ogTitle  = `${orgName} - Event`;
     const ogDesc   = evTitle + (evDesc ? `: ${evDesc.slice(0, 150)}` : ` · ${dateStr}`);
-    const eventsUrl = `${APP_BASE_URL}/${orgSlug}/events`;
+    const eventsUrl = `${APP_BASE_URL}/${orgSlug}/calendar`;
 
     res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -782,7 +782,7 @@ export const sharePreview = onRequest(async (req, res) => {
   <meta name="description" content="${esc(ogDesc)}" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="${esc(shareUrl)}" />
-  <meta property="og:site_name" content="AlkeLedger" />
+  <meta property="og:site_name" content="Scribe" />
   <meta property="og:title" content="${esc(ogTitle)}" />
   <meta property="og:description" content="${esc(ogDesc)}" />
   <meta property="og:image" content="${esc(ogImage)}" />
@@ -796,7 +796,7 @@ export const sharePreview = onRequest(async (req, res) => {
 </head>
 <body>
   <div class="card">
-    <div class="logo">Alke<span>Ledger</span></div>
+    <div class="logo">Scribe</div>
     <div class="badge">${esc(orgName)} · Event</div>
     <h1>${esc(evTitle)}</h1>
     <div class="meta">📅 ${esc(dateStr)}</div>
@@ -809,7 +809,7 @@ export const sharePreview = onRequest(async (req, res) => {
       <a href="${esc(eventsUrl)}?openEvent=${esc(id)}&amp;rsvp=maybe"     class="btn btn-m">Maybe</a>
       <a href="${esc(eventsUrl)}?openEvent=${esc(id)}&amp;rsvp=declining" class="btn btn-d">Declining</a>
     </div>
-    <a href="${esc(eventsUrl)}" class="btn-open">View in AlkeLedger →</a>
+    <a href="${esc(eventsUrl)}" class="btn-open">View in Scribe →</a>
   </div>
 </body>
 </html>`);
@@ -837,7 +837,7 @@ export const sharePreview = onRequest(async (req, res) => {
       for (const oid of v.optionIds) counts[oid] = (counts[oid] ?? 0) + 1;
     }
 
-    const votesUrl    = APP_BASE_URL + '/' + orgSlug + '/votes?openPoll=' + esc(id);
+    const votesUrl    = APP_BASE_URL + '/' + orgSlug + '/proposals?openPoll=' + esc(id);
     const pollOgTitle = orgName + ' - Vote';
     const pollOgDesc  = pollTitle + (pollDesc ? ': ' + pollDesc.slice(0, 150) : '');
     const statusBadge = pollStatus === 'closed' ? ' · Closed' : '';
@@ -867,7 +867,7 @@ export const sharePreview = onRequest(async (req, res) => {
       + '<meta name="description" content="' + esc(pollOgDesc) + '"/>'
       + '<meta property="og:type" content="website"/>'
       + '<meta property="og:url" content="' + esc(shareUrl) + '"/>'
-      + '<meta property="og:site_name" content="AlkeLedger"/>'
+      + '<meta property="og:site_name" content="Scribe"/>'
       + '<meta property="og:title" content="' + esc(pollOgTitle) + '"/>'
       + '<meta property="og:description" content="' + esc(pollOgDesc) + '"/>'
       + '<meta property="og:image" content="' + esc(ogImage) + '"/>'
@@ -879,7 +879,7 @@ export const sharePreview = onRequest(async (req, res) => {
       + '<meta name="twitter:image" content="' + esc(ogImage) + '"/>'
       + '<style>' + css + '</style>'
       + '</head><body><div class="card">'
-      + '<div class="logo">Alke<span>Ledger</span></div>'
+      + '<div class="logo">Scribe</div>'
       + '<div class="badge">' + esc(orgName) + ' · Vote' + statusBadge + '</div>'
       + '<h1>' + esc(pollTitle) + '</h1>'
       + descHtml
@@ -889,53 +889,14 @@ export const sharePreview = onRequest(async (req, res) => {
       + optionRows
       + '<hr/>'
       + voteBtn
-      + '<a href="' + esc(votesUrl) + '" class="btn-open">View in AlkeLedger</a>'
+      + '<a href="' + esc(votesUrl) + '" class="btn-open">View in Scribe</a>'
       + '</div></body></html>');
     return;
   }
 
-  // Announcement
-  const annDoc = await db.collection('organizations').doc(orgDoc.id)
-    .collection('announcements').doc(id).get();
-  if (!annDoc.exists) { res.status(404).send('Not found'); return; }
-
-  const ann      = annDoc.data()!;
-  const annTitle = ann['title'] as string;
-  const annBody  = (ann['body'] as string) ?? '';
-  const ogTitle  = `${orgName} - Announcement`;
-  const ogDesc   = annTitle + (annBody ? `: ${annBody.slice(0, 150)}` : '');
-  const annUrl   = `${APP_BASE_URL}/${orgSlug}/announcements`;
-
-  res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>${esc(ogTitle)}</title>
-  <meta name="description" content="${esc(ogDesc)}" />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="${esc(shareUrl)}" />
-  <meta property="og:site_name" content="AlkeLedger" />
-  <meta property="og:title" content="${esc(ogTitle)}" />
-  <meta property="og:description" content="${esc(ogDesc)}" />
-  <meta property="og:image" content="${esc(ogImage)}" />
-  <meta property="og:image:width" content="1254" />
-  <meta property="og:image:height" content="1254" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${esc(ogTitle)}" />
-  <meta name="twitter:description" content="${esc(ogDesc)}" />
-  <meta name="twitter:image" content="${esc(ogImage)}" />
-  <style>${css}</style>
-</head>
-<body>
-  <div class="card">
-    <div class="logo">Alke<span>Ledger</span></div>
-    <div class="badge">${esc(orgName)} · Announcement</div>
-    <h1>${esc(annTitle)}</h1>
-    <p class="body-text">${esc(annBody)}</p>
-    <a href="${esc(annUrl)}" class="btn-open">View in AlkeLedger →</a>
-  </div>
-</body>
-</html>`);
+  // Unreachable given the whitelist check above, but keeps control flow explicit
+  // now that 'announcement' is no longer a valid share type.
+  res.status(404).send('Not found');
 });
 
 // ─── publicOrgData ────────────────────────────────────────────────────────────
@@ -1001,7 +962,7 @@ export const publicOrgData = onRequest({ cors: true }, async (req, res) => {
     tagline:         (orgData['tagline'] as string) || null,
     logoUrl:         (orgData['logoUrl'] as string) || null,
     transparencyUrl: `${APP_BASE_URL}/${orgSlug}/transparency`,
-    eventsUrl:       `${APP_BASE_URL}/${orgSlug}/events`,
+    eventsUrl:       `${APP_BASE_URL}/${orgSlug}/calendar`,
   });
 });
 

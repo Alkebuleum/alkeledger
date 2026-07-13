@@ -4,6 +4,7 @@ import {
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { USE_MOCK_DATA, db, app } from '@/lib/firebase';
+import { isDemoOrgId } from '@/lib/demo';
 import { MOCK_POLLS } from '@/data/mock';
 import type { Poll, PollVote } from '@/types';
 
@@ -24,7 +25,7 @@ function toPoll(id: string, data: Record<string, unknown>): Poll {
 }
 
 export async function listPolls(orgId: string): Promise<Poll[]> {
-  if (USE_MOCK_DATA) return mockPolls.filter((p) => p.orgId === orgId);
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) return mockPolls.filter((p) => p.orgId === orgId);
   if (!db) return [];
   const snap = await getDocs(query(pollsCol(orgId), orderBy('createdAt', 'desc')));
   return snap.docs.map((d) => toPoll(d.id, d.data()));
@@ -41,7 +42,7 @@ export async function createPoll(
     createdAt: new Date().toISOString().slice(0, 10),
     votes: {},
   };
-  if (USE_MOCK_DATA) { mockPolls = [poll, ...mockPolls]; return poll; }
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) { mockPolls = [poll, ...mockPolls]; return poll; }
   if (!db) return poll;
   const ref = await addDoc(pollsCol(orgId), {
     ...data,
@@ -55,9 +56,12 @@ export async function createPoll(
 export async function updatePoll(
   orgId: string,
   pollId: string,
-  data: Partial<Pick<Poll, 'title' | 'description' | 'options' | 'status' | 'deadline' | 'voteType'>>,
+  data: Partial<Pick<Poll,
+    'title' | 'description' | 'options' | 'status' | 'deadline' | 'voteType' |
+    'proposalCategory' | 'requestedBudget' | 'fundingSource' | 'timelineNote'
+  >>,
 ): Promise<void> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     mockPolls = mockPolls.map((p) => p.id === pollId ? { ...p, ...data } : p);
     return;
   }
@@ -66,7 +70,7 @@ export async function updatePoll(
 }
 
 export async function deletePoll(orgId: string, pollId: string): Promise<void> {
-  if (USE_MOCK_DATA) { mockPolls = mockPolls.filter((p) => p.id !== pollId); return; }
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) { mockPolls = mockPolls.filter((p) => p.id !== pollId); return; }
   if (!db) return;
   await deleteDoc(doc(pollsCol(orgId), pollId));
 }
@@ -79,7 +83,7 @@ export async function castVote(
   optionIds: string[],
 ): Promise<void> {
   const vote: PollVote = { optionIds, votedAt: new Date().toISOString(), voterName };
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     mockPolls = mockPolls.map((p) =>
       p.id === pollId ? { ...p, votes: { ...p.votes, [userId]: vote } } : p,
     );
@@ -94,6 +98,6 @@ export async function notifyPollMembers(
   pollId: string,
   poll: Pick<Poll, 'title' | 'description'>,
 ): Promise<void> {
-  if (USE_MOCK_DATA || !app) return;
+  if (USE_MOCK_DATA || isDemoOrgId(orgId) || !app) return;
   await httpsCallable(getFunctions(app), 'notifyPollCreated')({ orgId, pollId, poll });
 }

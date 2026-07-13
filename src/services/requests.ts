@@ -3,13 +3,14 @@ import {
   query, where, orderBy, serverTimestamp,
 } from 'firebase/firestore';
 import { USE_MOCK_DATA, db } from '@/lib/firebase';
+import { isDemoOrgId } from '@/lib/demo';
 import { MOCK_REQUESTS } from '@/data/mock';
 import type { MemberRequest } from '@/types';
 
 let mockRequests = [...MOCK_REQUESTS];
 
 export async function listRequests(orgId: string): Promise<MemberRequest[]> {
-  if (USE_MOCK_DATA) return mockRequests.filter((r) => r.orgId === orgId);
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) return mockRequests.filter((r) => r.orgId === orgId);
   if (!db) return [];
 
   const snap = await getDocs(
@@ -53,7 +54,7 @@ export async function submitRequest(
     date,
   };
 
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     mockRequests = [req, ...mockRequests];
     return req;
   }
@@ -80,7 +81,7 @@ export async function closeRequest(
 ): Promise<void> {
   const closedAt = new Date().toISOString();
 
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     mockRequests = mockRequests.map((r) =>
       r.id === requestId ? { ...r, status: 'closed', closedBy, closedAt, response } : r
     );

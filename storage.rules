@@ -15,8 +15,30 @@ service firebase.storage {
     // Documents: documents/{orgId}/{docId}/{filename}
     match /documents/{orgId}/{docId}/{filename} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null &&
+      // request.resource is null on delete, so it must be its own rule —
+      // folding it into `allow write`'s size/type checks denies every delete
+      allow create, update: if request.auth != null &&
         request.resource.size < 25 * 1024 * 1024;  // 25MB cap
+      allow delete: if request.auth != null;
+    }
+
+    // Ledger documents (anchorable evidence, e.g. ID cards): ledger-documents/{orgId}/{docId}/{filename}
+    match /ledger-documents/{orgId}/{docId}/{filename} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+        request.resource.size < 10 * 1024 * 1024 &&  // 10MB cap
+        request.resource.contentType.matches('image/.*|application/pdf');
+    }
+
+    // Event cover images: event-images/{orgId}/{imageId}/{filename}
+    match /event-images/{orgId}/{imageId}/{filename} {
+      allow read: if request.auth != null;
+      // request.resource is null on delete, so it must be its own rule —
+      // folding it into `allow write`'s size/type checks denies every delete
+      allow create, update: if request.auth != null &&
+        request.resource.size < 5 * 1024 * 1024 &&  // 5MB cap
+        request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null;
     }
 
     // Org logos: logos/{orgId}/{filename} — publicly readable branding assets

@@ -1,430 +1,410 @@
-import React, { useEffect, useState } from 'react';
-import { ArrowRight, ShieldCheck, Check, Users, FolderKanban, BookOpen, BarChart3, FileCheck } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 interface Props {
   onStart: () => void;
   onDemo: () => void;
 }
 
-const VERIFY_SAMPLES = [
-  { id: 'le_001', desc: 'EPA watershed grant disbursement', amount: '$50,000', hash: '0x9f2c…a41b' },
-  { id: 'le_004', desc: 'Wellspring Trust donation',        amount: '$8,500',  hash: '0x88c0…12fd' },
-  { id: 'le_101', desc: 'Annual dues — E. Vance',           amount: '$350',    hash: '0x2a4f…77bc' },
+function EntryTag({ n, label, dark = false }: { n: string; label: string; dark?: boolean }) {
+  return (
+    <div
+      className={`flex items-center gap-3 mb-[18px] font-plex text-[11px] tracking-[0.14em] uppercase ${
+        dark ? 'text-[#7C828D]' : 'text-[#8A8F99]'
+      }`}
+    >
+      <b className="text-[#8A1E2D] font-medium not-italic whitespace-nowrap">Entry {n}</b>
+      <span className="whitespace-nowrap">{label}</span>
+      <span className={`flex-1 h-px ${dark ? 'bg-[rgba(239,233,220,0.14)]' : 'bg-[#DCD6C6]'}`} />
+    </div>
+  );
+}
+
+const HERO_ENTRIES = [
+  { what: 'Board resolution 2026-14 recorded', hash: 'sha-256 · 8f3a41…c21e', when: '09:41:07', sealed: false },
+  { what: 'Credential issued — J. Okafor, Director', hash: 'sha-256 · 5d17be…09bb', when: '09:42:19', sealed: false },
+  { what: 'Contract v3 attached · 2.4 MB', hash: 'sha-256 · e0c4a8…77ad', when: '09:44:02', sealed: false },
+  { what: 'Entry sealed to chain', hash: '', when: '09:44:03', sealed: true },
+];
+
+const RECORD_TYPES = [
+  { name: 'Decisions', desc: 'Board votes, approvals and sign-offs. Who decided what, when, and with what supporting context.', idx: 'REC-TYPE / 01' },
+  { name: 'Transactions', desc: 'Payments, transfers and settlements — recorded with the paper trail attached, not scattered across inboxes.', idx: 'REC-TYPE / 02' },
+  { name: 'Credentials', desc: 'Certificates, licenses and memberships that a counterparty can check in seconds — no phone calls, no PDFs.', idx: 'REC-TYPE / 03' },
+  { name: 'Documents', desc: 'Contracts and filings, fingerprinted at the moment of record. Any later change to the file is evident.', idx: 'REC-TYPE / 04' },
+];
+
+const CHAIN_ENTRIES = [
+  { entry: '#01847 — board-resolution-2026-14', hash: '8f3a41d9…c21e', prev: '2b90ffae…5510 ⇠ #01846' },
+  { entry: '#01846 — credential-issue-okafor', hash: '2b90ffae…5510', prev: '77cd0e12…9a3f ⇠ #01845' },
+  { entry: '#01845 — contract-v3-attach', hash: '77cd0e12…9a3f', prev: 'e0c4a8b1…77ad ⇠ #01844' },
 ];
 
 export function Landing({ onStart, onDemo }: Props) {
-  const [verifyIdx, setVerifyIdx] = useState(0);
+  const [visibleEntries, setVisibleEntries] = useState(0);
+  const revealRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const t = setInterval(() => setVerifyIdx((i) => (i + 1) % VERIFY_SAMPLES.length), 4200);
-    return () => clearInterval(t);
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) {
+      setVisibleEntries(HERO_ENTRIES.length);
+      return;
+    }
+    const timers = HERO_ENTRIES.map((_, i) =>
+      setTimeout(() => setVisibleEntries((v) => Math.max(v, i + 1)), 500 + i * 650)
+    );
+    return () => timers.forEach(clearTimeout);
   }, []);
 
-  const current = VERIFY_SAMPLES[verifyIdx];
+  useEffect(() => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !('IntersectionObserver' in window) || !revealRef.current) return;
+    const targets = revealRef.current.querySelectorAll<HTMLElement>('.js-reveal');
+    targets.forEach((t) => {
+      t.style.opacity = '0';
+      t.style.transform = 'translateY(10px)';
+      t.style.transition = 'opacity .5s ease, transform .5s ease';
+    });
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const el = entry.target as HTMLElement;
+            el.style.opacity = '1';
+            el.style.transform = 'none';
+            io.unobserve(el);
+          }
+        });
+      },
+      { threshold: 0.15 }
+    );
+    targets.forEach((t) => io.observe(t));
+    return () => io.disconnect();
+  }, []);
 
   return (
-    <div className="min-h-screen bg-[#FAF8F4] text-[#0E1015]">
+    <div ref={revealRef} className="min-h-screen bg-[#F6F4ED] text-[#171B21] font-sans text-base leading-relaxed scroll-smooth">
 
-      {/* ── NAV ────────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b border-stone-200">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-end gap-2.5">
-            <img src="/logo.svg" alt="AlkeLedger" className="h-7 w-auto" />
-            <span className="font-display text-2xl leading-none tracking-tight">
-              <span className="font-bold text-[#0E1015]">Alke</span><span className="font-light text-[#0E1015]">Ledger</span>
-            </span>
+      {/* ============ NAV ============ */}
+      <nav className="sticky top-0 z-50 bg-[#F6F4ED]/[0.88] backdrop-blur-md border-b border-[#DCD6C6]">
+        <div className="max-w-[1160px] mx-auto px-6 h-16 flex items-center gap-8">
+          <a href="#" aria-label="Scribe home" className="flex items-center gap-[11px] font-serif text-[21px] font-semibold tracking-[0.01em]">
+            <svg width="26" height="26" viewBox="0 0 96 96" aria-hidden="true">
+              <rect x="20" y="11.75" width="56" height="9" rx="2" fill="#171B21"/>
+              <rect x="20" y="27.25" width="26" height="9" rx="2" fill="#171B21"/>
+              <rect x="20" y="42.75" width="56" height="9" rx="2" fill="#171B21"/>
+              <rect x="50" y="58.25" width="26" height="9" rx="2" fill="#171B21"/>
+              <rect x="20" y="73.75" width="56" height="9" rx="2" fill="#171B21"/>
+              <rect x="80" y="73.75" width="5" height="9" rx="2" fill="#8A1E2D"/>
+            </svg>
+            Scribe
+          </a>
+          <div className="hidden md:flex gap-[26px] text-[13.5px] font-medium text-[#4B5058] ml-2">
+            <a href="#record" className="hover:text-[#171B21] transition-colors">What you can record</a>
+            <a href="#how" className="hover:text-[#171B21] transition-colors">How it works</a>
+            <a href="#security" className="hover:text-[#171B21] transition-colors">Tamper-evidence</a>
+            <a href="#verify" className="hover:text-[#171B21] transition-colors">Verify</a>
           </div>
-          <nav className="hidden md:flex items-center gap-8 text-sm text-stone-500">
-            <a href="#features" className="hover:text-[#0E1015] transition-colors">Features</a>
-            <a href="#how"      className="hover:text-[#0E1015] transition-colors">How it works</a>
-            <a href="#who"      className="hover:text-[#0E1015] transition-colors">Who it's for</a>
-          </nav>
-          <div className="flex items-center gap-3">
-            <button onClick={onDemo} className="text-sm text-stone-500 hover:text-[#0E1015] px-4 py-2 rounded-md transition-colors hidden sm:block">
+          <div className="ml-auto flex items-center gap-[18px]">
+            <button onClick={onDemo} className="text-[13.5px] font-medium text-[#4B5058] hover:text-[#171B21] transition-colors">
               Sign in
             </button>
             <button
               onClick={onStart}
-              className="inline-flex items-center gap-2 bg-[#0E1015] text-[#FAF8F4] text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-stone-800 transition-colors"
+              className="inline-flex items-center gap-2 bg-[#171B21] text-[#EFE9DC] text-sm font-medium px-5 py-[11px] rounded border border-[#171B21] hover:bg-[#232935] transition-colors"
             >
-              Get started
-              <ArrowRight className="w-3.5 h-3.5" />
+              Open Scribe
             </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* ============ HERO ============ */}
+      <header className="border-b border-[#DCD6C6] py-[88px]">
+        <div className="max-w-[1160px] mx-auto px-6 grid md:grid-cols-2 gap-12 md:gap-16 items-center">
+          <div>
+            <EntryTag n="001" label="The record begins" />
+            <h1 className="font-serif font-medium text-[clamp(40px,5.6vw,64px)] leading-[1.06] tracking-[-0.015em]">
+              Every action.<br />A <em className="italic text-[#8A1E2D] font-medium">verifiable</em> record.
+            </h1>
+            <p className="text-[17.5px] text-[#43484F] max-w-[52ch] mt-6 mb-[34px]">
+              Scribe is the shared record for your organization. Decisions, transactions, credentials and documents — written once, sealed against tampering, and verifiable by anyone you choose.
+            </p>
+            <div className="flex flex-wrap items-center gap-[14px]">
+              <button
+                onClick={onStart}
+                className="inline-flex items-center gap-2 bg-[#8A1E2D] text-[#EFE9DC] text-sm font-medium px-5 py-[11px] rounded border border-[#8A1E2D] hover:bg-[#761826] transition-colors"
+              >
+                Start your record
+              </button>
+              <a href="#how" className="text-[14.5px] font-medium border-b border-[#DCD6C6] pb-0.5 hover:border-[#171B21] transition-colors">
+                How sealing works ↓
+              </a>
+            </div>
+            <div className="font-plex text-[11.5px] text-[#8A8F99] tracking-[0.04em] mt-[30px]">
+              alkescribe.com · app.alkescribe.com
+            </div>
+          </div>
+
+          <div className="bg-[#FDFCF8] border border-[#DCD6C6] rounded-lg shadow-[0_24px_60px_-30px_rgba(23,27,33,0.25)] overflow-hidden">
+            <div className="flex items-center justify-between px-[18px] py-[14px] border-b border-[#DCD6C6] font-plex text-[11px] tracking-[0.08em] text-[#8A8F99]">
+              <b className="text-[#171B21] font-medium">acme-holdings / record</b>
+              <span>append-only</span>
+            </div>
+            {HERO_ENTRIES.map((entry, i) => (
+              <div
+                key={entry.what}
+                className={`grid grid-cols-[20px_1fr_auto] gap-[14px] items-start px-[18px] py-[15px] border-b border-[#EAE6D9] last:border-none transition-all duration-500 ${
+                  i < visibleEntries ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1.5'
+                }`}
+              >
+                <div className={`w-5 h-[5px] rounded-sm mt-2 ${entry.sealed ? 'bg-[#8A1E2D]' : 'bg-[#171B21]'}`} />
+                <div>
+                  <div className="text-sm font-medium leading-[1.4]">{entry.what}</div>
+                  {entry.sealed ? (
+                    <div className="flex gap-1.5 mt-1.5">
+                      <span className="inline-flex items-center gap-1.5 font-plex text-[10.5px] tracking-[0.1em] px-[9px] py-1 rounded-[3px] bg-[#8A1E2D] text-[#EFE9DC]">■ SEALED</span>
+                      <span className="inline-flex items-center gap-1.5 font-plex text-[10.5px] tracking-[0.1em] px-[9px] py-1 rounded-[3px] bg-[rgba(62,98,87,0.12)] text-[#3E6257] border border-[rgba(62,98,87,0.35)]">✓ VERIFIABLE</span>
+                    </div>
+                  ) : (
+                    <div className="font-plex text-[11px] text-[#8A8F99] mt-[3px] tracking-[0.02em]">{entry.hash}</div>
+                  )}
+                </div>
+                <div className="font-plex text-[11px] text-[#8A8F99] mt-1.5">{entry.when}</div>
+              </div>
+            ))}
           </div>
         </div>
       </header>
 
-      {/* ── HERO ───────────────────────────────────────────────────────────── */}
-      <section className="hero-gradient relative overflow-hidden pt-20 pb-24 md:pt-28 md:pb-32">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-
-            {/* Left: copy */}
-            <div>
-              <h1 className="font-display text-5xl md:text-6xl lg:text-[4.25rem] font-semibold leading-[1.04] tracking-[-0.03em] text-[#0E1015]">
-                Financial records<br />
-                your stakeholders<br />
-                <span className="text-[#B23A2A]">can trust.</span>
-              </h1>
-              <p className="mt-6 text-lg text-stone-500 leading-relaxed max-w-lg">
-                AlkeLedger is the modern bookkeeping platform for organizations that need more than a spreadsheet — with every approved record backed by cryptographic proof.
-              </p>
-              <div className="mt-10 flex flex-wrap items-center gap-4">
-                <button
-                  onClick={onStart}
-                  className="inline-flex items-center gap-2 bg-[#0E1015] text-[#FAF8F4] text-sm font-medium px-6 py-3.5 rounded-lg hover:bg-stone-800 transition-colors group"
-                >
-                  Start for free
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                </button>
-                <button
-                  onClick={onDemo}
-                  className="inline-flex items-center gap-2 text-sm font-medium text-stone-700 px-6 py-3.5 rounded-lg border border-stone-300 hover:border-stone-400 hover:bg-white transition-colors"
-                >
-                  View demo
-                </button>
-              </div>
-              <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2">
-                {['No credit card required', 'Setup in 90 seconds', 'Free to start'].map((item) => (
-                  <div key={item} className="flex items-center gap-2 text-sm text-stone-400">
-                    <Check className="w-4 h-4 text-[#2F5D50]" />
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right: product mockup */}
-            <div className="relative">
-              <div className="bg-white rounded-2xl shadow-2xl shadow-stone-200/80 border border-stone-200 overflow-hidden">
-                {/* Browser chrome */}
-                <div className="bg-stone-100 border-b border-stone-200 px-4 py-3 flex items-center gap-3">
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-stone-300" />
-                    <div className="w-3 h-3 rounded-full bg-stone-300" />
-                    <div className="w-3 h-3 rounded-full bg-stone-300" />
-                  </div>
-                  <div className="flex-1 bg-white rounded text-xs text-stone-400 px-3 py-1.5 mx-2 border border-stone-200">
-                    app.alkeledger.com
-                  </div>
-                </div>
-
-                {/* Mock ledger UI */}
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-5">
-                    <div>
-                      <div className="text-[11px] text-stone-400 font-medium uppercase tracking-wider mb-1">Ledger</div>
-                      <div className="font-semibold text-[#0E1015]">Cedar Creek Community Foundation</div>
-                    </div>
-                    <div className="flex items-center gap-1.5 bg-[#EEF4F1] text-[#2F5D50] text-xs px-3 py-1.5 rounded-full border border-[#C2D9D1]">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      Verified
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    {[
-                      { desc: 'EPA watershed grant disbursement', amount: '+$50,000', income: true,  verified: true  },
-                      { desc: 'Q2 operational expenses',          amount: '−$12,480', income: false, verified: true  },
-                      { desc: 'Annual member dues — batch',       amount: '+$8,750',  income: true,  verified: true  },
-                      { desc: 'Consulting services — pending',    amount: '−$3,200',  income: false, verified: false },
-                    ].map((row, i) => (
-                      <div key={i} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-stone-50 hover:bg-stone-100 transition-colors">
-                        <div>
-                          <div className="text-sm font-medium text-stone-800">{row.desc}</div>
-                          <div className={`text-[11px] mt-0.5 font-mono ${row.verified ? 'text-[#2F5D50]' : 'text-amber-600'}`}>
-                            {row.verified ? '✓ On-chain proof' : '● Pending approval'}
-                          </div>
-                        </div>
-                        <div className={`text-sm font-semibold font-mono ${row.income ? 'text-[#2F5D50]' : 'text-stone-500'}`}>
-                          {row.amount}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-5 pt-4 border-t border-stone-100 flex items-center justify-between">
-                    <span className="text-xs text-stone-400">4 records · 3 verified</span>
-                    <div className="flex items-center gap-1.5 text-xs text-[#2F5D50] font-medium">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      Last anchored 2m ago
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Floating proof badge */}
-              <div className="absolute -bottom-4 -left-4 bg-white rounded-xl shadow-lg border border-stone-200 px-4 py-3 flex items-center gap-3">
-                <div className="w-9 h-9 bg-[#EEF4F1] rounded-full flex items-center justify-center flex-shrink-0">
-                  <ShieldCheck className="w-4 h-4 text-[#2F5D50]" />
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-[#0E1015]">Cryptographic proof</div>
-                  <div className="text-[11px] text-stone-400 font-mono">0x9f2c…a41b</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── TRUST BAR ──────────────────────────────────────────────────────── */}
-      <section className="border-y border-stone-200 py-8 bg-[#F2EFE8]">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <p className="text-center text-[11px] font-semibold uppercase tracking-widest text-stone-400 mb-5">
-            Built for organizations that answer to others
+      {/* ============ RECORD TYPES ============ */}
+      <section className="py-24" id="record">
+        <div className="max-w-[1160px] mx-auto px-6">
+          <EntryTag n="002" label="What you can record" />
+          <h2 className="font-serif font-medium text-[clamp(30px,4vw,44px)] leading-[1.12] tracking-[-0.01em] max-w-[22ch]">
+            One ledger for everything your organization needs to stand behind.
+          </h2>
+          <p className="text-[16.5px] text-[#43484F] max-w-[56ch] mt-4">
+            Each entry captures who, what, when — with files, people and context attached. Once sealed, it can be corrected by a new entry, but never silently rewritten.
           </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            {['Nonprofits', 'Foundations', 'Membership associations', 'Professional councils', 'Community organizations', 'Grant-funded programs'].map((org) => (
-              <span key={org} className="text-sm text-stone-600 bg-white border border-stone-200 px-4 py-1.5 rounded-full">
-                {org}
+
+          <div className="mt-14 border-t border-[#DCD6C6]">
+            {RECORD_TYPES.map((row) => (
+              <div
+                key={row.name}
+                className="js-reveal group grid md:grid-cols-[200px_1fr_auto] gap-2 md:gap-7 items-center md:items-center py-[26px] px-1.5 border-b border-[#DCD6C6] hover:bg-[#EFECE2] transition-colors"
+              >
+                <div className="font-serif text-[23px] font-semibold flex items-center gap-3.5 order-1">
+                  <span className="w-[26px] h-[6px] rounded-sm bg-[#171B21] group-hover:bg-[#8A1E2D] transition-colors flex-shrink-0" />
+                  {row.name}
+                </div>
+                <div className="text-[14.5px] text-[#43484F] max-w-[58ch] order-3 md:order-2">{row.desc}</div>
+                <div className="font-plex text-[11px] text-[#8A8F99] tracking-[0.1em] order-2 md:order-3">{row.idx}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============ HOW IT WORKS ============ */}
+      <section className="py-24 bg-[#EFECE2] border-t border-b border-[#DCD6C6]" id="how">
+        <div className="max-w-[1160px] mx-auto px-6">
+          <EntryTag n="003" label="How it works" />
+          <h2 className="font-serif font-medium text-[clamp(30px,4vw,44px)] leading-[1.12] tracking-[-0.01em] max-w-[22ch]">
+            Record. Seal. Verify.
+          </h2>
+
+          <div className="grid md:grid-cols-3 gap-5 mt-[52px]">
+            <div className="js-reveal bg-[#FDFCF8] border border-[#DCD6C6] rounded-lg p-[30px] px-[26px]">
+              <div className="h-14 mb-[18px] flex items-center">
+                <svg width="64" height="44" viewBox="0 0 64 44" aria-hidden="true">
+                  <rect x="2" y="6" width="44" height="6" rx="2" fill="#171B21"/>
+                  <rect x="2" y="19" width="30" height="6" rx="2" fill="#171B21"/>
+                  <rect x="2" y="32" width="38" height="6" rx="2" fill="#8A8F99"/>
+                </svg>
+              </div>
+              <div className="font-plex text-xs text-[#8A1E2D] tracking-[0.14em] font-medium">01 / RECORD</div>
+              <h3 className="font-serif text-2xl font-semibold mt-3 mb-2.5">Write the entry</h3>
+              <p className="text-[14.5px] text-[#43484F]">From the app, the API, or the tools you already use. Attach files, link the people involved, add context while it's fresh.</p>
+            </div>
+
+            <div className="js-reveal bg-[#FDFCF8] border border-[#DCD6C6] rounded-lg p-[30px] px-[26px]">
+              <div className="h-14 mb-[18px] flex items-center">
+                <svg width="64" height="44" viewBox="0 0 64 44" aria-hidden="true">
+                  <rect x="2" y="6" width="44" height="6" rx="2" fill="#171B21"/>
+                  <rect x="2" y="19" width="44" height="6" rx="2" fill="#171B21"/>
+                  <rect x="2" y="32" width="44" height="6" rx="2" fill="#171B21"/>
+                  <rect x="50" y="32" width="5" height="6" rx="2" fill="#8A1E2D"/>
+                </svg>
+              </div>
+              <div className="font-plex text-xs text-[#8A1E2D] tracking-[0.14em] font-medium">02 / SEAL</div>
+              <h3 className="font-serif text-2xl font-semibold mt-3 mb-2.5">Chain it to history</h3>
+              <p className="text-[14.5px] text-[#43484F]">Scribe fingerprints the entry and links it to everything before it. From that second on, any alteration — to the entry or its files — is evident.</p>
+            </div>
+
+            <div className="js-reveal bg-[#FDFCF8] border border-[#DCD6C6] rounded-lg p-[30px] px-[26px]">
+              <div className="h-14 mb-[18px] flex items-center">
+                <svg width="64" height="44" viewBox="0 0 64 44" aria-hidden="true">
+                  <circle cx="22" cy="22" r="17" fill="none" stroke="#3E6257" strokeWidth="4"/>
+                  <path d="M14 22 l6 6 l11 -12" fill="none" stroke="#3E6257" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div className="font-plex text-xs text-[#8A1E2D] tracking-[0.14em] font-medium">03 / VERIFY</div>
+              <h3 className="font-serif text-2xl font-semibold mt-3 mb-2.5">Let anyone confirm it</h3>
+              <p className="text-[14.5px] text-[#43484F]">Share a link or export a proof. Auditors, partners and regulators can confirm a record is authentic and unaltered — no Scribe account needed.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ TAMPER-EVIDENCE ============ */}
+      <section className="py-24 bg-[#171B21] text-[#EFE9DC]" id="security">
+        <div className="max-w-[1160px] mx-auto px-6">
+          <EntryTag n="004" label="Tamper-evidence" dark />
+          <h2 className="font-serif font-medium text-[clamp(30px,4vw,44px)] leading-[1.12] tracking-[-0.01em] max-w-[22ch] text-[#EFE9DC]">
+            You are never asked to just trust us.
+          </h2>
+          <p className="text-[16.5px] text-[#B9BDC6] max-w-[56ch] mt-4">
+            Scribe is built so that the record proves itself. Trust comes from the structure of the ledger, not from our word.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-10 md:gap-[60px] items-center mt-14">
+            <div className="border-t border-[rgba(239,233,220,0.14)]">
+              {[
+                { h: 'Hash-chained history', p: 'Every entry carries the fingerprint of the entry before it. Rewriting the past breaks the chain — visibly, for everyone.' },
+                { h: 'Append-only by design', p: 'Mistakes are corrected by new entries that reference the old, never by silent edits. The correction is part of the record too.' },
+                { h: 'Independently verifiable', p: 'Exported proofs verify with standard, open cryptography — outside Scribe, without our servers, forever.' },
+                { h: 'Yours to take', p: 'Export the complete chain at any time. Your organization\'s history is your property, not our lock-in.' },
+              ].map((claim) => (
+                <div key={claim.h} className="js-reveal py-6 px-1 border-b border-[rgba(239,233,220,0.14)]">
+                  <h4 className="font-serif text-[19px] font-semibold mb-[7px]">{claim.h}</h4>
+                  <p className="text-sm text-[#A9AEB8] max-w-[52ch]">{claim.p}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-[#232935] border border-[rgba(239,233,220,0.1)] rounded-lg p-[26px] font-plex text-xs leading-[2.05] text-[#8A8F99] overflow-hidden">
+              {CHAIN_ENTRIES.map((c, i) => (
+                <div key={c.entry}>
+                  <div className="flex gap-3.5 whitespace-nowrap">
+                    <span className="text-[#5F6570] w-16 flex-shrink-0">entry</span>
+                    <span className="text-[#C9CDD5]">{c.entry}</span>
+                  </div>
+                  <div className="flex gap-3.5 whitespace-nowrap">
+                    <span className="text-[#5F6570] w-16 flex-shrink-0">hash</span>
+                    <span className="text-[#C9CDD5]">{c.hash}</span>
+                  </div>
+                  <div className="flex gap-3.5 whitespace-nowrap">
+                    <span className="text-[#5F6570] w-16 flex-shrink-0">prev</span>
+                    <span className="text-[#B3453C]">{c.prev}</span>
+                  </div>
+                  <div className="flex gap-3.5 whitespace-nowrap">
+                    <span className="text-[#5F6570] w-16 flex-shrink-0">status</span>
+                    <span className="text-[#7FA99A]">sealed · verified ✓</span>
+                  </div>
+                  {i < CHAIN_ENTRIES.length - 1 && <hr className="border-none border-t border-dashed border-[rgba(239,233,220,0.15)] my-2.5" />}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ VERIFY ============ */}
+      <section className="py-24 text-center" id="verify">
+        <div className="max-w-[1160px] mx-auto px-6">
+          <EntryTag n="005" label="Verification" />
+          <h2 className="font-serif font-medium text-[clamp(30px,4vw,44px)] leading-[1.12] tracking-[-0.01em] mx-auto">
+            A record anyone can check.
+          </h2>
+          <p className="text-[16.5px] text-[#43484F] max-w-[56ch] mt-4 mx-auto">
+            This is what a shared Scribe record looks like to the outside world: the fact, its fingerprint, and a verdict.
+          </p>
+
+          <div className="max-w-[640px] mx-auto mt-[52px] bg-[#FDFCF8] border border-[#DCD6C6] rounded-lg p-[26px]">
+            <div className="flex justify-between gap-3.5 items-start flex-wrap">
+              <div className="text-left">
+                <div className="font-serif text-xl font-semibold">Series B closing — recorded</div>
+                <div className="font-plex text-[11.5px] text-[#8A8F99] mt-2.5 leading-[2] break-all">
+                  org &nbsp;&nbsp;acme-holdings<br />
+                  time &nbsp;2026-03-02 · 16:22:41 UTC<br />
+                  hash &nbsp;e0c4a8b1f290…77ad
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1.5 font-plex text-[10.5px] tracking-[0.1em] px-[9px] py-1 rounded-[3px] bg-[rgba(62,98,87,0.12)] text-[#3E6257] border border-[rgba(62,98,87,0.35)] mt-0.5">
+                ✓ VERIFIED · UNALTERED
               </span>
-            ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── FEATURES ───────────────────────────────────────────────────────── */}
-      <section id="features" className="py-24 md:py-32 bg-[#FAF8F4]">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <div className="text-sm font-semibold text-[#B23A2A] uppercase tracking-wider mb-4">Features</div>
-            <h2 className="font-display text-4xl md:text-5xl font-semibold text-[#0E1015] leading-tight">
-              Everything a modern ledger should be
-            </h2>
-            <p className="mt-4 text-lg text-stone-500 max-w-2xl mx-auto leading-relaxed">
-              From entry to audit trail, every workflow your organization needs — with blockchain proof built in from day one.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              { Icon: BookOpen,     title: 'Full ledger management',   desc: 'Income, expenses, dues, grants, and donations. Organize by project, member, or budget. Attach receipts to every entry.' },
-              { Icon: ShieldCheck,  title: 'Tamper-evident records',   desc: 'Every approved entry is cryptographically hashed and anchored on-chain. A proof that cannot be quietly rewritten.' },
-              { Icon: Users,        title: 'Role-based approvals',     desc: 'Five roles from Owner to Viewer. Approval workflows ensure a second set of eyes before any record is finalized.' },
-              { Icon: BarChart3,    title: 'Reports & transparency',   desc: 'Auto-generated financial summaries, budget tracking, and a public transparency page for donors and members.' },
-              { Icon: FolderKanban, title: 'Projects & budgets',       desc: 'Create projects with budgets and milestones. Track spending against goals. Link restricted grant funds to programs.' },
-              { Icon: FileCheck,    title: 'Member & dues management', desc: 'Member directory, dues tracking, payment receipts, and custom rates for different membership tiers.' },
-            ].map(({ Icon, title, desc }, i) => (
-              <div key={i} className="bg-white border border-stone-200 rounded-2xl p-7 hover:border-stone-300 hover:shadow-md transition-all group">
-                <div className="w-11 h-11 bg-stone-100 rounded-xl flex items-center justify-center mb-5 group-hover:bg-stone-200 transition-colors">
-                  <Icon className="w-5 h-5 text-[#0E1015]" strokeWidth={1.5} />
-                </div>
-                <h3 className="font-semibold text-[#0E1015] mb-2">{title}</h3>
-                <p className="text-sm text-stone-500 leading-relaxed">{desc}</p>
-              </div>
-            ))}
+      {/* ============ FINAL CTA ============ */}
+      <section className="border-t border-[#DCD6C6]">
+        <div className="max-w-[1160px] mx-auto px-6 py-[110px] text-center">
+          <h2 className="font-serif font-medium text-[clamp(34px,5vw,54px)] leading-[1.12] tracking-[-0.01em]">
+            Start your organization's record.
+          </h2>
+          <p className="text-[#43484F] max-w-[46ch] mx-auto mt-[18px] mb-[34px]">
+            The best time to start keeping a verifiable history was your first decision. The second-best time is your next one.
+          </p>
+          <button
+            onClick={onStart}
+            className="inline-flex items-center gap-2 bg-[#8A1E2D] text-[#EFE9DC] text-[15px] font-medium px-7 py-3.5 rounded border border-[#8A1E2D] hover:bg-[#761826] transition-colors"
+          >
+            Open Scribe →
+          </button>
+          <div className="font-plex text-[11.5px] text-[#8A8F99] tracking-[0.04em] mt-[26px]">
+            app.alkescribe.com · free for your first 100 records
           </div>
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ───────────────────────────────────────────────────── */}
-      <section id="how" className="py-24 md:py-28 bg-[#F2EFE8]">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <div className="text-sm font-semibold text-[#B23A2A] uppercase tracking-wider mb-4">How it works</div>
-            <h2 className="font-display text-4xl md:text-5xl font-semibold text-[#0E1015] leading-tight">
-              From record to proof in seconds
-            </h2>
-          </div>
-
-          <div className="grid md:grid-cols-4 gap-8">
-            {[
-              { n: '01', title: 'Enter a record',      desc: 'Log income, expenses, dues, or donations. Attach receipts. Tag projects, budgets, or members.' },
-              { n: '02', title: 'Get it approved',      desc: 'A role-gated reviewer approves or rejects the entry. Reasons are captured in the full audit trail.' },
-              { n: '03', title: 'The record is hashed', desc: 'On approval, the canonical record is SHA-256 hashed. The hash is public and reveals nothing private.' },
-              { n: '04', title: 'Proof goes on-chain',  desc: 'The hash is anchored to the Alkebuleum blockchain. Anyone can verify the record has not changed.' },
-            ].map((s, i) => (
-              <div key={i}>
-                <div className="w-14 h-14 bg-white rounded-full border-2 border-stone-300 flex items-center justify-center font-display text-lg font-semibold text-[#B23A2A] mb-5 shadow-sm">
-                  {s.n}
-                </div>
-                <h3 className="font-semibold text-[#0E1015] mb-2">{s.title}</h3>
-                <p className="text-sm text-stone-500 leading-relaxed">{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── WHO IT'S FOR ───────────────────────────────────────────────────── */}
-      <section id="who" className="py-24 md:py-32 bg-[#FAF8F4]">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <div className="text-sm font-semibold text-[#B23A2A] uppercase tracking-wider mb-4">Who it's for</div>
-            <h2 className="font-display text-4xl md:text-5xl font-semibold text-[#0E1015] leading-tight">
-              Built for organizations that answer to others
-            </h2>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            {[
-              {
-                Icon: Users,
-                title: 'Membership organizations',
-                subtitle: 'Associations, professional societies, alumni groups, unions, chambers, clubs',
-                features: ['Member directory & profiles', 'Dues tracking & receipts', 'Member portal & announcements', 'Approved financial transparency'],
-              },
-              {
-                Icon: FolderKanban,
-                title: 'Projects & nonprofits',
-                subtitle: 'NGOs, foundations, grant-funded programs, public agencies, community projects',
-                features: ['Projects with budgets & milestones', 'Grant & restricted-fund tracking', 'Vendor / beneficiary records', 'Public transparency page'],
-              },
-            ].map(({ Icon, title, subtitle, features }, i) => (
-              <div key={i} className="bg-white border border-stone-200 rounded-2xl p-8 md:p-10 hover:shadow-md transition-shadow">
-                <div className="w-12 h-12 bg-stone-100 rounded-xl flex items-center justify-center mb-6">
-                  <Icon className="w-6 h-6 text-[#0E1015]" strokeWidth={1.5} />
-                </div>
-                <h3 className="font-display text-2xl font-semibold text-[#0E1015] mb-2">{title}</h3>
-                <p className="text-stone-400 text-sm mb-6 italic">{subtitle}</p>
-                <ul className="space-y-3">
-                  {features.map((f) => (
-                    <li key={f} className="flex items-center gap-3 text-sm text-stone-700">
-                      <Check className="w-4 h-4 text-[#2F5D50] flex-shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── PROOF CALLOUT ──────────────────────────────────────────────────── */}
-      <section className="py-24 md:py-32 bg-[#0E1015] text-white relative overflow-hidden">
-        <div className="absolute inset-0 ledger-rule opacity-[0.06] pointer-events-none" />
-        <div className="relative max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-
-            {/* Left: copy */}
+      {/* ============ FOOTER ============ */}
+      <footer className="bg-[#171B21] text-[#A9AEB8] text-[13.5px]">
+        <div className="max-w-[1160px] mx-auto px-6">
+          <div className="grid md:grid-cols-[1.4fr_1fr_1fr_1fr] gap-9 py-16">
             <div>
-              <div className="inline-flex items-center gap-2 bg-white/10 text-white/70 text-xs font-medium px-3 py-1.5 rounded-full border border-white/20 mb-8">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Blockchain verification
-              </div>
-              <h2 className="font-display text-4xl md:text-5xl font-semibold leading-tight mb-6">
-                The ledger you can prove hasn't changed.
-              </h2>
-              <p className="text-white/60 text-lg leading-relaxed mb-10">
-                Not a crypto product. A bookkeeping system where every approved record carries a cryptographic fingerprint — anchored on-chain, verifiable forever, with your private data staying entirely in your workspace.
-              </p>
-              <ul className="space-y-4">
-                {[
-                  'Records hashed at the moment of approval',
-                  'Anchored to Alkebuleum mainnet',
-                  'Public verification — no account needed',
-                  'Private records stay in your workspace',
-                ].map((point) => (
-                  <li key={point} className="flex items-center gap-3 text-sm text-white/70">
-                    <Check className="w-4 h-4 text-[#8CC5B0] flex-shrink-0" />
-                    {point}
-                  </li>
-                ))}
+              <a href="#" className="flex items-center gap-[11px] font-serif text-[19px] font-semibold text-[#EFE9DC]">
+                <svg width="24" height="24" viewBox="0 0 96 96" aria-hidden="true">
+                  <rect x="20" y="11.75" width="56" height="9" rx="2" fill="#EFE9DC"/>
+                  <rect x="20" y="27.25" width="26" height="9" rx="2" fill="#EFE9DC"/>
+                  <rect x="20" y="42.75" width="56" height="9" rx="2" fill="#EFE9DC"/>
+                  <rect x="50" y="58.25" width="26" height="9" rx="2" fill="#EFE9DC"/>
+                  <rect x="20" y="73.75" width="56" height="9" rx="2" fill="#EFE9DC"/>
+                  <rect x="80" y="73.75" width="5" height="9" rx="2" fill="#B3453C"/>
+                </svg>
+                Scribe
+              </a>
+              <p className="mt-3.5 text-[13px] max-w-[30ch]">Every action. A verifiable record.</p>
+            </div>
+            <div>
+              <h5 className="font-plex text-[10.5px] tracking-[0.18em] uppercase text-[#5F6570] mb-3.5">Product</h5>
+              <ul className="space-y-2.5">
+                <li><a href="#record" className="hover:text-[#EFE9DC] transition-colors">What you can record</a></li>
+                <li><a href="#how" className="hover:text-[#EFE9DC] transition-colors">How it works</a></li>
+                <li><a href="#security" className="hover:text-[#EFE9DC] transition-colors">Tamper-evidence</a></li>
+                <li><button onClick={onStart} className="hover:text-[#EFE9DC] transition-colors text-left">Open the app</button></li>
               </ul>
             </div>
-
-            {/* Right: verification widget */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-7 backdrop-blur-sm">
-              <div className="flex items-center gap-2 mb-6">
-                <span className="w-2 h-2 bg-[#8CC5B0] rounded-full animate-pulse" />
-                <span className="text-xs font-mono uppercase tracking-wider text-white/50">
-                  Live verification · Alkebuleum mainnet
-                </span>
-              </div>
-
-              <div key={current.id} className="reveal-slow">
-                <div className="text-[11px] text-white/40 font-mono uppercase tracking-wider mb-1">Record ID</div>
-                <div className="font-mono text-sm text-white/50 mb-5">{current.id}</div>
-                <div className="text-xl text-white font-medium mb-2">"{current.desc}"</div>
-                <div className="font-display text-4xl font-semibold text-[#8CC5B0] mb-6">{current.amount}</div>
-                <div className="border-t border-white/10 pt-5">
-                  <div className="text-[11px] text-white/40 font-mono uppercase tracking-wider mb-2">Cryptographic proof</div>
-                  <div className="font-mono text-sm text-[#8CC5B0] cursor-blink">{current.hash}</div>
-                </div>
-              </div>
-
-              <div className="mt-6 space-y-3">
-                {[
-                  { l: 'Record canonicalized', d: '0s' },
-                  { l: 'SHA-256 computed',     d: '0.3s' },
-                  { l: 'Anchor submitted',     d: '0.6s' },
-                  { l: 'Verified on-chain',    d: '0.9s' },
-                ].map((step) => (
-                  <div key={step.l} className="flex items-center gap-3 text-sm">
-                    <Check className="w-3.5 h-3.5 text-[#8CC5B0] flex-shrink-0" />
-                    <span className="text-white/60 flex-1">{step.l}</span>
-                    <span className="font-mono text-xs text-white/30">+{step.d}</span>
-                  </div>
-                ))}
-              </div>
+            <div>
+              <h5 className="font-plex text-[10.5px] tracking-[0.18em] uppercase text-[#5F6570] mb-3.5">Company</h5>
+              <ul className="space-y-2.5">
+                <li><a href="#" className="hover:text-[#EFE9DC] transition-colors">About</a></li>
+                <li><a href="#" className="hover:text-[#EFE9DC] transition-colors">Security</a></li>
+                <li><a href="#" className="hover:text-[#EFE9DC] transition-colors">Contact</a></li>
+              </ul>
+            </div>
+            <div>
+              <h5 className="font-plex text-[10.5px] tracking-[0.18em] uppercase text-[#5F6570] mb-3.5">Legal</h5>
+              <ul className="space-y-2.5">
+                <li><a href="#" className="hover:text-[#EFE9DC] transition-colors">Privacy</a></li>
+                <li><a href="#" className="hover:text-[#EFE9DC] transition-colors">Terms</a></li>
+              </ul>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ── CTA ────────────────────────────────────────────────────────────── */}
-      <section className="py-24 md:py-32 bg-[#FAF8F4]">
-        <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center">
-          <h2 className="font-display text-5xl md:text-6xl font-semibold leading-tight mb-6 text-[#0E1015]">
-            Keep the books.<br />
-            <span className="text-[#B23A2A]">Keep the proof.</span>
-          </h2>
-          <p className="text-stone-500 text-xl leading-relaxed mb-12 max-w-2xl mx-auto">
-            A workspace takes about ninety seconds to create. The trust you build with the people who rely on you compounds for years.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <button
-              onClick={onStart}
-              className="inline-flex items-center gap-2 bg-[#0E1015] text-[#FAF8F4] text-sm font-medium px-8 py-4 rounded-xl hover:bg-stone-800 transition-colors group"
-            >
-              Start for free
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-            </button>
-            <button
-              onClick={onDemo}
-              className="inline-flex items-center gap-2 text-sm font-medium text-stone-600 px-8 py-4 rounded-xl border border-stone-300 hover:border-stone-400 hover:bg-white transition-colors"
-            >
-              View demo
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* ── FOOTER ─────────────────────────────────────────────────────────── */}
-      <footer className="bg-white border-t border-stone-200">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
-          <div className="grid md:grid-cols-5 gap-12 mb-12">
-            <div className="md:col-span-2">
-              <div className="flex items-end gap-2 mb-4">
-                <img src="/logo.svg" alt="" className="h-6 w-auto" />
-                <span className="font-display text-xl leading-none tracking-tight">
-                  <span className="font-bold text-[#0E1015]">Alke</span><span className="font-light text-[#0E1015]">Ledger</span>
-                </span>
-              </div>
-              <p className="text-sm text-stone-500 leading-relaxed max-w-xs">
-                A modern instrument of record. Ledgers for organizations that intend to be trusted.
-              </p>
-            </div>
-            {[
-              { heading: 'Product',    links: ['Ledger', 'Approvals', 'Transparency', 'Proof & anchoring'] },
-              { heading: 'For',        links: ['Membership orgs', 'Nonprofits', 'Grants & programs', 'Councils & DAOs'] },
-              { heading: 'Foundation', links: ['Alkebuleum chain', 'Audit trail', 'Open verification'] },
-            ].map(({ heading, links }) => (
-              <div key={heading}>
-                <div className="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-4">{heading}</div>
-                <ul className="space-y-2">
-                  {links.map((l) => (
-                    <li key={l} className="text-sm text-stone-600">{l}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <div className="pt-8 border-t border-stone-200 flex flex-wrap items-center justify-between gap-4 text-xs text-stone-400">
-            <span>© 2026 AlkeLedger. All rights reserved.</span>
-            <span className="italic text-stone-400">"Set down in honest fashion, that those who come after may know."</span>
+          <div className="border-t border-[rgba(239,233,220,0.1)] py-5 flex justify-between gap-4 flex-wrap font-plex text-[11px] text-[#5F6570] tracking-[0.04em]">
+            <span>© 2026 Scribe · alkescribe.com</span>
+            <span>record integrity: chain intact ✓</span>
           </div>
         </div>
       </footer>

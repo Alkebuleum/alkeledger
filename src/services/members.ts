@@ -4,6 +4,7 @@ import {
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { USE_MOCK_DATA, db, app } from '@/lib/firebase';
+import { isDemoOrgId } from '@/lib/demo';
 import { MOCK_MEMBERS } from '@/data/mock';
 import type { Member, MemberStatus } from '@/types';
 
@@ -33,7 +34,7 @@ function docToMember(d: Record<string, unknown>, id: string): Member {
 // ── Read ─────────────────────────────────────────────────────────────────────
 
 export async function listMembers(orgId: string): Promise<Member[]> {
-  if (USE_MOCK_DATA) return MOCK_MEMBERS.filter((m) => m.orgId === orgId);
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) return MOCK_MEMBERS.filter((m) => m.orgId === orgId);
   if (!db) return [];
 
   const snap = await getDocs(
@@ -43,7 +44,7 @@ export async function listMembers(orgId: string): Promise<Member[]> {
 }
 
 export async function getMember(orgId: string, userId: string): Promise<Member | null> {
-  if (USE_MOCK_DATA) return MOCK_MEMBERS.find((m) => m.id === userId && m.orgId === orgId) ?? null;
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) return MOCK_MEMBERS.find((m) => m.id === userId && m.orgId === orgId) ?? null;
   if (!db) return null;
 
   const snap = await getDoc(doc(db, 'memberships', membershipId(orgId, userId)));
@@ -58,7 +59,7 @@ export async function updateMemberRole(
   userId: string,
   role: string,
 ): Promise<void> {
-  if (USE_MOCK_DATA || !db) return;
+  if (USE_MOCK_DATA || isDemoOrgId(orgId) || !db) return;
 
   // Last-admin guard
   if (role !== 'owner' && role !== 'admin') {
@@ -86,7 +87,7 @@ export async function updateMemberStatus(
   userId: string,
   status: MemberStatus,
 ): Promise<void> {
-  if (USE_MOCK_DATA || !db) return;
+  if (USE_MOCK_DATA || isDemoOrgId(orgId) || !db) return;
   await updateDoc(doc(db, 'memberships', membershipId(orgId, userId)), { status });
 }
 
@@ -95,12 +96,12 @@ export async function setDuesPaid(
   userId: string,
   duesPaid: boolean,
 ): Promise<void> {
-  if (USE_MOCK_DATA || !db) return;
+  if (USE_MOCK_DATA || isDemoOrgId(orgId) || !db) return;
   await updateDoc(doc(db, 'memberships', membershipId(orgId, userId)), { duesPaid });
 }
 
 export async function resetAllDuesPaid(orgId: string): Promise<void> {
-  if (USE_MOCK_DATA || !db) return;
+  if (USE_MOCK_DATA || isDemoOrgId(orgId) || !db) return;
   const snap = await getDocs(
     query(collection(db, 'memberships'), where('orgId', '==', orgId), where('status', '==', 'active'))
   );
@@ -112,12 +113,12 @@ export async function updateMemberInfo(
   userId: string,
   info: { memberType?: Member['memberType']; orgName?: string; orgTitle?: string },
 ): Promise<void> {
-  if (USE_MOCK_DATA || !db) return;
+  if (USE_MOCK_DATA || isDemoOrgId(orgId) || !db) return;
   await updateDoc(doc(db, 'memberships', membershipId(orgId, userId)), info);
 }
 
 export async function removeMember(orgId: string, userId: string): Promise<void> {
-  if (USE_MOCK_DATA || !db) return;
+  if (USE_MOCK_DATA || isDemoOrgId(orgId) || !db) return;
 
   const snap = await getDoc(doc(db, 'memberships', membershipId(orgId, userId)));
   if (!snap.exists()) return;
@@ -161,7 +162,7 @@ export async function inviteMembers(
       continue;
     }
 
-    if (!USE_MOCK_DATA && db) {
+    if (!USE_MOCK_DATA && !isDemoOrgId(orgId) && db) {
       const existing = await getDocs(
         query(collection(db, 'memberships'), where('orgId', '==', orgId), where('email', '==', email))
       );
@@ -202,7 +203,7 @@ async function sendInviteEmail(
   inviteCode: string,
   token: string | null,
 ): Promise<void> {
-  if (USE_MOCK_DATA || !app) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId) || !app) {
     const appUrl = import.meta.env.VITE_APP_URL ?? window.location.origin;
     const joinLink = token ? `${appUrl}/join/${inviteCode}?t=${token}` : `${appUrl}/join/${inviteCode}`;
     console.log(`[DEV INVITE] ${name} <${email}> → ${joinLink}`);
@@ -223,7 +224,7 @@ export interface PendingInvite {
 }
 
 export async function listPendingInvites(orgId: string): Promise<PendingInvite[]> {
-  if (USE_MOCK_DATA || !db) return [];
+  if (USE_MOCK_DATA || isDemoOrgId(orgId) || !db) return [];
 
   const snap = await getDocs(
     query(

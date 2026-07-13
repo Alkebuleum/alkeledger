@@ -12,23 +12,27 @@ import { JoinPreview } from '@/pages/JoinPreview';
 import { OrgSetup } from '@/pages/OrgSetup';
 import { Dashboard } from '@/pages/Dashboard';
 import { Ledger } from '@/pages/Ledger';
+import { Transactions } from '@/pages/Transactions';
 import { Members } from '@/pages/Members';
 import { Dues } from '@/pages/Dues';
-import { Announcements } from '@/pages/Announcements';
 import { Events } from '@/pages/Events';
 import { Votes } from '@/pages/Votes';
 import { Requests } from '@/pages/Requests';
 import { Projects } from '@/pages/Projects';
+import { Positions } from '@/pages/Positions';
 import { Budgets } from '@/pages/Budgets';
 import { Approvals } from '@/pages/Approvals';
 import { Documents } from '@/pages/Documents';
-import { Reports } from '@/pages/Reports';
 import { Transparency } from '@/pages/Transparency';
-import { Anchors } from '@/pages/Anchors';
+import { Reports } from '@/pages/Reports';
+import { Verify } from '@/pages/Verify';
+import { Credentials } from '@/pages/Credentials';
+import { LedgerDocuments } from '@/pages/LedgerDocuments';
 import { Settings } from '@/pages/Settings';
 import { RsvpConfirm } from '@/pages/RsvpConfirm';
 import { NewEntryModal } from '@/modals/NewEntryModal';
-import type { LedgerEntry, LedgerStatus, Organization, MemberType, DuesRates, NotifType } from '@/types';
+import { recordTypeOf } from '@/lib/format';
+import type { LedgerEntry, LedgerStatus, Organization, MemberType, DuesRates, NotifType, RecordType } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
 
 function orgPath(org: Organization) {
@@ -54,7 +58,16 @@ function RedirectToSignIn() {
 }
 
 export default function App() {
-  const { user, loading: authLoading, requestOtp, verifyOtp, signInWithToken, signOut } = useAuth();
+  const {
+    user,
+    loading: authLoading,
+    requestOtp,
+    verifyOtp,
+    signInWithToken,
+    signInWithGoogle,
+    ssoError,
+    signOut,
+  } = useAuth();
   const { orgs, pendingOrgs, addOrg, joinOrg, removeOrg, saveOrgSettings, loading: orgsLoading, refreshOrgs } = useOrgs(user);
   const navigate = useNavigate();
 
@@ -108,6 +121,8 @@ export default function App() {
             onBack={() => navigate('/')}
             onRequestOtp={requestOtp}
             onVerifyOtp={handleVerifyOtp}
+            onSignInWithGoogle={signInWithGoogle}
+            ssoError={ssoError}
           />
         } />
         {joinPreviewRoute}
@@ -269,15 +284,15 @@ function OrgShell({ orgs, pendingOrgs, user, signOut, removeOrg, saveOrgSettings
 
   const org = orgs.find((o) => (o.slug ?? o.id) === slug) ?? null;
 
-  const { entries: ledger, createEntry, setStatus, anchor } = useLedger(org?.id ?? null);
+  const { entries: ledger, createEntry, setStatus, anchor, revoke } = useLedger(org?.id ?? null);
   const [showNewEntry, setShowNewEntry] = useState(false);
+  const [newEntryPreset, setNewEntryPreset] = useState<RecordType | undefined>(undefined);
 
   const { notifs, totalUnread, unreadCount, markRead, markAllRead } = useNotifications(user, orgs.map((o) => o.id));
 
   const unreadCounts: Partial<Record<PageId, number>> = org ? {
-    announcements: unreadCount(org.id, 'announcement' as NotifType),
-    events:        unreadCount(org.id, 'event'        as NotifType),
-    votes:         unreadCount(org.id, 'poll'         as NotifType),
+    calendar:      unreadCount(org.id, 'event'        as NotifType),
+    proposals:     unreadCount(org.id, 'poll'         as NotifType),
     requests:      unreadCount(org.id, 'request'      as NotifType),
     dues:          unreadCount(org.id, 'dues'         as NotifType),
     members:       unreadCount(org.id, 'membership'   as NotifType),
@@ -295,6 +310,12 @@ function OrgShell({ orgs, pendingOrgs, user, signOut, removeOrg, saveOrgSettings
   const handleSaveEntry = async (entry: LedgerEntry) => {
     await createEntry(entry);
     setShowNewEntry(false);
+    setNewEntryPreset(undefined);
+  };
+
+  const openNewEntry = (preset?: RecordType) => {
+    setNewEntryPreset(preset);
+    setShowNewEntry(true);
   };
 
   return (
@@ -305,7 +326,7 @@ function OrgShell({ orgs, pendingOrgs, user, signOut, removeOrg, saveOrgSettings
         pendingOrgs={pendingOrgs}
         onSwitchOrg={handleSwitchOrg}
         page={pageId}
-        onNewEntry={() => setShowNewEntry(true)}
+        onNewEntry={() => openNewEntry()}
         onExit={signOut}
         onNewOrg={() => navigate('/setup')}
         user={user}
@@ -322,6 +343,8 @@ function OrgShell({ orgs, pendingOrgs, user, signOut, removeOrg, saveOrgSettings
           user={user}
           onApprove={setStatus}
           onAnchor={anchor}
+          onRevoke={(id) => revoke(id, user.displayName)}
+          onOpenNewEntry={openNewEntry}
           onDeleteOrg={async () => {
             await removeOrg(org.id);
             const next = orgs.find((o) => o.id !== org.id);
@@ -336,7 +359,8 @@ function OrgShell({ orgs, pendingOrgs, user, signOut, removeOrg, saveOrgSettings
         <NewEntryModal
           org={org}
           user={user}
-          onClose={() => setShowNewEntry(false)}
+          initialRecordType={newEntryPreset}
+          onClose={() => { setShowNewEntry(false); setNewEntryPreset(undefined); }}
           onSave={handleSaveEntry}
         />
       )}
@@ -353,30 +377,36 @@ interface PageContentProps {
   user: AuthUser;
   onApprove: (entryId: string, status: LedgerStatus) => Promise<void>;
   onAnchor: (entryId: string) => Promise<void>;
+  onRevoke: (entryId: string) => Promise<void>;
+  onOpenNewEntry: (preset?: RecordType) => void;
   onDeleteOrg: () => Promise<void>;
   onSaveOrgSettings: (s: { allowedMemberTypes?: MemberType[]; duesRates?: DuesRates; tagline?: string; logoUrl?: string }) => Promise<void>;
   onCreateEntry: (entry: LedgerEntry) => Promise<void>;
 }
 
-function PageContent({ page, ledger, org, user, onApprove, onAnchor, onDeleteOrg, onSaveOrgSettings, onCreateEntry }: PageContentProps) {
+function PageContent({ page, ledger, org, user, onApprove, onAnchor, onRevoke, onOpenNewEntry, onDeleteOrg, onSaveOrgSettings, onCreateEntry }: PageContentProps) {
   switch (page) {
     case 'dashboard':     return <Dashboard org={org} ledger={ledger} user={user} />;
-    case 'ledger':        return <Ledger ledger={ledger} org={org} />;
+    case 'ledger':        return <Ledger ledger={ledger} org={org} onAnchor={onAnchor} />;
     case 'members':       return <Members org={org} user={user} />;
     case 'dues':          return <Dues org={org} ledger={ledger} user={user} onRecordPayment={onCreateEntry} onApprove={onApprove} />;
-    case 'announcements': return <Announcements org={org} user={user} />;
-    case 'events':        return <Events org={org} user={user} />;
-    case 'votes':         return <Votes  org={org} user={user} />;
+    case 'calendar':      return <Events org={org} user={user} />;
+    case 'proposals':     return <Votes  org={org} user={user} ledger={ledger} onCreateEntry={onCreateEntry} />;
     case 'requests':      return <Requests org={org} user={user} onCreateEntry={onCreateEntry} />;
     case 'projects':      return <Projects org={org} />;
+    case 'positions':     return <Positions org={org} user={user} />;
     case 'budgets':       return <Budgets org={org} />;
-    case 'income':        return <Ledger ledger={ledger.filter((l) => l.type === 'income')} org={org} />;
-    case 'expenses':      return <Ledger ledger={ledger.filter((l) => l.type === 'expense')} org={org} />;
+    case 'income':        return <Ledger ledger={ledger.filter((l) => l.type === 'income')} org={org} onAnchor={onAnchor} />;
+    case 'expenses':      return <Ledger ledger={ledger.filter((l) => l.type === 'expense')} org={org} onAnchor={onAnchor} />;
+    case 'transactions':  return <Transactions ledger={ledger} org={org} onAnchor={onAnchor} />;
+    case 'decisions':     return <Ledger ledger={ledger.filter((l) => recordTypeOf(l) === 'decision')} org={org} onAnchor={onAnchor} />;
     case 'approvals':     return <Approvals ledger={ledger} onDecide={onApprove} />;
-    case 'documents':     return <Documents org={org} user={user} />;
+    case 'files':         return <Documents org={org} user={user} />;
+    case 'verify':        return <Verify />;
+    case 'credentials':   return <Credentials org={org} user={user} ledger={ledger} onIssue={() => onOpenNewEntry('credential')} onRevoke={onRevoke} />;
+    case 'documents':     return <LedgerDocuments ledger={ledger} onIssue={() => onOpenNewEntry('document')} onAnchor={onAnchor} />;
     case 'reports':       return <Reports org={org} ledger={ledger} />;
     case 'transparency':  return <Transparency org={org} ledger={ledger} />;
-    case 'anchors':       return <Anchors ledger={ledger} onAnchor={onAnchor} />;
     case 'settings':      return <Settings org={org} user={user} onDelete={onDeleteOrg} onSaveSettings={onSaveOrgSettings} />;
     default:              return <Dashboard org={org} ledger={ledger} user={user} />;
   }

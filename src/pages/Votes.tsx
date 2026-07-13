@@ -2,17 +2,42 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Plus, X, Pencil, Trash2, BarChart2,
-  ChevronDown, ChevronUp, Link2, Mail, MessageCircle, CheckCircle2,
+  ChevronDown, ChevronUp, Link2, Mail, MessageCircle, CheckCircle2, Scale,
 } from 'lucide-react';
 import { listPolls, createPoll, updatePoll, deletePoll, castVote, notifyPollMembers } from '@/services/votes';
 import { notifyCreated } from '@/services/notifications';
+import { listPositions } from '@/services/positions';
 import { can, useRole } from '@/hooks/useRole';
-import type { Poll, PollOption, PollStatus, VoteType, Organization } from '@/types';
+import type { Poll, PollOption, PollStatus, VoteType, Organization, LedgerEntry } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
+
+const PROPOSAL_CATEGORIES = [
+  'New project', 'Project funding', 'Budget change', 'Leadership appointment',
+  'Policy change', 'New member approval', 'Position issuance', 'Position transfer',
+  'Benefit distribution', 'Asset purchase', 'Asset sale', 'Partnership',
+  'Contract approval', 'Emergency action', 'Other',
+];
 
 interface Props {
   org: Organization;
   user: AuthUser;
+  ledger: LedgerEntry[];
+  onCreateEntry: (entry: LedgerEntry) => Promise<void>;
+}
+
+function winnerSummary(poll: Poll, unitsByMember?: Record<string, number>): string {
+  const counts = getOptionCounts(poll, unitsByMember);
+  const total = unitsByMember
+    ? Object.values(counts).reduce((s, v) => s + v, 0)
+    : Object.keys(poll.votes ?? {}).length;
+  const max = Math.max(0, ...Object.values(counts));
+  const winners = poll.options.filter((o) => max > 0 && counts[o.id] === max);
+  const label = winners.length > 1
+    ? `Tied: ${winners.map((w) => `"${w.text}"`).join(' / ')}`
+    : winners.length === 1
+      ? `"${winners[0].text}"`
+      : 'No votes cast';
+  return `${poll.title} — ${label} (${max} of ${total} votes)`;
 }
 
 function copyShareLink(orgSlug: string, pollId: string, setCopied: (v: boolean) => void) {
@@ -49,11 +74,12 @@ function sharePoll(poll: Poll, orgSlug: string) {
   }
 }
 
-function getOptionCounts(poll: Poll): Record<string, number> {
+function getOptionCounts(poll: Poll, unitsByMember?: Record<string, number>): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const opt of poll.options) counts[opt.id] = 0;
-  for (const vote of Object.values(poll.votes ?? {})) {
-    for (const id of vote.optionIds) counts[id] = (counts[id] ?? 0) + 1;
+  for (const [uid, vote] of Object.entries(poll.votes ?? {})) {
+    const weight = unitsByMember ? unitsByMember[uid] ?? 0 : 1;
+    for (const id of vote.optionIds) counts[id] = (counts[id] ?? 0) + weight;
   }
   return counts;
 }
@@ -62,15 +88,19 @@ type NotifyState = 'idle' | 'confirm' | 'sending' | 'sent' | 'error';
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export function Votes({ org, user }: Props) {
+export function Votes({ org, user, ledger, onCreateEntry }: Props) {
   const role = useRole(org.id, user.uid);
   const [polls, setPolls]     = useState<Poll[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Poll | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [unitsByMember, setUnitsByMember] = useState<Record<string, number> | undefined>(undefined);
 
   const focusPollId = searchParams.get('openPoll');
+
+  const votingModel = org.cooperativeConfig?.votingModel;
+  const isWeightedVoting = votingModel === 'unitWeighted' || votingModel === 'contributionWeighted';
 
   const reload = () => {
     setLoading(true);
@@ -78,6 +108,17 @@ export function Votes({ org, user }: Props) {
   };
 
   useEffect(() => { reload(); }, [org.id]);
+
+  useEffect(() => {
+    if (!isWeightedVoting) { setUnitsByMember(undefined); return; }
+    listPositions(org.id).then((positions) => {
+      const map: Record<string, number> = {};
+      for (const p of positions) {
+        if (p.status === 'active') map[p.memberId] = (map[p.memberId] ?? 0) + p.units;
+      }
+      setUnitsByMember(map);
+    });
+  }, [org.id, isWeightedVoting]);
 
   useEffect(() => {
     if (focusPollId && !loading) setSearchParams({}, { replace: true });
@@ -97,7 +138,7 @@ export function Votes({ org, user }: Props) {
   const handlePublish = async (poll: Poll) => {
     await updatePoll(org.id, poll.id, { status: 'active' });
     const orgSlug = org.slug ?? org.id;
-    notifyCreated(org.id, 'poll', poll.title, poll.description?.slice(0, 120) ?? '', `/${orgSlug}/votes?openPoll=${poll.id}`);
+    notifyCreated(org.id, 'poll', poll.title, poll.description?.slice(0, 120) ?? '', `/${orgSlug}/proposals?openPoll=${poll.id}`);
     reload();
   };
 
@@ -106,6 +147,29 @@ export function Votes({ org, user }: Props) {
     await updatePoll(org.id, poll.id, { status: 'closed' });
     reload();
   };
+
+  const handleLogDecision = async (poll: Poll) => {
+    if (!confirm(`Log "${poll.title}" as a permanent decision record? This creates a sealed ledger entry that goes through the same approve → anchor workflow as everything else.`)) return;
+    const entry: LedgerEntry = {
+      id: 'le_' + Math.random().toString(36).slice(2, 7),
+      orgId: org.id,
+      recordType: 'decision',
+      pollId: poll.id,
+      type: 'expense',
+      amount: 0,
+      currency: org.currency,
+      category: 'Vote outcome',
+      description: winnerSummary(poll, unitsByMember),
+      status: 'pending',
+      createdBy: user.displayName,
+      createdByUid: user.uid,
+      createdAt: new Date().toISOString().slice(0, 10),
+      anchorStatus: 'not_anchored',
+    };
+    await onCreateEntry(entry);
+  };
+
+  const loggedPollIds = new Set(ledger.filter((e) => e.pollId).map((e) => e.pollId));
 
   const isAdmin = can.announce(role);
   const isPro   = org.plan === 'pro';
@@ -119,14 +183,14 @@ export function Votes({ org, user }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <div className="text-[10px] uppercase tracking-[0.25em] text-[var(--ledger-red)] font-mono">§ Community</div>
-          <h2 className="font-display text-2xl mt-0.5">Votes & Polls</h2>
+          <h2 className="font-display text-2xl mt-0.5">Proposals</h2>
         </div>
         {isAdmin && (
           <button
             onClick={() => { setEditing(null); setShowForm(true); }}
             className="px-3 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md flex items-center gap-1.5 hover:bg-stone-800"
           >
-            <Plus className="w-4 h-4" /> New vote
+            <Plus className="w-4 h-4" /> New proposal
           </button>
         )}
       </div>
@@ -136,7 +200,7 @@ export function Votes({ org, user }: Props) {
       ) : polls.length === 0 ? (
         <div className="py-16 text-center text-stone-400">
           <BarChart2 className="w-8 h-8 mx-auto mb-3 opacity-40" />
-          <p className="text-sm">No votes or polls yet.</p>
+          <p className="text-sm">No proposals yet.</p>
           {isAdmin && (
             <button
               onClick={() => { setEditing(null); setShowForm(true); }}
@@ -162,6 +226,8 @@ export function Votes({ org, user }: Props) {
                   isAdmin={isAdmin}
                   isPro={isPro}
                   focused={focusPollId === poll.id}
+                  unitsByMember={unitsByMember}
+                  positionLabel={org.cooperativeConfig?.positionLabel}
                   onVote={(ids) => handleVote(poll, ids)}
                   onEdit={() => { setEditing(poll); setShowForm(true); }}
                   onDelete={() => handleDelete(poll)}
@@ -186,6 +252,8 @@ export function Votes({ org, user }: Props) {
                   isAdmin={isAdmin}
                   isPro={isPro}
                   focused={false}
+                  unitsByMember={unitsByMember}
+                  positionLabel={org.cooperativeConfig?.positionLabel}
                   onVote={async () => {}}
                   onEdit={() => { setEditing(poll); setShowForm(true); }}
                   onDelete={() => handleDelete(poll)}
@@ -202,7 +270,11 @@ export function Votes({ org, user }: Props) {
               orgSlug={org.slug ?? org.id}
               isAdmin={isAdmin}
               isPro={isPro}
+              unitsByMember={unitsByMember}
+              positionLabel={org.cooperativeConfig?.positionLabel}
               onDelete={handleDelete}
+              loggedPollIds={loggedPollIds}
+              onLogDecision={handleLogDecision}
             />
           )}
         </div>
@@ -224,8 +296,9 @@ export function Votes({ org, user }: Props) {
 // ─── PollCard ─────────────────────────────────────────────────────────────────
 
 function PollCard({
-  poll, userId, orgSlug, isAdmin, isPro, focused,
+  poll, userId, orgSlug, isAdmin, isPro, focused, unitsByMember, positionLabel,
   onVote, onEdit, onDelete, onClose, onPublish, onNotify,
+  decisionLogged, onLogDecision,
 }: {
   poll: Poll;
   userId: string;
@@ -233,12 +306,16 @@ function PollCard({
   isAdmin: boolean;
   isPro: boolean;
   focused: boolean;
+  unitsByMember?: Record<string, number>;
+  positionLabel?: string;
   onVote: (ids: string[]) => Promise<void>;
   onEdit: () => void;
   onDelete: () => void;
   onClose?: () => void;
   onPublish?: () => void;
   onNotify?: () => Promise<void>;
+  decisionLogged?: boolean;
+  onLogDecision?: () => void;
 }) {
   const [selected, setSelected]         = useState<string[]>([]);
   const [submitting, setSubmitting]     = useState(false);
@@ -256,8 +333,10 @@ function PollCard({
 
   const myVote      = poll.votes?.[userId];
   const hasVoted    = !!myVote;
-  const totalVotes  = Object.keys(poll.votes ?? {}).length;
-  const counts      = getOptionCounts(poll);
+  const ballots     = Object.keys(poll.votes ?? {}).length;
+  const counts      = getOptionCounts(poll, unitsByMember);
+  const totalVotes  = unitsByMember ? Object.values(counts).reduce((s, v) => s + v, 0) : ballots;
+  const unitLabel   = positionLabel ?? 'unit';
   const showResults = hasVoted || poll.status !== 'active';
   const canVote     = poll.status === 'active' && !hasVoted;
 
@@ -359,8 +438,25 @@ function PollCard({
           <p className="text-sm text-stone-600 mb-3 leading-relaxed">{poll.description}</p>
         )}
 
+        {(poll.proposalCategory || poll.requestedBudget || poll.fundingSource || poll.timelineNote) && (
+          <div className="mb-3 p-3 bg-stone-50 border border-stone-200 rounded-md text-xs text-stone-600 space-y-1">
+            {poll.proposalCategory && (
+              <div><span className="text-stone-400">Category:</span> <span className="font-medium text-stone-800">{poll.proposalCategory}</span></div>
+            )}
+            {poll.requestedBudget != null && (
+              <div><span className="text-stone-400">Requested budget:</span> <span className="font-medium text-stone-800">{poll.requestedBudget.toLocaleString()}</span></div>
+            )}
+            {poll.fundingSource && (
+              <div><span className="text-stone-400">Funding source:</span> <span className="font-medium text-stone-800">{poll.fundingSource}</span></div>
+            )}
+            {poll.timelineNote && (
+              <div><span className="text-stone-400">Timeline:</span> <span className="text-stone-700">{poll.timelineNote}</span></div>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center gap-3 text-[11px] text-stone-400 font-mono uppercase tracking-wider mb-4">
-          <span>{totalVotes} vote{totalVotes !== 1 ? 's' : ''}</span>
+          <span>{ballots} vote{ballots !== 1 ? 's' : ''}{unitsByMember ? ` · ${totalVotes} ${unitLabel}${totalVotes === 1 ? '' : 's'}` : ''}</span>
           {poll.voteType === 'multiple' && <span>· Multi-choice</span>}
           {poll.deadline && <span>· Closes {poll.deadline}</span>}
         </div>
@@ -431,7 +527,9 @@ function PollCard({
                       {isMyPick && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
                       {opt.text}
                     </span>
-                    <span className="font-mono text-xs text-stone-400 shrink-0 ml-2">{count} · {pct}%</span>
+                    <span className="font-mono text-xs text-stone-400 shrink-0 ml-2">
+                      {count}{unitsByMember ? ` ${unitLabel}${count === 1 ? '' : 's'}` : ''} · {pct}%
+                    </span>
                   </div>
                   <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
                     <div
@@ -454,14 +552,14 @@ function PollCard({
         ) : null}
 
         {/* Admin voter list */}
-        {isAdmin && totalVotes > 0 && (
+        {isAdmin && ballots > 0 && (
           <div className="mt-4 border-t border-stone-100 pt-3">
             <button
               onClick={() => setShowVoters((v) => !v)}
               className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-700"
             >
               {showVoters ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              {showVoters ? 'Hide' : 'Show'} voters ({totalVotes})
+              {showVoters ? 'Hide' : 'Show'} voters ({ballots})
             </button>
             {showVoters && (
               <div className="mt-2 border border-stone-100 rounded-md overflow-hidden">
@@ -477,6 +575,26 @@ function PollCard({
             )}
           </div>
         )}
+
+        {/* Log as permanent decision — closed polls only, explicit opt-in */}
+        {poll.status === 'closed' && onLogDecision && (
+          <div className="mt-4 border-t border-stone-100 pt-3">
+            {decisionLogged ? (
+              <span className="flex items-center gap-1.5 text-xs text-stone-500">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Logged as a decision record
+              </span>
+            ) : isAdmin ? (
+              <button
+                onClick={onLogDecision}
+                disabled={totalVotes === 0}
+                className="flex items-center gap-1.5 text-xs font-medium text-stone-700 hover:text-stone-900 disabled:opacity-40 disabled:cursor-not-allowed"
+                title={totalVotes === 0 ? 'No votes were cast on this proposal' : undefined}
+              >
+                <Scale className="w-3.5 h-3.5" /> Log as decision
+              </button>
+            ) : null}
+          </div>
+        )}
       </div>
     </article>
   );
@@ -485,14 +603,18 @@ function PollCard({
 // ─── ClosedSection ────────────────────────────────────────────────────────────
 
 function ClosedSection({
-  polls, userId, orgSlug, isAdmin, isPro, onDelete,
+  polls, userId, orgSlug, isAdmin, isPro, unitsByMember, positionLabel, onDelete, loggedPollIds, onLogDecision,
 }: {
   polls: Poll[];
   userId: string;
   orgSlug: string;
   isAdmin: boolean;
   isPro: boolean;
+  unitsByMember?: Record<string, number>;
+  positionLabel?: string;
   onDelete: (poll: Poll) => void;
+  loggedPollIds: Set<string | undefined>;
+  onLogDecision: (poll: Poll) => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -502,7 +624,7 @@ function ClosedSection({
         className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-stone-400 hover:text-stone-700"
       >
         {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-        Closed polls · {polls.length}
+        Closed proposals · {polls.length}
       </button>
       {open && polls.map((poll) => (
         <PollCard
@@ -513,9 +635,13 @@ function ClosedSection({
           isAdmin={isAdmin}
           isPro={isPro}
           focused={false}
+          unitsByMember={unitsByMember}
+          positionLabel={positionLabel}
           onVote={async () => {}}
           onEdit={() => {}}
           onDelete={() => onDelete(poll)}
+          decisionLogged={loggedPollIds.has(poll.id)}
+          onLogDecision={() => onLogDecision(poll)}
         />
       ))}
     </section>
@@ -538,6 +664,11 @@ function PollModal({
   const [voteType,    setVoteType]    = useState<VoteType>(editing?.voteType ?? 'single');
   const [deadline,    setDeadline]    = useState(editing?.deadline    ?? '');
   const [status,      setStatus]      = useState<PollStatus>(editing?.status ?? 'draft');
+  const [proposalCategory, setProposalCategory] = useState(editing?.proposalCategory ?? '');
+  const [requestedBudget,  setRequestedBudget]  = useState(editing?.requestedBudget?.toString() ?? '');
+  const [fundingSource,    setFundingSource]    = useState(editing?.fundingSource ?? '');
+  const [timelineNote,     setTimelineNote]     = useState(editing?.timelineNote ?? '');
+  const isCooperative = org.type === 'cooperative';
   const [options, setOptions] = useState<PollOption[]>(
     editing?.options?.length
       ? editing.options
@@ -573,6 +704,12 @@ function PollModal({
       voteType,
       status,
       deadline: deadline || undefined,
+      ...(isCooperative ? {
+        proposalCategory: proposalCategory || undefined,
+        requestedBudget: requestedBudget ? parseFloat(requestedBudget) : undefined,
+        fundingSource: fundingSource.trim() || undefined,
+        timelineNote: timelineNote.trim() || undefined,
+      } : {}),
     };
     if (isEdit) {
       await updatePoll(org.id, editing.id, data);
@@ -588,7 +725,7 @@ function PollModal({
     <div className="fixed inset-0 z-50 bg-stone-900/40 flex items-center justify-center p-4" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-lg border border-stone-200 shadow-2xl rounded-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between">
-          <h3 className="font-display text-xl">{isEdit ? 'Edit vote' : 'New vote'}</h3>
+          <h3 className="font-display text-xl">{isEdit ? 'Edit proposal' : 'New proposal'}</h3>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X className="w-5 h-5" /></button>
         </div>
 
@@ -613,6 +750,55 @@ function PollModal({
               className="w-full px-3 py-2.5 border border-stone-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-stone-900 resize-none"
             />
           </div>
+
+          {isCooperative && (
+            <div className="space-y-4 p-4 bg-stone-50 border border-stone-200 rounded-md">
+              <div className="text-[11px] uppercase tracking-widest text-stone-400 font-mono">Proposal details</div>
+              <div>
+                <label className="text-xs text-stone-600 block mb-1.5">Category</label>
+                <select
+                  value={proposalCategory}
+                  onChange={(e) => setProposalCategory(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-stone-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-stone-900 bg-white"
+                >
+                  <option value="">None</option>
+                  {PROPOSAL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-stone-600 block mb-1.5">Requested budget</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={requestedBudget}
+                    onChange={(e) => setRequestedBudget(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3 py-2.5 border border-stone-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-stone-600 block mb-1.5">Funding source</label>
+                  <input
+                    value={fundingSource}
+                    onChange={(e) => setFundingSource(e.target.value)}
+                    placeholder="e.g. General Fund"
+                    className="w-full px-3 py-2.5 border border-stone-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-stone-600 block mb-1.5">Timeline</label>
+                <textarea
+                  value={timelineNote}
+                  onChange={(e) => setTimelineNote(e.target.value)}
+                  rows={2}
+                  placeholder="Expected timeline / milestones"
+                  className="w-full px-3 py-2.5 border border-stone-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-stone-900 resize-none"
+                />
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="text-xs text-stone-600 block mb-2">Vote type</label>

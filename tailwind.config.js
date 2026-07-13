@@ -15,6 +15,8 @@ export default {
         display: ['Fraunces', 'Georgia', 'serif'],
         editorial: ['Newsreader', 'Iowan Old Style', 'Georgia', 'serif'],
         mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        serif: ['Spectral', 'Georgia', 'serif'],
+        plex: ['"IBM Plex Mono"', 'monospace'],
       },
     },
   },

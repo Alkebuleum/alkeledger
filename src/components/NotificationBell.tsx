@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell, Megaphone, CalendarDays, BarChart2, Wallet, Inbox, Users, X } from 'lucide-react';
+import { Bell, CalendarDays, BarChart2, Wallet, Inbox, Users, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { AppNotif, NotifType } from '@/types';
 
 const TYPE_ICONS: Record<NotifType, React.ComponentType<{ className?: string }>> = {
-  announcement: Megaphone,
   event:        CalendarDays,
   poll:         BarChart2,
   dues:         Wallet,

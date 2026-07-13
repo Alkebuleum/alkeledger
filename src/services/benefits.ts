@@ -3,6 +3,7 @@ import {
   query, where, orderBy, serverTimestamp, Timestamp,
 } from 'firebase/firestore';
 import { USE_MOCK_DATA, db } from '@/lib/firebase';
+import { isDemoOrgId } from '@/lib/demo';
 import type { Benefit, BenefitRequest, BenefitRequestStatus } from '@/types';
 
 let mockBenefits: Benefit[] = [];
@@ -23,7 +24,7 @@ function toDate(v: unknown): string {
 // ─── Benefits ─────────────────────────────────────────────────────────────────
 
 export async function listBenefits(orgId: string): Promise<Benefit[]> {
-  if (USE_MOCK_DATA) return mockBenefits.filter((b) => b.orgId === orgId);
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) return mockBenefits.filter((b) => b.orgId === orgId);
   if (!db) return [];
   const snap = await getDocs(query(benefitsCol(orgId), orderBy('createdAt', 'asc')));
   return snap.docs.map((d) => {
@@ -52,7 +53,7 @@ export async function createBenefit(
     orgId,
     createdAt: new Date().toISOString().slice(0, 10),
   };
-  if (USE_MOCK_DATA) { mockBenefits = [...mockBenefits, benefit]; return benefit; }
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) { mockBenefits = [...mockBenefits, benefit]; return benefit; }
   if (!db) return benefit;
   const ref = await addDoc(benefitsCol(orgId), { ...data, orgId, createdAt: serverTimestamp() });
   return { ...benefit, id: ref.id };
@@ -63,7 +64,7 @@ export async function updateBenefit(
   benefitId: string,
   data: Partial<Pick<Benefit, 'name' | 'description' | 'maxAmount' | 'requiresAmount' | 'active'>>,
 ): Promise<void> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     mockBenefits = mockBenefits.map((b) => b.id === benefitId ? { ...b, ...data } : b);
     return;
   }
@@ -72,7 +73,7 @@ export async function updateBenefit(
 }
 
 export async function deleteBenefit(orgId: string, benefitId: string): Promise<void> {
-  if (USE_MOCK_DATA) { mockBenefits = mockBenefits.filter((b) => b.id !== benefitId); return; }
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) { mockBenefits = mockBenefits.filter((b) => b.id !== benefitId); return; }
   if (!db) return;
   await deleteDoc(doc(benefitsCol(orgId), benefitId));
 }
@@ -80,7 +81,7 @@ export async function deleteBenefit(orgId: string, benefitId: string): Promise<v
 // ─── Benefit requests ─────────────────────────────────────────────────────────
 
 export async function listBenefitRequests(orgId: string): Promise<BenefitRequest[]> {
-  if (USE_MOCK_DATA) return mockRequests.filter((r) => r.orgId === orgId);
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) return mockRequests.filter((r) => r.orgId === orgId);
   if (!db) return [];
   const snap = await getDocs(query(requestsCol(orgId), orderBy('createdAt', 'desc')));
   return snap.docs.map((d) => {
@@ -104,7 +105,7 @@ export async function listBenefitRequests(orgId: string): Promise<BenefitRequest
 }
 
 export async function listMyBenefitRequests(orgId: string, userId: string): Promise<BenefitRequest[]> {
-  if (USE_MOCK_DATA) return mockRequests.filter((r) => r.orgId === orgId && r.memberId === userId);
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) return mockRequests.filter((r) => r.orgId === orgId && r.memberId === userId);
   if (!db) return [];
   const snap = await getDocs(
     query(requestsCol(orgId), where('memberId', '==', userId), orderBy('createdAt', 'desc')),
@@ -140,7 +141,7 @@ export async function submitBenefitRequest(
     status: 'pending',
     createdAt: new Date().toISOString().slice(0, 10),
   };
-  if (USE_MOCK_DATA) { mockRequests = [req, ...mockRequests]; return req; }
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) { mockRequests = [req, ...mockRequests]; return req; }
   if (!db) return req;
   const ref = await addDoc(requestsCol(orgId), {
     ...data,
@@ -158,7 +159,7 @@ export async function markBenefitPaid(
   paidAmount?: number,
 ): Promise<void> {
   const paidAt = new Date().toISOString();
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     mockRequests = mockRequests.map((r) =>
       r.id === requestId ? { ...r, status: 'paid' as const, paidBy, paidAt, paidAmount } : r,
     );
@@ -176,7 +177,7 @@ export async function decideBenefitRequest(
   response?: string,
 ): Promise<void> {
   const closedAt = new Date().toISOString();
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     mockRequests = mockRequests.map((r) =>
       r.id === requestId ? { ...r, status, closedBy, closedAt, response } : r,
     );

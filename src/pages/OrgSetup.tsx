@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
-import { Users, FolderKanban, Check, ShieldCheck, Hash } from 'lucide-react';
+import { Users, FolderKanban, Handshake, Check, ShieldCheck, Hash } from 'lucide-react';
 import { Brand } from '@/components/Brand';
 import { Row } from '@/components/Row';
-import type { Organization, OrgType } from '@/types';
+import type { Organization, OrgType, ParticipationModel, VotingModel } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
 
 interface Props {
@@ -16,15 +16,29 @@ interface Props {
 
 type Mode = 'create' | 'join';
 
+const TAGLINES: Record<OrgType, string> = {
+  membership: 'Membership organization',
+  project: 'Project / nonprofit',
+  cooperative: 'Community cooperative',
+};
+
 export function OrgSetup({ onCreate, onJoin, onCancel, user }: Props) {
   const [mode, setMode]           = useState<Mode>('create');
-  const [step, setStep]           = useState<1 | 2 | 3>(1);
+  const [step, setStep]           = useState<1 | 2 | 3 | 4>(1);
   const [name, setName]           = useState('');
   const [type, setType]           = useState<OrgType | null>(null);
   const [currency, setCurrency]   = useState('USD');
   const [inviteCode, setInviteCode] = useState('');
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState('');
+
+  // Cooperative-specific setup
+  const [participationModel, setParticipationModel] = useState<ParticipationModel>('unit');
+  const [votingModel, setVotingModel]                = useState<VotingModel>('oneMemberOneVote');
+  const [positionLabel, setPositionLabel]            = useState('Participation Unit');
+
+  const totalSteps = type === 'cooperative' ? 4 : 3;
+  const reviewStep = totalSteps;
 
   const [searchParams] = useSearchParams();
   useEffect(() => {
@@ -39,7 +53,12 @@ export function OrgSetup({ onCreate, onJoin, onCancel, user }: Props) {
     if (!type) return;
     setSaving(true); setError('');
     try {
-      await onCreate({ name, type, currency, logoInitials: initials, tagline: type === 'membership' ? 'Membership organization' : 'Project / nonprofit' });
+      await onCreate({
+        name, type, currency, logoInitials: initials, tagline: TAGLINES[type],
+        ...(type === 'cooperative'
+          ? { cooperativeConfig: { participationModel, votingModel, positionLabel: positionLabel.trim() || 'Participation Unit' } }
+          : {}),
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
       setSaving(false);
@@ -134,23 +153,24 @@ export function OrgSetup({ onCreate, onJoin, onCancel, user }: Props) {
             <>
               {/* Step progress */}
               <div className="flex items-center gap-2 mb-6">
-                {[1, 2, 3].map((s) => (
+                {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s) => (
                   <div key={s} className="flex items-center gap-2">
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
                       s < step ? 'bg-[#2F5D50] text-white' : s === step ? 'bg-[#0E1015] text-white' : 'bg-stone-100 text-stone-400'
                     }`}>
                       {s < step ? <Check className="w-3.5 h-3.5" /> : s}
                     </div>
-                    {s < 3 && <div className={`h-px w-8 ${s < step ? 'bg-[#2F5D50]' : 'bg-stone-200'}`} />}
+                    {s < totalSteps && <div className={`h-px w-8 ${s < step ? 'bg-[#2F5D50]' : 'bg-stone-200'}`} />}
                   </div>
                 ))}
-                <span className="ml-2 text-sm text-stone-400">Step {step} of 3</span>
+                <span className="ml-2 text-sm text-stone-400">Step {step} of {totalSteps}</span>
               </div>
 
               <h1 className="font-display text-2xl font-semibold text-stone-900 mb-6">
                 {step === 1 && 'Name your workspace'}
                 {step === 2 && 'What kind of organization?'}
-                {step === 3 && 'Review and create'}
+                {step === 3 && type === 'cooperative' && 'Participation & governance'}
+                {step === reviewStep && 'Review and create'}
               </h1>
 
               {step === 1 && (
@@ -187,7 +207,7 @@ export function OrgSetup({ onCreate, onJoin, onCancel, user }: Props) {
                     icon={Users}
                     title="Membership"
                     body="Associations, clubs, professional societies, alumni groups, councils, unions, chambers."
-                    bullets={['Member directory', 'Dues tracking', 'Member portal', 'Announcements']}
+                    bullets={['Member directory', 'Dues tracking', 'Member portal', 'Events & proposals']}
                   />
                   <TypeCard
                     active={type === 'project'}
@@ -197,15 +217,73 @@ export function OrgSetup({ onCreate, onJoin, onCancel, user }: Props) {
                     body="Nonprofits, NGOs, grant-funded projects, foundations, public programs, startup projects."
                     bullets={['Project budgets', 'Grants & donations', 'Restricted funds', 'Public transparency']}
                   />
+                  <TypeCard
+                    active={type === 'cooperative'}
+                    onClick={() => setType('cooperative')}
+                    icon={Handshake}
+                    title="Community Cooperative"
+                    body="Member-governed groups that pool money, skills, or materials and jointly fund and manage projects over time."
+                    bullets={['Participation positions', 'Shared treasury', 'Governance & voting', 'Project portfolio']}
+                  />
                 </div>
               )}
 
-              {step === 3 && (
+              {step === 3 && type === 'cooperative' && (
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1.5">What does a position represent?</label>
+                    <input
+                      value={positionLabel}
+                      onChange={(e) => setPositionLabel(e.target.value)}
+                      placeholder="e.g. Participation Unit, Membership Share"
+                      className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E1015]/10 focus:border-[#0E1015] transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1.5">Participation model</label>
+                    <select
+                      value={participationModel}
+                      onChange={(e) => setParticipationModel(e.target.value as ParticipationModel)}
+                      className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E1015]/10 focus:border-[#0E1015] bg-white transition-colors"
+                    >
+                      <option value="equal">Equal membership — every member holds one position</option>
+                      <option value="unit">Unit-based — members hold varying units by contribution</option>
+                      <option value="contribution">Contribution-based — position calculated from contributions</option>
+                      <option value="hybrid">Hybrid — some rights equal, others unit/contribution-based</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1.5">Voting model</label>
+                    <select
+                      value={votingModel}
+                      onChange={(e) => setVotingModel(e.target.value as VotingModel)}
+                      className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E1015]/10 focus:border-[#0E1015] bg-white transition-colors"
+                    >
+                      <option value="oneMemberOneVote">One member, one vote</option>
+                      <option value="unitWeighted">Unit-weighted — voting power based on units held</option>
+                      <option value="contributionWeighted">Contribution-weighted</option>
+                      <option value="hybrid">Hybrid — mixed by decision type</option>
+                    </select>
+                  </div>
+                  <p className="text-xs text-stone-400">
+                    These can be refined later in Settings as the cooperative's rules mature.
+                  </p>
+                </div>
+              )}
+
+              {step === reviewStep && (
                 <div className="space-y-4 text-sm">
                   <Row label="Workspace name" value={name || '—'} />
-                  <Row label="Organization type" value={type === 'membership' ? 'Membership' : type === 'project' ? 'Project / Nonprofit' : '—'} />
+                  <Row label="Organization type" value={type === 'membership' ? 'Membership' : type === 'project' ? 'Project / Nonprofit' : type === 'cooperative' ? 'Community Cooperative' : '—'} />
                   <Row label="Default currency" value={currency} />
                   <Row label="Owner" value={user.displayName} />
+                  {type === 'cooperative' && (
+                    <>
+                      <Row label="Position label" value={positionLabel || 'Participation Unit'} />
+                      <Row label="Participation model" value={participationModel} />
+                      <Row label="Voting model" value={votingModel} />
+                    </>
+                  )}
                   <div className="mt-6 p-4 rounded-xl bg-[#EEF4F1] border border-[#C2D9D1] flex gap-3">
                     <ShieldCheck className="w-5 h-5 text-[#2F5D50] flex-none mt-0.5" />
                     <p className="text-stone-700 text-sm leading-relaxed">
@@ -220,15 +298,15 @@ export function OrgSetup({ onCreate, onJoin, onCancel, user }: Props) {
 
               <div className="mt-8 flex items-center justify-between">
                 <button
-                  onClick={() => step > 1 && setStep((step - 1) as 1 | 2 | 3)}
+                  onClick={() => step > 1 && setStep((step - 1) as 1 | 2 | 3 | 4)}
                   className={`text-sm transition-colors ${step === 1 ? 'invisible' : 'text-stone-500 hover:text-stone-900'}`}
                 >
                   ← Back
                 </button>
-                {step < 3 ? (
+                {step < reviewStep ? (
                   <button
                     disabled={(step === 1 && !name.trim()) || (step === 2 && !type)}
-                    onClick={() => setStep((step + 1) as 1 | 2 | 3)}
+                    onClick={() => setStep((step + 1) as 1 | 2 | 3 | 4)}
                     className="px-6 py-2.5 bg-[#0E1015] text-[#FAF8F4] rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-stone-800 transition-colors"
                   >
                     Continue →

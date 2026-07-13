@@ -11,6 +11,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { USE_MOCK_DATA, db } from '@/lib/firebase';
+import { isDemoOrgId } from '@/lib/demo';
 import { hashRecord, submitAnchor } from '@/lib/anchor';
 import { MOCK_LEDGER } from '@/data/mock';
 import { fmt } from '@/lib/format';
@@ -41,7 +42,7 @@ function toEntry(id: string, data: Record<string, unknown>): LedgerEntry {
 }
 
 export async function listEntries(orgId: string): Promise<LedgerEntry[]> {
-  if (USE_MOCK_DATA) return ledger.filter((l) => l.orgId === orgId);
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) return ledger.filter((l) => l.orgId === orgId);
 
   const q = query(entriesCol(orgId), orderBy('createdAt', 'desc'));
   const snap = await getDocs(q);
@@ -52,7 +53,7 @@ export function subscribeToEntries(
   orgId: string,
   callback: (entries: LedgerEntry[]) => void
 ): () => void {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     callback(ledger.filter((l) => l.orgId === orgId));
     return () => {};
   }
@@ -64,7 +65,7 @@ export function subscribeToEntries(
 }
 
 export async function createEntry(entry: LedgerEntry): Promise<LedgerEntry> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(entry.orgId)) {
     ledger = [entry, ...ledger];
     return entry;
   }
@@ -96,7 +97,7 @@ export async function updateEntryStatus(
 
   if (status === 'approved') {
     const idx = ledger.findIndex((l) => l.id === entryId);
-    if (USE_MOCK_DATA && idx >= 0) {
+    if ((USE_MOCK_DATA || isDemoOrgId(orgId)) && idx >= 0) {
       const entry = ledger[idx];
       const updated: LedgerEntry = {
         ...entry,
@@ -118,7 +119,7 @@ export async function updateEntryStatus(
     const hash = await hashRecord({ ...entryForHash, status, approvedBy: approver });
     patch.hash = hash;
     patch.anchorStatus = 'ready';
-  } else if (USE_MOCK_DATA) {
+  } else if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     const idx = ledger.findIndex((l) => l.id === entryId);
     if (idx >= 0) {
       ledger = [
@@ -133,10 +134,34 @@ export async function updateEntryStatus(
   await updateDoc(doc(db!, `organizations/${orgId}/ledgerEntries/${entryId}`), patch);
 }
 
+export async function revokeEntry(orgId: string, entryId: string, revokedBy: string): Promise<void> {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
+    const idx = ledger.findIndex((l) => l.id === entryId);
+    if (idx >= 0) {
+      ledger = [
+        ...ledger.slice(0, idx),
+        { ...ledger[idx], revokedBy, revokedAt: new Date().toISOString().slice(0, 10) },
+        ...ledger.slice(idx + 1),
+      ];
+    }
+    return;
+  }
+
+  await updateDoc(doc(db!, `organizations/${orgId}/ledgerEntries/${entryId}`), {
+    revokedBy,
+    revokedAt: new Date().toISOString().slice(0, 10),
+  });
+  await addDoc(auditCol(orgId), {
+    at: new Date().toISOString(),
+    who: revokedBy,
+    action: `Revoked credential ${entryId}`,
+  });
+}
+
 export async function anchorEntry(orgId: string, entryId: string): Promise<void> {
   const idx = ledger.findIndex((l) => l.id === entryId);
 
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     if (idx < 0) return;
     const entry = ledger[idx];
     if (!entry.hash) throw new Error('Cannot anchor an entry without a hash. Approve it first.');

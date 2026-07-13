@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { listEntries, createEntry as svcCreate, updateEntryStatus, anchorEntry } from '@/services/ledger';
+import { listEntries, createEntry as svcCreate, updateEntryStatus, anchorEntry, revokeEntry } from '@/services/ledger';
 import type { LedgerEntry, LedgerStatus } from '@/types';
 
 export function useLedger(orgId: string | null) {
@@ -60,5 +60,14 @@ export function useLedger(orgId: string | null) {
     [orgId, refresh]
   );
 
-  return { entries, loading, createEntry, setStatus, anchor, refresh };
+  const revoke = useCallback(
+    async (entryId: string, revokedBy: string) => {
+      if (!orgId) return;
+      await revokeEntry(orgId, entryId, revokedBy);
+      refresh();
+    },
+    [orgId, refresh]
+  );
+
+  return { entries, loading, createEntry, setStatus, anchor, revoke, refresh };
 }

@@ -1,9 +1,10 @@
 import { USE_MOCK_DATA } from '@/lib/firebase';
+import { isDemoOrgId } from '@/lib/demo';
 import { MOCK_AUDIT } from '@/data/mock';
 import type { AuditLogEntry } from '@/types';
 
 export async function listAuditLog(orgId: string): Promise<AuditLogEntry[]> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
     return MOCK_AUDIT;
   }
   // 🔌 FIREBASE

@@ -1,11 +1,11 @@
 {
-  "name": "AlkeLedger",
-  "short_name": "AlkeLedger",
+  "name": "Scribe",
+  "short_name": "Scribe",
   "description": "Blockchain-anchored bookkeeping for organizations that intend to be trusted.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f0e8",
-  "theme_color": "#1c1917",
+  "background_color": "#F6F4ED",
+  "theme_color": "#171B21",
   "orientation": "portrait-primary",
   "icons": [
     { "src": "/favicon-16x16.png", "sizes": "16x16",   "type": "image/png" },

@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { getMember } from '@/services/members';
 import { USE_MOCK_DATA } from '@/lib/firebase';
+import { isDemoOrgId } from '@/lib/demo';
 import type { Role } from '@/types';
 
 export function useRole(orgId: string | null, userId?: string): Role {
   const [role, setRole] = useState<Role>(USE_MOCK_DATA ? 'owner' : 'viewer');
 
   useEffect(() => {
-    if (USE_MOCK_DATA) { setRole('owner'); return; }
+    if (USE_MOCK_DATA || isDemoOrgId(orgId)) { setRole('owner'); return; }
     if (!orgId || !userId) { setRole('viewer'); return; }
 
     getMember(orgId, userId).then((m) => {

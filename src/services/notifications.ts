@@ -4,6 +4,7 @@ import {
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { USE_MOCK_DATA, db, app } from '@/lib/firebase';
+import { isDemoOrgId } from '@/lib/demo';
 import type { AppNotif, NotifType } from '@/types';
 
 function notifsCol(uid: string) {
@@ -42,7 +43,7 @@ export async function notifyCreated(
   body: string,
   link: string,
 ): Promise<void> {
-  if (USE_MOCK_DATA || !app) return;
+  if (USE_MOCK_DATA || isDemoOrgId(orgId) || !app) return;
   try {
     await httpsCallable(getFunctions(app), 'createNotifications')({
       orgId, type, title, body, link,

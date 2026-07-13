@@ -5,7 +5,6 @@
  */
 
 import type {
-  Announcement,
   AuditLogEntry,
   DocumentRecord,
   LedgerEntry,
@@ -13,6 +12,7 @@ import type {
   MemberRequest,
   Organization,
   Poll,
+  Position,
   Project,
 } from '@/types';
 
@@ -35,6 +35,22 @@ export const MOCK_ORGS: Organization[] = [
     logoInitials: 'RK',
     tagline: 'Watershed restoration nonprofit',
   },
+  {
+    id: 'org_umoja',
+    name: 'Umoja Community Cooperative',
+    type: 'cooperative',
+    createdAt: '2025-01-10',
+    currency: 'USD',
+    logoInitials: 'UC',
+    tagline: 'Diaspora-funded development cooperative',
+    cooperativeConfig: {
+      participationModel: 'unit',
+      positionLabel: 'Participation Unit',
+      votingModel: 'unitWeighted',
+      totalAuthorizedUnits: 1000,
+      unitValue: 100,
+    },
+  },
 ];
 
 export const MOCK_MEMBERS: Member[] = [
@@ -44,6 +60,11 @@ export const MOCK_MEMBERS: Member[] = [
   { id: 'm4', orgId: 'org_meridian', name: 'Marcus Okafor',   email: 'm.okafor@meridian.org',  status: 'active',    joined: '2018-01-30', duesPaid: true,  role: 'Treasurer',  memberType: 'individual' },
   { id: 'm5', orgId: 'org_meridian', name: 'Sofia Albright',  email: 's.albright@meridian.org',status: 'expired',   joined: '2017-08-11', duesPaid: false, role: 'Member',     memberType: 'individual' },
   { id: 'm6', orgId: 'org_meridian', name: 'Jonas Wells',     email: 'j.wells@meridian.org',   status: 'suspended', joined: '2020-11-02', duesPaid: false, role: 'Member',     memberType: 'organization', orgName: 'Wells Architecture Group', orgTitle: 'Director' },
+  { id: 'm7', orgId: 'org_umoja',    name: 'Comfort Doe',     email: 'c.doe@umoja.coop',       status: 'active',    joined: '2025-01-10', duesPaid: true,  role: 'Chairperson', memberType: 'individual' },
+  { id: 'm8', orgId: 'org_umoja',    name: 'Emmanuel Kollie', email: 'e.kollie@umoja.coop',     status: 'active',    joined: '2025-01-15', duesPaid: true,  role: 'Treasurer',   memberType: 'individual' },
+  { id: 'm9', orgId: 'org_umoja',    name: 'Wla Toe',         email: 'w.toe@umoja.coop',        status: 'active',    joined: '2025-02-01', duesPaid: true,  role: 'Member',      memberType: 'individual' },
+  { id: 'm10', orgId: 'org_umoja',   name: 'Fatu Sirleaf',    email: 'f.sirleaf@umoja.coop',    status: 'active',    joined: '2025-03-18', duesPaid: true,  role: 'Member',      memberType: 'individual' },
+  { id: 'm11', orgId: 'org_umoja',   name: 'Nathaniel Gbaka', email: 'n.gbaka@umoja.coop',      status: 'pending',   joined: '2026-05-02', duesPaid: false, role: 'Applicant',   memberType: 'individual' },
 ];
 
 export const MOCK_PROJECTS: Project[] = [
@@ -51,6 +72,8 @@ export const MOCK_PROJECTS: Project[] = [
   { id: 'p2', orgId: 'org_riverkeep', name: 'Community Water Testing', budget: 65000,  spent: 41200,  status: 'active',   restricted: false, milestones: 3, completedMilestones: 1 },
   { id: 'p3', orgId: 'org_riverkeep', name: 'Youth Stewards Program',  budget: 38000,  spent: 38000,  status: 'complete', restricted: true,  milestones: 5, completedMilestones: 5 },
   { id: 'p4', orgId: 'org_riverkeep', name: 'Riverside Reforestation', budget: 120000, spent: 22500,  status: 'planning', restricted: true,  milestones: 6, completedMilestones: 0 },
+  { id: 'p5', orgId: 'org_umoja',     name: 'Community Well — Phase 1', budget: 15000, spent: 6200,   status: 'active',   restricted: true,  milestones: 4, completedMilestones: 1 },
+  { id: 'p6', orgId: 'org_umoja',     name: 'School Supplies Drive',    budget: 4000,  spent: 4000,    status: 'complete', restricted: false, milestones: 2, completedMilestones: 2 },
 ];
 
 export const MOCK_LEDGER: LedgerEntry[] = [
@@ -63,6 +86,15 @@ export const MOCK_LEDGER: LedgerEntry[] = [
   { id: 'le_101', orgId: 'org_meridian',  type: 'income',  amount: 350,   currency: 'USD', category: 'Dues',       description: 'Annual dues — E. Vance',                  memberId: 'm1', status: 'anchored',  createdBy: 'M. Okafor', approvedBy: 'M. Okafor',createdAt: '2026-01-12', approvedAt: '2026-01-12', hash: '0x2a4f…77bc', anchorStatus: 'anchored', txHash: '0x91de…aa20' },
   { id: 'le_102', orgId: 'org_meridian',  type: 'income',  amount: 350,   currency: 'USD', category: 'Dues',       description: 'Annual dues — H. Tanaka',                 memberId: 'm2', status: 'approved',  createdBy: 'M. Okafor', approvedBy: 'M. Okafor',createdAt: '2026-02-04', approvedAt: '2026-02-04', hash: '0x66bb…1109', anchorStatus: 'ready' },
   { id: 'le_103', orgId: 'org_meridian',  type: 'expense', amount: 1200,  currency: 'USD', category: 'Venue',      description: 'Quarterly meeting venue',                                  status: 'pending',   createdBy: 'M. Okafor',                         createdAt: '2026-05-12',                                                       anchorStatus: 'not_anchored' },
+  { id: 'le_201', orgId: 'org_umoja',     type: 'income',  amount: 25000, currency: 'USD', category: 'Contribution', description: 'Q1 member unit purchases',              status: 'anchored',  createdBy: 'E. Kollie', approvedBy: 'C. Doe',   createdAt: '2026-01-20', approvedAt: '2026-01-21', hash: '0x1a9d…33ce', anchorStatus: 'anchored', txHash: '0x40fe…c812' },
+  { id: 'le_202', orgId: 'org_umoja',     type: 'expense', amount: 6200,  currency: 'USD', category: 'Project Fund', description: 'Well drilling — first installment',    status: 'approved',  createdBy: 'E. Kollie', approvedBy: 'C. Doe',   createdAt: '2026-03-05', approvedAt: '2026-03-06', hash: '0x7e21…9a04', anchorStatus: 'ready' },
+];
+
+export const MOCK_POSITIONS: Position[] = [
+  { id: 'pos1', orgId: 'org_umoja', memberId: 'm7',  memberName: 'Comfort Doe',     units: 150, contributionNote: 'Founding member contribution', status: 'active', issuedBy: 'System', issuedAt: '2025-01-10' },
+  { id: 'pos2', orgId: 'org_umoja', memberId: 'm8',  memberName: 'Emmanuel Kollie', units: 120, contributionNote: 'Founding member contribution', status: 'active', issuedBy: 'System', issuedAt: '2025-01-15' },
+  { id: 'pos3', orgId: 'org_umoja', memberId: 'm9',  memberName: 'Wla Toe',         units: 80,  contributionNote: 'Cash contribution — Q1 2026',  status: 'active', issuedBy: 'Comfort Doe', issuedAt: '2025-02-01' },
+  { id: 'pos4', orgId: 'org_umoja', memberId: 'm10', memberName: 'Fatu Sirleaf',    units: 60,  contributionNote: 'Cash contribution — Q1 2026',  status: 'active', issuedBy: 'Comfort Doe', issuedAt: '2025-03-18' },
 ];
 
 export const MOCK_DOCUMENTS: DocumentRecord[] = [
@@ -72,11 +104,6 @@ export const MOCK_DOCUMENTS: DocumentRecord[] = [
   { id: 'd4', orgId: 'org_riverkeep', name: 'Cedar Creek — Scope of Work.pdf',  size: '1.2 MB', uploaded: '2026-01-20', category: 'Project' },
   { id: 'd5', orgId: 'org_riverkeep', name: 'EPA Grant Agreement.pdf',          size: '640 KB', uploaded: '2026-03-15', category: 'Grant' },
   { id: 'd6', orgId: 'org_riverkeep', name: 'Annual Report 2025.pdf',           size: '3.4 MB', uploaded: '2026-02-28', category: 'Report' },
-];
-
-export const MOCK_ANNOUNCEMENTS: Announcement[] = [
-  { id: 'a1', orgId: 'org_meridian', title: 'Annual General Meeting — June 18', body: 'Join us at the downtown hall, 6 PM. Voting on the 2026 board.', date: '2026-05-14', priority: 'important', createdBy: 'Marcus Okafor' },
-  { id: 'a2', orgId: 'org_meridian', title: '2026 Dues Reminder',                body: 'Dues for the current cycle are due May 31. Pay via the portal.', date: '2026-05-02', priority: 'urgent',    createdBy: 'Marcus Okafor' },
 ];
 
 export const MOCK_REQUESTS: MemberRequest[] = [
@@ -119,6 +146,30 @@ export const MOCK_POLLS: Poll[] = [
     createdBy: 'Eleanor Vance',
     createdAt: '2026-05-24',
     votes: {},
+  },
+  {
+    id: 'pol_201',
+    orgId: 'org_umoja',
+    title: 'Fund a second community well in Bomi County?',
+    description: 'Proposal to allocate cooperative treasury funds toward a second well, following the success of the first project.',
+    options: [
+      { id: 'o7', text: 'Approve funding' },
+      { id: 'o8', text: 'Reject — reassess next quarter' },
+    ],
+    voteType: 'single',
+    status: 'active',
+    deadline: '2026-08-01',
+    createdBy: 'Comfort Doe',
+    createdAt: '2026-06-01',
+    proposalCategory: 'Project funding',
+    requestedBudget: 18000,
+    fundingSource: 'General Fund',
+    timelineNote: 'Drilling to begin within 60 days of approval; est. 4 months to completion.',
+    votes: {
+      'm7': { optionIds: ['o7'], votedAt: '2026-06-02T09:00:00Z', voterName: 'Comfort Doe' },
+      'm8': { optionIds: ['o7'], votedAt: '2026-06-02T11:15:00Z', voterName: 'Emmanuel Kollie' },
+      'm9': { optionIds: ['o8'], votedAt: '2026-06-03T08:40:00Z', voterName: 'Wla Toe' },
+    },
   },
 ];
 
