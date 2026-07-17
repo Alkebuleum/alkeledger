@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, X, MapPin, Clock, Pencil, Trash2, CalendarDays, Users, ChevronDown, ChevronUp, Link2, Mail, MessageCircle, ImagePlus } from 'lucide-react';
+import { Plus, X, MapPin, Clock, Pencil, Trash2, CalendarDays, Users, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Link2, Mail, MessageCircle, ImagePlus } from 'lucide-react';
 import { listEvents, createEvent, updateEvent, deleteEvent, setRsvp, notifyEventMembers, uploadEventImage, deleteEventImage } from '@/services/events';
 import { processCoverImage } from '@/lib/image';
 import { notifyCreated } from '@/services/notifications';
@@ -88,11 +88,187 @@ function isPast(event: OrgEvent): boolean {
   return new Date(end) < new Date();
 }
 
+// Local (not UTC) date key — toISOString() would shift dates near midnight
+// depending on the viewer's timezone, misplacing events on the grid.
+function dateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function sameMonth(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+}
+
 const RSVP_OPTIONS: { value: RsvpStatus; label: string; active: string; idle: string }[] = [
   { value: 'attending', label: 'Attending', active: 'bg-emerald-600 text-white',  idle: 'bg-white text-stone-600 border-stone-300 hover:border-emerald-400 hover:text-emerald-700' },
   { value: 'maybe',     label: 'Maybe',     active: 'bg-amber-500 text-white',    idle: 'bg-white text-stone-600 border-stone-300 hover:border-amber-400 hover:text-amber-600' },
   { value: 'declining', label: 'Declining', active: 'bg-stone-500 text-white',    idle: 'bg-white text-stone-600 border-stone-300 hover:border-stone-400' },
 ];
+
+// ─── MonthCalendar ────────────────────────────────────────────────────────────
+
+const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+function MonthCalendar({
+  events, viewDate, onViewDateChange, selectedDate, onSelectDate,
+}: {
+  events: OrgEvent[];
+  viewDate: Date;
+  onViewDateChange: (d: Date) => void;
+  selectedDate: string | null;
+  onSelectDate: (key: string | null) => void;
+}) {
+  const year  = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const today = new Date();
+
+  const eventCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const ev of events) {
+      if (ev.cancelled) continue;
+      const key = dateKey(new Date(ev.startDate));
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return map;
+  }, [events]);
+
+  const cells = useMemo(() => {
+    const firstWeekday = new Date(year, month, 1).getDay();
+    const daysInMonth   = new Date(year, month + 1, 0).getDate();
+    const out: (Date | null)[] = [];
+    for (let i = 0; i < firstWeekday; i++) out.push(null);
+    for (let d = 1; d <= daysInMonth; d++) out.push(new Date(year, month, d));
+    while (out.length % 7 !== 0) out.push(null);
+    return out;
+  }, [year, month]);
+
+  return (
+    <div className="bg-white border border-stone-200 rounded-xl p-4 sm:p-5">
+      <div className="flex items-center justify-between mb-3">
+        <button
+          onClick={() => onViewDateChange(new Date(year, month - 1, 1))}
+          className="p-1.5 rounded-md text-stone-400 hover:text-stone-900 hover:bg-stone-100"
+          aria-label="Previous month"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <div className="flex items-center gap-2">
+          <h3 className="font-display text-base sm:text-lg text-stone-900">
+            {viewDate.toLocaleDateString([], { month: 'long', year: 'numeric' })}
+          </h3>
+          {!sameMonth(viewDate, today) && (
+            <button
+              onClick={() => onViewDateChange(new Date())}
+              className="text-[11px] text-stone-400 hover:text-stone-700 underline"
+            >
+              Today
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => onViewDateChange(new Date(year, month + 1, 1))}
+          className="p-1.5 rounded-md text-stone-400 hover:text-stone-900 hover:bg-stone-100"
+          aria-label="Next month"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7">
+        {WEEKDAY_LABELS.map((d, i) => (
+          <div key={i} className="text-center text-[10px] font-medium uppercase text-stone-400 py-1">{d}</div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-y-0.5">
+        {cells.map((date, i) => {
+          if (!date) return <div key={i} />;
+          const key       = dateKey(date);
+          const count     = eventCounts.get(key) ?? 0;
+          const isToday   = key === dateKey(today);
+          const isSelected = key === selectedDate;
+          return (
+            <button
+              key={i}
+              onClick={() => onSelectDate(isSelected ? null : key)}
+              className="flex flex-col items-center justify-center py-1 gap-0.5"
+            >
+              <span
+                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs transition-colors ${
+                  isSelected
+                    ? 'bg-stone-900 text-white font-semibold'
+                    : isToday
+                    ? 'border border-stone-900 text-stone-900 font-semibold'
+                    : count > 0
+                    ? 'text-stone-900 font-medium hover:bg-stone-100'
+                    : 'text-stone-400 hover:bg-stone-50'
+                }`}
+              >
+                {date.getDate()}
+              </span>
+              <span
+                className={`w-1 h-1 rounded-full ${
+                  count === 0 ? 'bg-transparent' : isSelected ? 'bg-white' : 'bg-[var(--ledger-red)]'
+                }`}
+              />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── EventListItem ────────────────────────────────────────────────────────────
+// Compact row for the list under the calendar — a page can have many events,
+// so the list shows just enough to scan and tap through; full RSVP/attendee/
+// admin controls live on the detail view (EventCard) opened by tapping a row.
+
+function EventListItem({ event, userId, onOpen }: { event: OrgEvent; userId: string; onOpen: () => void }) {
+  const fmt = formatDate(event.startDate);
+  const myRsvp = event.rsvps?.[userId]?.status ?? null;
+  const totalRsvps = Object.keys(event.rsvps ?? {}).length;
+
+  return (
+    <button
+      onClick={onOpen}
+      className={`w-full flex items-center gap-3 sm:gap-4 bg-white border border-stone-200 rounded-xl p-3 sm:p-4 text-left hover:border-stone-300 hover:shadow-sm transition-all ${
+        event.cancelled ? 'opacity-60' : ''
+      }`}
+    >
+      <div className="shrink-0 w-11 h-[3.25rem] sm:w-12 sm:h-14 rounded-lg bg-stone-900 text-white flex flex-col items-center justify-center">
+        <span className="text-[8px] sm:text-[9px] uppercase font-mono text-white/50 leading-none tracking-wider">{fmt.month}</span>
+        <span className="text-xl sm:text-2xl font-display font-semibold leading-none mt-0.5">{fmt.day}</span>
+      </div>
+
+      <div className="flex-1 min-w-0">
+        {event.cancelled && (
+          <span className="text-[9px] uppercase tracking-widest font-mono text-red-500 block mb-0.5">Cancelled</span>
+        )}
+        <h4 className="font-display text-base text-stone-900 leading-tight truncate">{event.title}</h4>
+        <div className="mt-1 flex items-center gap-1.5 text-xs text-stone-500">
+          <Clock className="w-3 h-3 shrink-0 text-stone-400" />
+          <span className="truncate">
+            {formatRange(event.startDate, event.endDate, event.allDay)}
+            {event.location ? ` · ${event.location}` : ''}
+          </span>
+        </div>
+      </div>
+
+      <div className="shrink-0 flex items-center gap-2">
+        {myRsvp && (
+          <span
+            className={`w-2 h-2 rounded-full ${
+              myRsvp === 'attending' ? 'bg-emerald-500' : myRsvp === 'maybe' ? 'bg-amber-500' : 'bg-stone-400'
+            }`}
+            title={`You: ${myRsvp}`}
+          />
+        )}
+        {totalRsvps > 0 && <span className="hidden sm:inline text-[11px] text-stone-400 font-mono">{totalRsvps}</span>}
+        <ChevronRight className="w-4 h-4 text-stone-300" />
+      </div>
+    </button>
+  );
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -103,6 +279,8 @@ export function Events({ org, user }: Props) {
   const [editing, setEditing] = useState<OrgEvent | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [viewDate, setViewDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const reload = () => {
     setLoading(true);
@@ -115,15 +293,17 @@ export function Events({ org, user }: Props) {
   useEffect(() => { reload(); }, [org.id]);
 
   // Auto-RSVP from shared link: ?openEvent=<id>&rsvp=<status>
+  // Keeps `openEvent` in the URL afterward (drops only `rsvp`) so the visitor
+  // lands on that event's detail view instead of bouncing back to the plain list.
   useEffect(() => {
     if (loading) return;
     const openEventId = searchParams.get('openEvent');
     const rsvpStatus  = searchParams.get('rsvp') as RsvpStatus | null;
     if (!openEventId || !rsvpStatus) return;
     if (!(['attending', 'maybe', 'declining'] as string[]).includes(rsvpStatus)) return;
+    setSearchParams({ openEvent: openEventId }, { replace: true });
     const ev = events.find((e) => e.id === openEventId);
     if (!ev || isPast(ev) || ev.cancelled) return;
-    setSearchParams({}, { replace: true });
     setRsvp(org.id, openEventId, user.uid, user.displayName, rsvpStatus).then(reload).catch(() => {});
   }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -145,6 +325,24 @@ export function Events({ org, user }: Props) {
 
   const upcoming = events.filter((e) => !isPast(e) && !e.cancelled);
   const past      = events.filter((e) => isPast(e) || !!e.cancelled);
+  const dayEvents = selectedDate
+    ? events.filter((e) => dateKey(new Date(e.startDate)) === selectedDate)
+    : [];
+  const selectedLabel = selectedDate
+    ? new Date(`${selectedDate}T00:00:00`).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
+    : '';
+
+  const openEventId = searchParams.get('openEvent');
+  const openEvent    = openEventId ? events.find((e) => e.id === openEventId) ?? null : null;
+
+  const closeDetail = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('openEvent');
+    next.delete('rsvp');
+    setSearchParams(next);
+  };
+
+  const openDetail = (id: string) => setSearchParams({ openEvent: id });
 
   return (
     <div className="p-4 sm:p-8 max-w-3xl space-y-6">
@@ -153,7 +351,7 @@ export function Events({ org, user }: Props) {
           <div className="text-[10px] uppercase tracking-[0.25em] text-[var(--ledger-red)] font-mono">§ Calendar</div>
           <h2 className="font-display text-2xl mt-0.5">Calendar</h2>
         </div>
-        {isAdmin && (
+        {isAdmin && !openEventId && (
           <button
             onClick={() => { setEditing(null); setShowForm(true); }}
             className="px-3 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-md flex items-center gap-1.5 hover:bg-stone-800"
@@ -165,60 +363,113 @@ export function Events({ org, user }: Props) {
 
       {loading ? (
         <div className="py-12 text-center text-stone-400 text-sm">Loading…</div>
-      ) : events.length === 0 ? (
-        <div className="py-16 text-center text-stone-400">
-          <CalendarDays className="w-8 h-8 mx-auto mb-3 opacity-40" />
-          <p className="text-sm">No events scheduled yet.</p>
-          {isAdmin && (
-            <button
-              onClick={() => { setEditing(null); setShowForm(true); }}
-              className="mt-3 text-sm text-stone-600 underline"
-            >
-              Schedule the first one
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {/* Upcoming */}
-          {upcoming.length > 0 && (
-            <section className="space-y-3">
-              <h3 className="text-xs font-medium uppercase tracking-widest text-stone-500">
-                Upcoming · {upcoming.length}
-              </h3>
-              {upcoming.map((ev) => (
-                <EventCard
-                  key={ev.id}
-                  event={ev}
-                  userId={user.uid}
-                  orgSlug={org.slug ?? org.id}
-                  isAdmin={isAdmin}
-                  isPro={isPro}
-                  onRsvp={(s) => handleRsvp(ev, s)}
-                  onEdit={() => { setEditing(ev); setShowForm(true); }}
-                  onDelete={() => handleDelete(ev)}
-                  onNotify={() => notifyEventMembers(org.id, ev.id, {
-                    title: ev.title, startDate: ev.startDate, endDate: ev.endDate,
-                    allDay: ev.allDay, location: ev.location, description: ev.description,
-                  })}
-                />
-              ))}
-            </section>
-          )}
-
-          {/* Past */}
-          {past.length > 0 && (
-            <PastSection
-              events={past}
+      ) : openEventId ? (
+        /* ── Event detail (deep-linkable via ?openEvent=<id>, incl. share links & RSVP emails) ── */
+        <div className="space-y-4">
+          <button
+            onClick={closeDetail}
+            className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-900"
+          >
+            <ChevronLeft className="w-4 h-4" /> Back to calendar
+          </button>
+          {openEvent ? (
+            <EventCard
+              event={openEvent}
               userId={user.uid}
               orgSlug={org.slug ?? org.id}
               isAdmin={isAdmin}
               isPro={isPro}
-              onEdit={(ev) => { setEditing(ev); setShowForm(true); }}
-              onDelete={handleDelete}
+              onRsvp={(s) => handleRsvp(openEvent, s)}
+              onEdit={() => { setEditing(openEvent); setShowForm(true); }}
+              onDelete={() => handleDelete(openEvent)}
+              onNotify={() => notifyEventMembers(org.id, openEvent.id, {
+                title: openEvent.title, startDate: openEvent.startDate, endDate: openEvent.endDate,
+                allDay: openEvent.allDay, location: openEvent.location, description: openEvent.description,
+              })}
             />
+          ) : (
+            <div className="py-10 text-center text-stone-400 text-sm">
+              This event no longer exists or you don't have access to it.
+            </div>
           )}
         </div>
+      ) : (
+        <>
+          <MonthCalendar
+            events={events}
+            viewDate={viewDate}
+            onViewDateChange={setViewDate}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+          />
+
+          {events.length === 0 ? (
+            <div className="py-16 text-center text-stone-400">
+              <CalendarDays className="w-8 h-8 mx-auto mb-3 opacity-40" />
+              <p className="text-sm">No events scheduled yet.</p>
+              {isAdmin && (
+                <button
+                  onClick={() => { setEditing(null); setShowForm(true); }}
+                  className="mt-3 text-sm text-stone-600 underline"
+                >
+                  Schedule the first one
+                </button>
+              )}
+            </div>
+          ) : selectedDate ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-medium uppercase tracking-widest text-stone-500">
+                  {selectedLabel} · {dayEvents.length}
+                </h3>
+                <button
+                  onClick={() => setSelectedDate(null)}
+                  className="text-xs text-stone-400 hover:text-stone-700 underline"
+                >
+                  Show all
+                </button>
+              </div>
+              {dayEvents.length === 0 ? (
+                <div className="py-10 text-center text-stone-400">
+                  <p className="text-sm">No events on {selectedLabel}.</p>
+                  {isAdmin && (
+                    <button
+                      onClick={() => { setEditing(null); setShowForm(true); }}
+                      className="mt-3 text-sm text-stone-600 underline"
+                    >
+                      Schedule one
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {dayEvents.map((ev) => (
+                    <EventListItem key={ev.id} event={ev} userId={user.uid} onOpen={() => openDetail(ev.id)} />
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-8">
+              {/* Upcoming */}
+              {upcoming.length > 0 && (
+                <section className="space-y-2">
+                  <h3 className="text-xs font-medium uppercase tracking-widest text-stone-500">
+                    Upcoming · {upcoming.length}
+                  </h3>
+                  {upcoming.map((ev) => (
+                    <EventListItem key={ev.id} event={ev} userId={user.uid} onOpen={() => openDetail(ev.id)} />
+                  ))}
+                </section>
+              )}
+
+              {/* Past */}
+              {past.length > 0 && (
+                <PastSection events={past} userId={user.uid} onOpen={openDetail} />
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {showForm && (
@@ -470,19 +721,15 @@ function EventCard({
 // ─── PastSection ──────────────────────────────────────────────────────────────
 
 function PastSection({
-  events, userId, orgSlug, isAdmin, isPro, onEdit, onDelete,
+  events, userId, onOpen,
 }: {
   events: OrgEvent[];
   userId: string;
-  orgSlug: string;
-  isAdmin: boolean;
-  isPro: boolean;
-  onEdit: (ev: OrgEvent) => void;
-  onDelete: (ev: OrgEvent) => void;
+  onOpen: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <section className="space-y-3">
+    <section className="space-y-2">
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-stone-400 hover:text-stone-700"
@@ -491,17 +738,7 @@ function PastSection({
         Past events · {events.length}
       </button>
       {open && events.slice().reverse().map((ev) => (
-        <EventCard
-          key={ev.id}
-          event={ev}
-          userId={userId}
-          orgSlug={orgSlug}
-          isAdmin={isAdmin}
-          isPro={isPro}
-          onRsvp={() => {}}
-          onEdit={() => onEdit(ev)}
-          onDelete={() => onDelete(ev)}
-        />
+        <EventListItem key={ev.id} event={ev} userId={userId} onOpen={() => onOpen(ev.id)} />
       ))}
     </section>
   );

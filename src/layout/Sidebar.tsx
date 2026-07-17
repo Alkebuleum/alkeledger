@@ -74,19 +74,6 @@ export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExi
           { id: 'approvals', label: 'Approvals',  icon: FileCheck       },
         ];
 
-    const record: NavItem[] = [
-      {
-        id: 'ledger', label: 'Ledger', icon: BookOpen,
-        children: [
-          { id: 'transactions', label: 'Transactions', icon: Receipt },
-          { id: 'credentials',  label: 'Credentials',  icon: Award   },
-          { id: 'documents',    label: 'Documents',    icon: FileText },
-          { id: 'decisions',    label: 'Decisions',    icon: Scale   },
-        ],
-      },
-      { id: 'verify', label: 'Verify a record', icon: BadgeCheck },
-    ];
-
     const organization: NavItem[] = [
       { id: 'files',   label: 'Files',  icon: FileText },
       { id: 'members', label: 'People', icon: Users    },
@@ -101,10 +88,29 @@ export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExi
 
     return [
       { label: null,           items: general },
-      { label: 'Record',       items: record },
       { label: 'Organization', items: organization },
     ];
   }, [org.type, isAdmin]);
+
+  // Ledger/proof-of-record tooling — not every org wants to anchor and verify
+  // records, so this lives last, tucked under a collapsed "Advanced" disclosure
+  // instead of a normal always-open group.
+  const advancedItems: NavItem[] = [
+    {
+      id: 'ledger', label: 'Ledger', icon: BookOpen,
+      children: [
+        { id: 'transactions', label: 'Transactions', icon: Receipt },
+        { id: 'credentials',  label: 'Credentials',  icon: Award   },
+        { id: 'documents',    label: 'Documents',    icon: FileText },
+        { id: 'decisions',    label: 'Decisions',    icon: Scale   },
+      ],
+    },
+    { id: 'verify', label: 'Verify a record', icon: BadgeCheck },
+  ];
+
+  function containsPage(items: NavItem[], id: PageId): boolean {
+    return items.some((item) => item.id === id || item.children?.some((c) => c.id === id));
+  }
 
   const [expanded, setExpanded] = useState<Set<PageId>>(() => {
     const initial = new Set<PageId>();
@@ -118,6 +124,8 @@ export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExi
     return initial;
   });
 
+  const [advancedOpen, setAdvancedOpen] = useState(() => containsPage(advancedItems, page));
+
   // Navigating (not just clicking) to a parent or one of its children keeps that
   // section expanded, without fighting a manual collapse made while already there.
   useEffect(() => {
@@ -127,6 +135,9 @@ export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExi
           setExpanded((prev) => (prev.has(item.id) ? prev : new Set(prev).add(item.id)));
         }
       }
+    }
+    if (containsPage(advancedItems, page)) {
+      setAdvancedOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
@@ -139,6 +150,60 @@ export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExi
     });
   }
 
+  function renderItem(item: NavItem) {
+    const to        = item.id === 'dashboard' ? `/${slug}` : `/${slug}/${item.id}`;
+    const active    = page === item.id;
+    const badge     = unreadCounts?.[item.id] ?? 0;
+    const isOpen    = item.children ? expanded.has(item.id) : false;
+    return (
+      <div key={item.id}>
+        <Link
+          to={to}
+          onClick={() => { if (item.children) toggleExpanded(item.id); }}
+          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+            active
+              ? 'bg-[rgba(239,233,220,0.1)] text-[#EFE9DC]'
+              : 'text-[#A9AEB8] hover:bg-[rgba(239,233,220,0.06)] hover:text-[#EFE9DC]'
+          }`}
+        >
+          <item.icon className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{item.label}</span>
+          {badge > 0 && (
+            <span className={`min-w-[18px] h-5 text-[10px] font-bold rounded-full flex items-center justify-center px-1.5 leading-none ${
+              active ? 'bg-[#EFE9DC]/20 text-[#EFE9DC]' : 'bg-[#8A1E2D] text-[#EFE9DC]'
+            }`}>
+              {badge > 99 ? '99+' : badge}
+            </span>
+          )}
+          {item.children && (
+            <ChevronRight className={`w-3.5 h-3.5 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+          )}
+        </Link>
+        {item.children && isOpen && (
+          <div className="ml-4 pl-3 border-l border-[rgba(239,233,220,0.1)] space-y-0.5 mt-0.5">
+            {item.children.map((child) => {
+              const childActive = page === child.id;
+              return (
+                <Link
+                  key={child.id}
+                  to={`/${slug}/${child.id}`}
+                  className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] transition-colors ${
+                    childActive
+                      ? 'bg-[rgba(239,233,220,0.1)] text-[#EFE9DC]'
+                      : 'text-[#8A8F99] hover:bg-[rgba(239,233,220,0.06)] hover:text-[#EFE9DC]'
+                  }`}
+                >
+                  <child.icon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="flex-1">{child.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const initials = user.displayName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
 
   return (
@@ -147,7 +212,7 @@ export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExi
       <div className="px-5 py-4 border-b border-[rgba(239,233,220,0.1)] flex items-center justify-between">
         <div className="flex items-center gap-2.5 font-serif text-lg font-semibold text-[#EFE9DC]">
           <LedgerMark vellum />
-          Scribe
+          Scribb
         </div>
         {onClose && (
           <button
@@ -172,62 +237,27 @@ export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExi
               </div>
             )}
             <div className="space-y-0.5">
-              {group.items.map((item) => {
-                const to        = item.id === 'dashboard' ? `/${slug}` : `/${slug}/${item.id}`;
-                const active    = page === item.id;
-                const badge     = unreadCounts?.[item.id] ?? 0;
-                const isOpen    = item.children ? expanded.has(item.id) : false;
-                return (
-                  <div key={item.id}>
-                    <Link
-                      to={to}
-                      onClick={() => { if (item.children) toggleExpanded(item.id); }}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                        active
-                          ? 'bg-[rgba(239,233,220,0.1)] text-[#EFE9DC]'
-                          : 'text-[#A9AEB8] hover:bg-[rgba(239,233,220,0.06)] hover:text-[#EFE9DC]'
-                      }`}
-                    >
-                      <item.icon className="w-4 h-4 shrink-0" />
-                      <span className="flex-1">{item.label}</span>
-                      {badge > 0 && (
-                        <span className={`min-w-[18px] h-5 text-[10px] font-bold rounded-full flex items-center justify-center px-1.5 leading-none ${
-                          active ? 'bg-[#EFE9DC]/20 text-[#EFE9DC]' : 'bg-[#8A1E2D] text-[#EFE9DC]'
-                        }`}>
-                          {badge > 99 ? '99+' : badge}
-                        </span>
-                      )}
-                      {item.children && (
-                        <ChevronRight className={`w-3.5 h-3.5 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
-                      )}
-                    </Link>
-                    {item.children && isOpen && (
-                      <div className="ml-4 pl-3 border-l border-[rgba(239,233,220,0.1)] space-y-0.5 mt-0.5">
-                        {item.children.map((child) => {
-                          const childActive = page === child.id;
-                          return (
-                            <Link
-                              key={child.id}
-                              to={`/${slug}/${child.id}`}
-                              className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] transition-colors ${
-                                childActive
-                                  ? 'bg-[rgba(239,233,220,0.1)] text-[#EFE9DC]'
-                                  : 'text-[#8A8F99] hover:bg-[rgba(239,233,220,0.06)] hover:text-[#EFE9DC]'
-                              }`}
-                            >
-                              <child.icon className="w-3.5 h-3.5 shrink-0" />
-                              <span className="flex-1">{child.label}</span>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {group.items.map(renderItem)}
             </div>
           </div>
         ))}
+
+        {/* Advanced: Ledger / proof-of-record tooling. Collapsed by default —
+            most orgs never need this; it's here for the ones that do. */}
+        <div>
+          <button
+            onClick={() => setAdvancedOpen((v) => !v)}
+            className="w-full flex items-center gap-2 px-3 pt-4 pb-1.5 font-plex text-[9.5px] uppercase tracking-[0.18em] text-[#5F6570] hover:text-[#8A8F99] transition-colors"
+          >
+            <span className="flex-1 text-left">Advanced</span>
+            <ChevronRight className={`w-3 h-3 shrink-0 transition-transform ${advancedOpen ? 'rotate-90' : ''}`} />
+          </button>
+          {advancedOpen && (
+            <div className="space-y-0.5">
+              {advancedItems.map(renderItem)}
+            </div>
+          )}
+        </div>
       </nav>
 
       {/* User footer */}
@@ -251,9 +281,6 @@ export function Sidebar({ org, orgs, pendingOrgs, slug, onSwitchOrg, page, onExi
           <button onClick={onExit} className="text-[#5F6570] hover:text-[#EFE9DC] shrink-0 transition-colors" title="Sign out">
             <LogOut className="w-4 h-4" />
           </button>
-        </div>
-        <div className="px-2 pt-1 font-plex text-[10px] tracking-[0.05em] text-[#5F6570]">
-          record integrity: <span className="text-[#7FA99A]">chain intact ✓</span>
         </div>
       </div>
     </aside>

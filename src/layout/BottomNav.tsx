@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
-  LayoutDashboard, BookOpen, Users, Wallet, MoreHorizontal,
-  FolderKanban, FileCheck, Layers, BarChart2,
+  LayoutDashboard, BookOpen, Wallet, MoreHorizontal,
+  FolderKanban, FileCheck, Layers, BarChart2, Inbox, CalendarDays,
 } from 'lucide-react';
 import type { PageId } from './Sidebar';
 import type { Organization } from '@/types';
@@ -25,10 +25,10 @@ export function BottomNav({ org, page, slug, onMore, unreadCounts }: Props) {
   const items: NavItem[] =
     org.type === 'membership'
       ? [
-          { id: 'dashboard', label: 'Home',    icon: LayoutDashboard, href: `/${slug}` },
-          { id: 'ledger',    label: 'Ledger',  icon: BookOpen,        href: `/${slug}/ledger` },
-          { id: 'members',   label: 'Members', icon: Users,           href: `/${slug}/members` },
-          { id: 'dues',      label: 'Dues',    icon: Wallet,          href: `/${slug}/dues` },
+          { id: 'dashboard', label: 'Home',     icon: LayoutDashboard, href: `/${slug}` },
+          { id: 'dues',      label: 'Dues',     icon: Wallet,          href: `/${slug}/dues` },
+          { id: 'requests',  label: 'Requests', icon: Inbox,           href: `/${slug}/requests` },
+          { id: 'calendar',  label: 'Calendar', icon: CalendarDays,    href: `/${slug}/calendar` },
         ]
       : org.type === 'cooperative'
       ? [
