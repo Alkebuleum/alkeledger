@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scribb — Critical records. Intelligent reporting. Continuous readiness.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#171B21;
+    --ink-2:#232935;
+    --vellum:#EFE9DC;
+    --paper:#F6F4ED;
+    --paper-2:#EFECE2;
+    --wax:#8A1E2D;
+    --wax-lt:#B3453C;
+    --verd:#3E6257;
+    --graphite:#8A8F99;
+    --rule:#DCD6C6;
+    --serif:'Spectral',Georgia,'Times New Roman',serif;
+    --sans:'Inter','Avenir Next','Segoe UI',system-ui,sans-serif;
+    --mono:'IBM Plex Mono','SF Mono',Consolas,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--paper);color:var(--ink);
+    font-family:var(--sans);font-size:16px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none}
+  :focus-visible{outline:2px solid var(--wax);outline-offset:3px;border-radius:2px}
+  .shell{max-width:1160px;margin:0 auto;padding:0 24px}
+  .mono{font-family:var(--mono)}
+
+  /* ---------- entry eyebrow: every section is a record ---------- */
+  .entry-tag{
+    font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+    color:var(--graphite);text-transform:uppercase;
+    display:flex;align-items:center;gap:12px;margin-bottom:18px;
+  }
+  .entry-tag::after{content:'';flex:1;height:1px;background:var(--rule)}
+  .entry-tag b{color:var(--wax);font-weight:500}
+
+  /* ---------- nav ---------- */
+  nav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(246,244,237,.88);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--rule);
+  }
+  .nav-in{display:flex;align-items:center;gap:32px;height:64px}
+  .brand{display:flex;align-items:center;gap:11px;font-family:var(--serif);font-size:21px;font-weight:600;letter-spacing:.01em}
+  .nav-links{display:flex;gap:26px;font-size:13.5px;font-weight:500;color:#4B5058;margin-left:8px}
+  .nav-links a:hover{color:var(--ink)}
+  .nav-cta{margin-left:auto;display:flex;align-items:center;gap:18px}
+  .nav-cta .signin{font-size:13.5px;font-weight:500;color:#4B5058}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--ink);color:var(--vellum);
+    font-family:var(--sans);font-size:14px;font-weight:500;
+    padding:11px 20px;border-radius:4px;border:1px solid var(--ink);
+    cursor:pointer;transition:background .15s;
+  }
+  .btn:hover{background:var(--ink-2)}
+  .btn.wax{background:var(--wax);border-color:var(--wax)}
+  .btn.wax:hover{background:#761826}
+  .btn.ghost{background:transparent;color:var(--ink)}
+  .btn.ghost:hover{background:var(--paper-2)}
+  @media(max-width:820px){.nav-links{display:none}}
+
+  /* ---------- hero ---------- */
+  .hero{padding:88px 0 96px;border-bottom:1px solid var(--rule)}
+  .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:64px;align-items:center}
+  @media(max-width:920px){.hero-grid{grid-template-columns:1fr;gap:48px}}
+  h1{
+    font-family:var(--serif);font-weight:500;
+    font-size:clamp(36px,4.8vw,58px);line-height:1.1;letter-spacing:-.015em;
+  }
+  h1 em{font-style:italic;color:var(--wax)}
+  .hero p{font-size:17.5px;color:#43484F;max-width:54ch;margin:24px 0 30px}
+  .hero-ctas{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .textlink{
+    font-size:14.5px;font-weight:500;border-bottom:1px solid var(--rule);
+    padding-bottom:2px;transition:border-color .15s;
+  }
+  .textlink:hover{border-color:var(--ink)}
+  .hero-forwhom{margin-top:22px;font-size:13px;color:var(--graphite);max-width:48ch}
+  .hero-foot{margin-top:16px;font-family:var(--mono);font-size:11.5px;color:var(--graphite);letter-spacing:.04em}
+
+  /* the readiness ledger */
+  .ledger{
+    background:#FDFCF8;border:1px solid var(--rule);border-radius:8px;
+    box-shadow:0 24px 60px -30px rgba(23,27,33,.25);
+    overflow:hidden;
+  }
+  .ledger-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 18px;border-bottom:1px solid var(--rule);
+    font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--graphite);
+  }
+  .ledger-head b{color:var(--ink);font-weight:500}
+  .lentry{
+    display:grid;grid-template-columns:20px 1fr auto;gap:14px;align-items:start;
+    padding:15px 18px;border-bottom:1px solid #EAE6D9;
+    opacity:0;transform:translateY(6px);
+  }
+  .lentry.on{opacity:1;transform:none;transition:opacity .5s ease,transform .5s ease}
+  .lentry:last-child{border-bottom:none}
+  .lbar{width:20px;height:5px;border-radius:2px;background:var(--ink);margin-top:8px}
+  .lentry .what{font-size:14px;font-weight:500;line-height:1.4}
+  .lentry .hash{font-family:var(--mono);font-size:11px;color:var(--graphite);margin-top:3px;letter-spacing:.02em}
+  .lentry .when{font-family:var(--mono);font-size:11px;color:var(--graphite);margin-top:6px;white-space:nowrap}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+    padding:4px 9px;border-radius:3px;margin-top:6px;
+  }
+  .chip.sealed{background:var(--wax);color:var(--vellum)}
+  .chip.verified{background:rgba(62,98,87,.12);color:var(--verd);border:1px solid rgba(62,98,87,.35)}
+  .chip.flag{background:rgba(138,30,45,.1);color:var(--wax);border:1px solid rgba(138,30,45,.3)}
+  .lentry.seal .lbar{background:var(--wax)}
+  .lentry.flag .lbar{background:var(--wax-lt)}
+  .lentry.score{background:rgba(62,98,87,.05)}
+  .lentry.score .lbar{background:var(--verd)}
+  .lentry.score .what{font-family:var(--serif);font-size:26px;font-weight:600}
+
+  /* ---------- generic ledger-row lists (record types, capabilities) ---------- */
+  .section{padding:96px 0}
+  h2{
+    font-family:var(--serif);font-weight:500;
+    font-size:clamp(30px,4vw,44px);line-height:1.12;letter-spacing:-.01em;
+    max-width:24ch;
+  }
+  .section-intro{font-size:16.5px;color:#43484F;max-width:58ch;margin-top:16px}
+
+  .rows{margin-top:56px;border-top:1px solid var(--rule)}
+  .rrow{
+    display:grid;grid-template-columns:200px 1fr auto;gap:28px;align-items:center;
+    padding:26px 6px;border-bottom:1px solid var(--rule);
+    transition:background .15s;
+  }
+  .rrow:hover{background:var(--paper-2)}
+  .rrow .name{font-family:var(--serif);font-size:23px;font-weight:600;display:flex;align-items:center;gap:14px}
+  .rrow .name .rowbar{width:26px;height:6px;border-radius:2px;background:var(--ink);flex-shrink:0}
+  .rrow:hover .name .rowbar{background:var(--wax)}
+  .rrow .desc{font-size:14.5px;color:#43484F;max-width:58ch}
+  .rrow .idx{font-family:var(--mono);font-size:11px;color:var(--graphite);letter-spacing:.1em}
+  @media(max-width:760px){
+    .rrow{grid-template-columns:1fr;gap:8px;padding:22px 2px}
+    .rrow .idx{order:-1}
+  }
+
+  /* ---------- agent-of-records explainer ---------- */
+  .explainer{text-align:center}
+  .explainer h2{max-width:20ch;margin:0 auto}
+  .explainer .section-intro{margin:20px auto 0}
+  .flow{
+    display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap;
+    margin-top:44px;font-family:var(--mono);font-size:12.5px;letter-spacing:.08em;
+    color:var(--graphite);text-transform:uppercase;
+  }
+  .flow span.node{color:var(--ink);font-weight:500}
+  .flow span.arrow{color:var(--wax)}
+
+  /* ---------- steps (how it works) ---------- */
+  .steps{background:var(--paper-2);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+  .steps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:52px}
+  @media(max-width:980px){.steps-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.steps-grid{grid-template-columns:1fr}}
+  .step{
+    background:#FDFCF8;border:1px solid var(--rule);border-radius:8px;
+    padding:28px 24px;
+  }
+  .step .num{font-family:var(--mono);font-size:12px;color:var(--wax);letter-spacing:.14em;font-weight:500}
+  .step h3{font-family:var(--serif);font-size:22px;font-weight:600;margin:12px 0 10px}
+  .step p{font-size:14px;color:#43484F}
+
+  /* ---------- org-type cards ---------- */
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:52px}
+  @media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.cards{grid-template-columns:1fr}}
+  .card{
+    background:#FDFCF8;border:1px solid var(--rule);border-radius:8px;
+    padding:26px 24px;
+  }
+  .card .bar{width:26px;height:6px;border-radius:2px;background:var(--wax);margin-bottom:16px}
+  .card h3{font-family:var(--serif);font-size:19px;font-weight:600;margin-bottom:8px}
+  .card p{font-size:14px;color:#43484F}
+
+  /* ---------- dark comparison section ---------- */
+  .vault{background:var(--ink);color:var(--vellum)}
+  .vault .entry-tag{color:#7C828D}
+  .vault .entry-tag::after{background:rgba(239,233,220,.14)}
+  .vault h2{color:var(--vellum)}
+  .vault .section-intro{color:#B9BDC6}
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:56px;margin-top:56px}
+  @media(max-width:860px){.compare{grid-template-columns:1fr;gap:36px}}
+  .compare-col h3{font-family:var(--serif);font-size:19px;font-weight:600;margin-bottom:6px}
+  .compare-col .sub{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:#7C828D;text-transform:uppercase}
+  .compare-col ul{list-style:none;margin-top:20px;border-top:1px solid rgba(239,233,220,.14)}
+  .compare-col li{
+    display:flex;gap:12px;align-items:baseline;
+    padding:13px 0;border-bottom:1px solid rgba(239,233,220,.14);
+    font-size:14.5px;color:#B9BDC6;
+  }
+  .compare-col li .mark{width:16px;flex-shrink:0;font-weight:600;font-family:var(--mono)}
+  .compare-col.without li .mark{color:#5F6570}
+  .compare-col.with li .mark{color:#7FA99A}
+  .compare-col.with li{color:#D8DBE1}
+
+  /* ---------- intelligence question cards ---------- */
+  .qgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:52px}
+  @media(max-width:700px){.qgrid{grid-template-columns:1fr}}
+  .qcard{
+    background:#FDFCF8;border:1px solid var(--rule);border-radius:8px;padding:17px 20px;
+    font-family:var(--mono);font-size:13px;color:var(--ink-2);
+    display:flex;gap:12px;align-items:baseline;line-height:1.5;
+  }
+  .qcard .prompt{color:var(--wax);flex-shrink:0}
+
+  /* ---------- reporting tags ---------- */
+  .taglist{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px}
+  .tag{
+    font-family:var(--mono);font-size:12px;padding:9px 16px;border:1px solid var(--rule);
+    border-radius:20px;color:#43484F;background:#FDFCF8;
+  }
+
+  /* ---------- trust grid ---------- */
+  .trust-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:32px 28px;margin-top:52px;border-top:1px solid var(--rule);padding-top:40px}
+  @media(max-width:760px){.trust-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:520px){.trust-grid{grid-template-columns:1fr}}
+  .trust-item h4{font-family:var(--serif);font-size:17px;font-weight:600;margin-bottom:6px}
+  .trust-item p{font-size:13.5px;color:#43484F}
+
+  .center{text-align:center}
+  .center h2{margin:0 auto}
+  .center .section-intro{margin-left:auto;margin-right:auto}
+
+  /* ---------- final CTA ---------- */
+  .final{border-top:1px solid var(--rule)}
+  .final-in{padding:110px 0;text-align:center}
+  .final h2{max-width:none;font-size:clamp(34px,5vw,54px)}
+  .final p{color:#43484F;margin:18px auto 34px;max-width:52ch}
+  .final .cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;align-items:center}
+  .final .mono-note{font-family:var(--mono);font-size:11.5px;color:var(--graphite);margin-top:26px;letter-spacing:.04em}
+
+  /* ---------- footer ---------- */
+  footer{background:var(--ink);color:#A9AEB8;font-size:13.5px}
+  .foot-in{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:36px;padding:64px 0 56px}
+  @media(max-width:820px){.foot-in{grid-template-columns:1fr 1fr}}
+  footer .brand{color:var(--vellum);font-size:19px}
+  footer h5{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:#5F6570;margin-bottom:14px}
+  footer li{list-style:none;margin-bottom:9px}
+  footer a:hover{color:var(--vellum)}
+  .foot-base{
+    border-top:1px solid rgba(239,233,220,.1);padding:20px 0;
+    display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+    font-family:var(--mono);font-size:11px;color:#5F6570;letter-spacing:.04em;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .lentry{opacity:1;transform:none;transition:none}
+    html{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav>
+  <div class="shell nav-in">
+    <a class="brand" href="#" aria-label="Scribb home">
+      <svg width="26" height="26" viewBox="0 0 96 96" aria-hidden="true">
+        <rect x="20" y="11.75" width="56" height="9" rx="2" fill="#171B21"/>
+        <rect x="20" y="27.25" width="26" height="9" rx="2" fill="#171B21"/>
+        <rect x="20" y="42.75" width="56" height="9" rx="2" fill="#171B21"/>
+        <rect x="50" y="58.25" width="26" height="9" rx="2" fill="#171B21"/>
+        <rect x="20" y="73.75" width="56" height="9" rx="2" fill="#171B21"/>
+        <rect x="80" y="73.75" width="5" height="9" rx="2" fill="#8A1E2D"/>
+      </svg>
+      Scribb
+    </a>
+    <div class="nav-links">
+      <a href="#what">What it does</a>
+      <a href="#how">How it works</a>
+      <a href="#orgs">For your organization</a>
+      <a href="#reporting">Reporting</a>
+    </div>
+    <div class="nav-cta">
+      <a class="signin" href="https://app.scribb.net/signin">Sign in</a>
+      <a class="btn" href="https://scribb.net/demo">Book a Demo</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="shell hero-grid">
+    <div>
+      <div class="entry-tag"><b>Entry 001</b> The record begins</div>
+      <h1>Critical records.<br>Intelligent <em>reporting</em>.<br>Continuous readiness.</h1>
+      <p>Scribb helps organizations record critical activities, manage obligations, generate reports, and stay ready for compliance, audits, taxes, and accountability.</p>
+      <div class="hero-ctas">
+        <a class="btn wax" href="https://scribb.net/demo">Book a Demo</a>
+        <a class="textlink" href="#how">See how it works ↓</a>
+      </div>
+      <div class="hero-forwhom">Built for nonprofits, membership organizations, cooperatives, businesses, and institutional networks.</div>
+      <div class="hero-foot">scribb.net · app.scribb.net</div>
+    </div>
+
+    <div class="ledger" id="liveLedger" aria-label="Example readiness dashboard">
+      <div class="ledger-head"><b>acme-holdings / readiness</b><span>updated 09:41</span></div>
+      <div class="lentry score">
+        <div class="lbar"></div>
+        <div>
+          <div class="what">92% ready</div>
+          <div class="hash">Q2 reporting readiness score</div>
+        </div>
+        <div class="when">as of today</div>
+      </div>
+      <div class="lentry">
+        <div class="lbar"></div>
+        <div>
+          <div class="what">Annual compliance filing due</div>
+          <div class="hash">obligation · finance</div>
+        </div>
+        <div class="when">12 days</div>
+      </div>
+      <div class="lentry flag">
+        <div class="lbar"></div>
+        <div>
+          <div class="what">Board resolution — March, missing</div>
+          <span class="chip flag">⚑ FLAGGED</span>
+        </div>
+        <div class="when">needs record</div>
+      </div>
+      <div class="lentry seal">
+        <div class="lbar"></div>
+        <div>
+          <div class="what">Q2 board report</div>
+          <span class="chip sealed">■ READY</span>
+          <span class="chip verified">✓ RECORDS COMPLETE</span>
+        </div>
+        <div class="when">generate →</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ WHAT SCRIBB DOES ============ -->
+<section class="section" id="what">
+  <div class="shell">
+    <div class="entry-tag"><b>Entry 002</b> What you can do</div>
+    <h2>What can Scribb do for your organization?</h2>
+    <p class="section-intro">From recordkeeping to reporting, Scribb turns critical institutional activity into usable intelligence.</p>
+
+    <div class="rows">
+      <div class="rrow">
+        <div class="name"><span class="rowbar"></span>Record</div>
+        <div class="desc">Capture critical records in one place — financial records, board decisions, contracts, projects, compliance files, policies, memberships and supporting documents.</div>
+        <div class="idx">CAPABILITY / 01</div>
+      </div>
+      <div class="rrow">
+        <div class="name"><span class="rowbar"></span>Organize</div>
+        <div class="desc">Structure records around your real operations. Attach every record to the right project, department, fund, member, vendor, obligation or reporting period.</div>
+        <div class="idx">CAPABILITY / 02</div>
+      </div>
+      <div class="rrow">
+        <div class="name"><span class="rowbar"></span>Monitor</div>
+        <div class="desc">Stay ahead of deadlines and obligations. Know what's missing, what's due, what's expiring, and what requires review or approval.</div>
+        <div class="idx">CAPABILITY / 03</div>
+      </div>
+      <div class="rrow">
+        <div class="name"><span class="rowbar"></span>Report</div>
+        <div class="desc">Generate reports without last-minute scrambling. Prepare tax, audit, board, grant, compliance and institutional reports from records already captured during the year.</div>
+        <div class="idx">CAPABILITY / 04</div>
+      </div>
+      <div class="rrow">
+        <div class="name"><span class="rowbar"></span>Verify</div>
+        <div class="desc">Maintain evidence and accountability. Track approvals, supporting documents, record history and proof behind important institutional actions.</div>
+        <div class="idx">CAPABILITY / 05</div>
+      </div>
+      <div class="rrow">
+        <div class="name"><span class="rowbar"></span>Gain Insight</div>
+        <div class="desc">Turn records into intelligence. Ask Scribb what needs attention, what risks exist, what reports are due, and whether your organization is ready.</div>
+        <div class="idx">CAPABILITY / 06</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ AGENT OF RECORDS ============ -->
+<section class="section explainer">
+  <div class="shell">
+    <div class="entry-tag"><b>Entry 003</b> What Scribb is</div>
+    <h2>Scribb is the Agent of Records.</h2>
+    <p class="section-intro">Most organizations already have the information they need — but it's spread across spreadsheets, emails, folders, finance tools and staff memory. Scribb brings critical records into one intelligent system that helps your organization understand what happened, what is required, and what must be reported.</p>
+    <div class="flow">
+      <span class="node">Record</span><span class="arrow">→</span>
+      <span class="node">Relate</span><span class="arrow">→</span>
+      <span class="node">Review</span><span class="arrow">→</span>
+      <span class="node">Report</span><span class="arrow">→</span>
+      <span class="node">Readiness</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section class="section steps" id="how">
+  <div class="shell">
+    <div class="entry-tag"><b>Entry 004</b> How it works</div>
+    <h2>How Scribb works.</h2>
+
+    <div class="steps-grid">
+      <div class="step">
+        <div class="num">01 / RECORD</div>
+        <h3>Record</h3>
+        <p>Capture transactions, documents, decisions, activities and evidence as they happen, while the context is still fresh.</p>
+      </div>
+      <div class="step">
+        <div class="num">02 / RELATE</div>
+        <h3>Relate</h3>
+        <p>Connect each record to its project, obligation, fund, member or reporting requirement — nothing floats on its own.</p>
+      </div>
+      <div class="step">
+        <div class="num">03 / REVIEW</div>
+        <h3>Review</h3>
+        <p>Scribb identifies missing information, approaching deadlines, risks and incomplete records before they become problems.</p>
+      </div>
+      <div class="step">
+        <div class="num">04 / REPORT</div>
+        <h3>Report</h3>
+        <p>Generate the outputs your institution needs for management, boards, donors, audits, taxes and regulators.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ BUILT FOR ORGANIZATIONS ============ -->
+<section class="section" id="orgs">
+  <div class="shell">
+    <div class="entry-tag"><b>Entry 005</b> Who it's for</div>
+    <h2>Built for institutions of many kinds.</h2>
+    <p class="section-intro">Different organizations, the same need: a reliable record of what happened and what's required next.</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="bar"></div>
+        <h3>Nonprofits</h3>
+        <p>Track grants, programs, board actions, expenses, reports and audit evidence.</p>
+      </div>
+      <div class="card">
+        <div class="bar"></div>
+        <h3>Membership Organizations</h3>
+        <p>Manage dues, resolutions, committees, compliance and annual filings, and member accountability.</p>
+      </div>
+      <div class="card">
+        <div class="bar"></div>
+        <h3>Cooperatives</h3>
+        <p>Record pooled contributions, proposals, voting, benefits and project implementation.</p>
+      </div>
+      <div class="card">
+        <div class="bar"></div>
+        <h3>Businesses</h3>
+        <p>Track approvals, contracts, compliance documents, reporting obligations and critical operational records.</p>
+      </div>
+      <div class="card">
+        <div class="bar"></div>
+        <h3>Councils and Networks</h3>
+        <p>Capture institutional decisions, representative voting, initiatives and permanent records.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WHY NOT SPREADSHEETS ============ -->
+<section class="section vault">
+  <div class="shell">
+    <div class="entry-tag"><b>Entry 006</b> Why Scribb</div>
+    <h2>Why not just use spreadsheets, folders and accounting tools?</h2>
+    <p class="section-intro">Because scattered tools weren't built to answer the question an auditor, board or regulator actually asks: show me.</p>
+
+    <div class="compare">
+      <div class="compare-col without">
+        <div class="sub">Without Scribb</div>
+        <h3>Scattered and reactive</h3>
+        <ul>
+          <li><span class="mark">–</span>Records scattered across tools</li>
+          <li><span class="mark">–</span>Reports created manually</li>
+          <li><span class="mark">–</span>Missing documentation</li>
+          <li><span class="mark">–</span>Difficult audit preparation</li>
+          <li><span class="mark">–</span>Little visibility into obligations</li>
+          <li><span class="mark">–</span>Institutional memory lost during transitions</li>
+        </ul>
+      </div>
+      <div class="compare-col with">
+        <div class="sub">With Scribb</div>
+        <h3>Structured and report-ready</h3>
+        <ul>
+          <li><span class="mark">✓</span>One home for critical records</li>
+          <li><span class="mark">✓</span>Report-ready data all year</li>
+          <li><span class="mark">✓</span>Built-in accountability</li>
+          <li><span class="mark">✓</span>Better compliance visibility</li>
+          <li><span class="mark">✓</span>Faster audits and reviews</li>
+          <li><span class="mark">✓</span>Stronger institutional continuity</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RECORD INTELLIGENCE ============ -->
+<section class="section">
+  <div class="shell">
+    <div class="entry-tag"><b>Entry 007</b> Record intelligence</div>
+    <h2>More than recordkeeping — record intelligence.</h2>
+    <p class="section-intro">Ask Scribb directly, and get an answer grounded in your own records.</p>
+
+    <div class="qgrid">
+      <div class="qcard"><span class="prompt">›</span>What reports are due this month?</div>
+      <div class="qcard"><span class="prompt">›</span>Which transactions are missing evidence?</div>
+      <div class="qcard"><span class="prompt">›</span>Are we ready for our tax filing?</div>
+      <div class="qcard"><span class="prompt">›</span>Which grants require reporting soon?</div>
+      <div class="qcard"><span class="prompt">›</span>What board decisions remain unimplemented?</div>
+      <div class="qcard"><span class="prompt">›</span>Which records are expired or incomplete?</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ REPORTING ============ -->
+<section class="section steps" id="reporting">
+  <div class="shell">
+    <div class="entry-tag"><b>Entry 008</b> Reporting</div>
+    <h2>Stay ready for reporting all year.</h2>
+    <p class="section-intro">Scribb helps your organization prepare the records, supporting evidence, summaries and outputs needed for board reports, donor reports, compliance filings, audits and annual tax preparation.</p>
+
+    <div class="taglist">
+      <span class="tag">Board reports</span>
+      <span class="tag">Annual reports</span>
+      <span class="tag">Grant reports</span>
+      <span class="tag">Compliance summaries</span>
+      <span class="tag">Audit-ready packages</span>
+      <span class="tag">Tax preparation workbooks</span>
+      <span class="tag">Membership &amp; contribution summaries</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TRUST ============ -->
+<section class="section">
+  <div class="shell">
+    <div class="entry-tag"><b>Entry 009</b> Trust</div>
+    <h2>Built for trusted institutional recordkeeping.</h2>
+
+    <div class="trust-grid">
+      <div class="trust-item">
+        <h4>Role-based access</h4>
+        <p>Give people exactly the access their role requires — no more, no less.</p>
+      </div>
+      <div class="trust-item">
+        <h4>Record history &amp; traceability</h4>
+        <p>Every entry keeps its history. Corrections are new entries, not silent edits.</p>
+      </div>
+      <div class="trust-item">
+        <h4>Secure document storage</h4>
+        <p>Files and supporting evidence live alongside the records they support.</p>
+      </div>
+      <div class="trust-item">
+        <h4>Structured approvals</h4>
+        <p>Route decisions and sign-offs through the people who need to weigh in.</p>
+      </div>
+      <div class="trust-item">
+        <h4>Audit-friendly organization</h4>
+        <p>Records are structured so an auditor can find what they need, fast.</p>
+      </div>
+      <div class="trust-item">
+        <h4>Controlled access to sensitive information</h4>
+        <p>Sensitive records stay visible only to the people who should see them.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FINAL CTA ============ -->
+<section class="final">
+  <div class="shell final-in">
+    <h2>See what Scribb can do for your organization.</h2>
+    <p>Whether you manage grants, dues, projects, decisions, compliance obligations or critical operational records, Scribb helps your organization stay structured, accountable and report-ready.</p>
+    <div class="cta-row">
+      <a class="btn wax" href="https://scribb.net/demo" style="font-size:15px;padding:14px 28px">Book a Demo</a>
+      <a class="btn ghost" href="https://scribb.net/contact" style="font-size:15px;padding:14px 28px;border-color:var(--rule)">Talk to Us</a>
+    </div>
+    <div class="mono-note">scribb.net · <a class="textlink" href="https://app.scribb.net/signup">get early access →</a></div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="shell">
+    <div class="foot-in">
+      <div>
+        <a class="brand" href="#">
+          <svg width="24" height="24" viewBox="0 0 96 96" aria-hidden="true">
+            <rect x="20" y="11.75" width="56" height="9" rx="2" fill="#EFE9DC"/>
+            <rect x="20" y="27.25" width="26" height="9" rx="2" fill="#EFE9DC"/>
+            <rect x="20" y="42.75" width="56" height="9" rx="2" fill="#EFE9DC"/>
+            <rect x="50" y="58.25" width="26" height="9" rx="2" fill="#EFE9DC"/>
+            <rect x="20" y="73.75" width="56" height="9" rx="2" fill="#EFE9DC"/>
+            <rect x="80" y="73.75" width="5" height="9" rx="2" fill="#B3453C"/>
+          </svg>
+          Scribb
+        </a>
+        <p style="margin-top:14px;font-size:13px;max-width:30ch">Critical records. Intelligent reporting. Continuous readiness.</p>
+      </div>
+      <div>
+        <h5>Product</h5>
+        <ul>
+          <li><a href="#what">What it does</a></li>
+          <li><a href="#how">How it works</a></li>
+          <li><a href="#orgs">For your organization</a></li>
+          <li><a href="https://app.scribb.net">Open the app</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Company</h5>
+        <ul>
+          <li><a href="#">About</a></li>
+          <li><a href="#">Security</a></li>
+          <li><a href="#">Contact</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Legal</h5>
+        <ul>
+          <li><a href="#">Privacy</a></li>
+          <li><a href="#">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span>© 2026 Scribb · scribb.net</span>
+      <span>reporting readiness: on track</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* Hero readiness ledger: entries commit one by one */
+(function(){
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const entries = document.querySelectorAll('#liveLedger .lentry');
+  if(reduce){ entries.forEach(e=>e.classList.add('on')); return; }
+  entries.forEach((e,i)=> setTimeout(()=> e.classList.add('on'), 500 + i*650));
+})();
+
+/* Gentle reveal for section rows on scroll */
+(function(){
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce || !('IntersectionObserver' in window)) return;
+  const targets = document.querySelectorAll('.rrow, .step, .card, .qcard, .trust-item');
+  targets.forEach(t=>{t.style.opacity=0; t.style.transform='translateY(10px)'; t.style.transition='opacity .5s ease, transform .5s ease'});
+  const io = new IntersectionObserver((ents)=>{
+    ents.forEach(en=>{
+      if(en.isIntersecting){ en.target.style.opacity=1; en.target.style.transform='none'; io.unobserve(en.target); }
+    });
+  },{threshold:.15});
+  targets.forEach(t=>io.observe(t));
+})();
+</script>
+</body>
+</html>

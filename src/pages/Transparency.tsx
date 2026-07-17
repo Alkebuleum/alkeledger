@@ -44,7 +44,7 @@ export function Transparency({ org, ledger }: Props) {
           <div className="relative px-10 md:px-14 py-14">
             <div className="flex items-center justify-between mb-12 text-[10px] uppercase tracking-[0.3em] text-stone-500 font-mono">
               <span>The Public Record</span>
-              <span>A Scribe transparency report</span>
+              <span>A Scribb transparency report</span>
               <span>2026 · Q2</span>
             </div>
 
@@ -188,7 +188,7 @@ export function Transparency({ org, ledger }: Props) {
         </div>
 
         <div className="border-t-2 border-[var(--ink)] pt-6 flex flex-wrap items-center justify-between gap-3 text-[10px] uppercase tracking-[0.25em] text-stone-500 font-mono">
-          <span>Compiled by Scribe · v1.0</span>
+          <span>Compiled by Scribb · v1.0</span>
           <span className="font-editorial italic normal-case tracking-normal text-stone-600">"That those who come after may know."</span>
           <span>Last refresh · just now</span>
         </div>

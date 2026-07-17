@@ -39,15 +39,19 @@ export function Members({ org, user }: Props) {
   const [showCode, setShowCode] = useState(false);
   const [error, setError] = useState('');
 
+  // Pending invites are admin-only in Firestore rules — only fetch them once `role`
+  // has resolved to an admin role, otherwise the Promise.all below would reject with
+  // permission-denied and leave the whole Members page stuck loading for every
+  // regular member.
   const reload = () => {
     setLoading(true);
     Promise.all([
       listMembers(org.id),
-      listPendingInvites(org.id),
+      can.manage(role) ? listPendingInvites(org.id) : Promise.resolve([]),
     ]).then(([m, inv]) => { setMembers(m); setInvites(inv); setLoading(false); });
   };
 
-  useEffect(() => { reload(); }, [org.id]);
+  useEffect(() => { reload(); }, [org.id, role]);
 
   const active    = members.filter((m) => m.status === 'active');
   const pending   = members.filter((m) => m.status === 'pending');
@@ -615,7 +619,7 @@ function InviteCodeModal({
 
   function shareNative() {
     navigator.share({
-      title: `Join ${orgName} on Scribe`,
+      title: `Join ${orgName} on Scribb`,
       text: `You're invited to join ${orgName}. Click to view the workspace.`,
       url: joinUrl,
     }).catch(() => {/* dismissed */});

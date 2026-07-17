@@ -1,6 +1,6 @@
 {
-  "name": "Scribe",
-  "short_name": "Scribe",
+  "name": "Scribb",
+  "short_name": "Scribb",
   "description": "Blockchain-anchored bookkeeping for organizations that intend to be trusted.",
   "start_url": "/",
   "display": "standalone",

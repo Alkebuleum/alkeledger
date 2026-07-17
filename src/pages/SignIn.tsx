@@ -123,7 +123,7 @@ export function SignIn({ onBack, onRequestOtp, onVerifyOtp, onSignInWithGoogle, 
       <aside className="hidden min-[880px]:flex flex-col justify-between bg-[#171B21] text-[#EFE9DC] px-11 pt-11 pb-8">
         <button onClick={onBack} className="flex items-center gap-[11px] font-serif text-[21px] font-semibold text-left">
           <LedgerMark vellum />
-          Scribe
+          Scribb
         </button>
 
         <div className="max-w-[400px]">
@@ -155,7 +155,7 @@ export function SignIn({ onBack, onRequestOtp, onVerifyOtp, onSignInWithGoogle, 
         </div>
 
         <div className="font-plex text-[10.5px] text-[#5F6570] tracking-[0.05em]">
-          app.alkescribe.com · record integrity: <span className="text-[#7FA99A]">chain intact ✓</span>
+          app.scribb.net · record integrity: <span className="text-[#7FA99A]">chain intact ✓</span>
         </div>
       </aside>
 
@@ -166,7 +166,7 @@ export function SignIn({ onBack, onRequestOtp, onVerifyOtp, onSignInWithGoogle, 
           className="min-[880px]:hidden flex items-center gap-2.5 font-serif text-xl font-semibold mb-9"
         >
           <LedgerMark />
-          Scribe
+          Scribb
         </button>
 
         <div className="w-full max-w-[392px]">
@@ -291,7 +291,7 @@ export function SignIn({ onBack, onRequestOtp, onVerifyOtp, onSignInWithGoogle, 
               </form>
 
               <p className="mt-6 text-center text-[13px] text-[#5A5F67]">
-                New to Scribe? Sign in and you'll be guided through setup.
+                New to Scribb? Sign in and you'll be guided through setup.
               </p>
             </>
           )}

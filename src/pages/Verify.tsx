@@ -7,7 +7,7 @@ export function Verify() {
         Verify a record
       </h1>
       <p className="text-[#5A5F67] text-[14.5px] mt-3 max-w-[48ch] mx-auto">
-        Paste a verify link, a record hash, or drop a proof file. Scribe checks it against the
+        Paste a verify link, a record hash, or drop a proof file. Scribb checks it against the
         chain — the same check anyone outside your organization can run.
       </p>
 

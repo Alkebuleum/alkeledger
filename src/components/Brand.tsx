@@ -7,12 +7,12 @@ export function Brand({ small = false }: Props) {
     <div className="flex items-end gap-2.5">
       <img
         src="/logo.svg"
-        alt="Scribe"
+        alt="Scribb"
         className={small ? 'h-6 w-auto pb-1' : 'h-9 w-auto pb-1.5'}
       />
       <div className="leading-tight">
         <div className={`font-serif font-semibold ${small ? 'text-base' : 'text-lg'} text-stone-900`}>
-          Scribe
+          Scribb
         </div>
         {!small && (
           <div className="text-[10px] uppercase tracking-[0.18em] text-stone-500">

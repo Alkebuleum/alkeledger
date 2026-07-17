@@ -1,6 +1,6 @@
-# Scribe Workspace Type: Community Cooperative
+# Scribb Workspace Type: Community Cooperative
 
-We are adding a new Scribe workspace type called **Community Cooperative**.
+We are adding a new Scribb workspace type called **Community Cooperative**.
 
 A Community Cooperative is an ongoing, member-governed organization where people pool money, skills, materials, connections, or other resources into a shared treasury or resource pool. Members hold participation positions in the cooperative, vote on how resources are used, select projects, approve budgets and timelines, and share in any financial or nonfinancial benefits created by the group.
 
@@ -443,7 +443,7 @@ Each role should have configurable permissions, appointment dates, term limits, 
 
 Transparency is a core purpose of the workspace.
 
-Scribe should preserve an immutable or tamper-evident history of:
+Scribb should preserve an immutable or tamper-evident history of:
 
 * Contributions
 * Position issuance
@@ -470,9 +470,9 @@ Every important action should show:
 
 Sensitive personal or financial information may remain restricted while summaries and accountability records are made visible to authorized members or the public.
 
-# Shared Features With Other Scribe Workspace Types
+# Shared Features With Other Scribb Workspace Types
 
-The Community Cooperative should reuse shared Scribe infrastructure wherever possible instead of duplicating existing features.
+The Community Cooperative should reuse shared Scribb infrastructure wherever possible instead of duplicating existing features.
 
 ## Shared Membership Features
 
@@ -553,7 +553,7 @@ The Community Cooperative extends these features with a shared treasury, partici
 
 ## Shared Communication Features
 
-Reuse across all Scribe workspaces:
+Reuse across all Scribb workspaces:
 
 * Announcements
 * Group discussions
@@ -568,7 +568,7 @@ Reuse across all Scribe workspaces:
 
 ## Shared Record and Compliance Features
 
-Reuse across all Scribe workspaces:
+Reuse across all Scribb workspaces:
 
 * Document storage
 * Role-based permissions
@@ -583,7 +583,7 @@ Reuse across all Scribe workspaces:
 
 # Recommended Workspace Setup Flow
 
-When creating a Community Cooperative workspace, Scribe should guide the founder through the following setup process:
+When creating a Community Cooperative workspace, Scribb should guide the founder through the following setup process:
 
 ## Step 1: Cooperative Identity
 
@@ -730,7 +730,7 @@ It differs from a donation or crowdfunding platform because contributors may mai
 
 The workspace should be flexible because cooperatives operate under different laws and organizational structures.
 
-Scribe should not automatically promise:
+Scribb should not automatically promise:
 
 * Investment returns
 * Profit
@@ -742,7 +742,7 @@ Scribe should not automatically promise:
 
 When a cooperative allows transferable positions or financial returns, the setup process should display a notice recommending that the organization obtain appropriate legal, tax, cooperative, and securities advice.
 
-Scribe provides governance, transparency, recordkeeping, and administrative tools. The cooperative remains responsible for determining its legal structure and complying with applicable laws.
+Scribb provides governance, transparency, recordkeeping, and administrative tools. The cooperative remains responsible for determining its legal structure and complying with applicable laws.
 
 # Final Product Description
 
