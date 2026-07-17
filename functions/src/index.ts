@@ -76,13 +76,13 @@ export const requestOtp = onCall({ cors: true }, async (request) => {
     method: 'POST',
     headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      sender: { name: 'Scribe', email: senderEmail },
+      sender: { name: 'Scribb', email: senderEmail },
       to: [{ email }],
-      subject: `${code} — your Scribe sign-in code`,
+      subject: `${code} — your Scribb sign-in code`,
       htmlContent: `
         <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:40px 24px;background:#fafaf9;border-radius:16px">
           <div style="background:#171B21;border-radius:12px;padding:20px 24px;margin-bottom:28px">
-            <span style="color:#EFE9DC;font-size:20px;font-weight:700;letter-spacing:-.01em">Scribe</span>
+            <span style="color:#EFE9DC;font-size:20px;font-weight:700;letter-spacing:-.01em">Scribb</span>
           </div>
           <h1 style="font-size:22px;font-weight:700;color:#1c1917;margin:0 0 8px">Your sign-in code</h1>
           <p style="color:#78716c;margin:0 0 28px;font-size:15px">Enter this 6-digit code to sign in. It expires in 10 minutes.</p>
@@ -220,6 +220,15 @@ export const redeemInvite = onCall({ cors: true }, async (request) => {
   const memberOrgName  = (inviteData['orgName']  as string | null) ?? null;
   const memberOrgTitle = (inviteData['orgTitle'] as string | null) ?? null;
 
+  // Redemption works without a prior sign-in (magic-link style) so brand-new
+  // invitees can accept directly — but if the caller IS already signed in,
+  // their session must match the invited email, so an attacker who obtained a
+  // token some other way can't use their own session to hijack the invitee's account.
+  if (request.auth?.token.email &&
+      request.auth.token.email.toLowerCase() !== email.toLowerCase()) {
+    throw new HttpsError('permission-denied', 'This invite is for a different email address. Sign out and try again.');
+  }
+
   const displayName = (name ?? '').trim() || ((inviteData['name'] as string) ?? '');
 
   const orgSnap = await db.collection('organizations').doc(orgId).get();
@@ -307,11 +316,11 @@ export const sendInviteEmail = onCall({ cors: true }, async (request) => {
   const htmlContent = `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:32px 20px;background:#F6F4ED">
       <div style="background:#171B21;border-radius:4px;padding:20px;text-align:center;margin-bottom:24px">
-        <span style="color:#EFE9DC;font-size:22px;font-weight:700;letter-spacing:-.01em">Scribe</span>
+        <span style="color:#EFE9DC;font-size:22px;font-weight:700;letter-spacing:-.01em">Scribb</span>
       </div>
       <h1 style="font-size:20px;font-weight:700;color:#171B21;margin:0 0 8px">Hi ${esc(name) || 'there'},</h1>
       <p style="color:#57534e;margin:0 0 24px;font-size:15px;line-height:1.6">
-        You've been invited to join <strong>${esc(orgName)}</strong> on Scribe — a ledger and accountability platform for organizations.
+        You've been invited to join <strong>${esc(orgName)}</strong> on Scribb — a ledger and accountability platform for organizations.
       </p>
       <a href="${joinLink}" style="display:block;background:#171B21;color:#EFE9DC;text-decoration:none;padding:14px;text-align:center;font-weight:600;font-size:16px;margin-bottom:24px">
         View workspace &amp; join →
@@ -328,9 +337,9 @@ export const sendInviteEmail = onCall({ cors: true }, async (request) => {
     method: 'POST',
     headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      sender: { name: 'Scribe', email: senderEmail },
+      sender: { name: 'Scribb', email: senderEmail },
       to: [{ email, name }],
-      subject: `You're invited to join ${orgName} on Scribe`,
+      subject: `You're invited to join ${orgName} on Scribb`,
       htmlContent,
     }),
   });
@@ -444,7 +453,7 @@ export const notifyEventCreated = onCall({ cors: true }, async (request) => {
       <!-- Header -->
       <tr>
         <td style="background:#171B21;padding:18px 28px;">
-          <span style="color:#EFE9DC;font-size:17px;font-weight:700;letter-spacing:-.01em;">Scribe</span>
+          <span style="color:#EFE9DC;font-size:17px;font-weight:700;letter-spacing:-.01em;">Scribb</span>
           <span style="color:#8A8F99;font-size:13px;margin-left:10px;">${esc(orgName)}</span>
         </td>
       </tr>
@@ -488,7 +497,7 @@ export const notifyEventCreated = onCall({ cors: true }, async (request) => {
           </table>
 
           <p style="text-align:center;margin:0;">
-            <a href="${appEventsUrl}" style="color:#78716c;font-size:13px;text-decoration:underline;">View all events in Scribe →</a>
+            <a href="${appEventsUrl}" style="color:#78716c;font-size:13px;text-decoration:underline;">View all events in Scribb →</a>
           </p>
         </td>
       </tr>
@@ -496,7 +505,7 @@ export const notifyEventCreated = onCall({ cors: true }, async (request) => {
       <!-- Footer -->
       <tr>
         <td style="padding:14px 28px;border-top:1px solid #e7e5e4;">
-          <p style="color:#a8a29e;font-size:11px;margin:0;">You're receiving this because you're a member of ${esc(orgName)} on Scribe.</p>
+          <p style="color:#a8a29e;font-size:11px;margin:0;">You're receiving this because you're a member of ${esc(orgName)} on Scribb.</p>
         </td>
       </tr>
 
@@ -515,7 +524,7 @@ export const notifyEventCreated = onCall({ cors: true }, async (request) => {
       method: 'POST',
       headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sender: { name: `${orgName} via Scribe`, email: senderEmail },
+        sender: { name: `${orgName} via Scribb`, email: senderEmail },
         to: [{ email: memberEmail, name: memberName }],
         subject: `📅 ${event.title} — ${orgName}`,
         htmlContent: html,
@@ -600,7 +609,7 @@ export const notifyPollCreated = onCall({ cors: true }, async (request) => {
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fafaf9;border:1px solid #e7e5e4;">
       <tr>
         <td style="background:#171B21;padding:18px 28px;">
-          <span style="color:#EFE9DC;font-size:17px;font-weight:700;letter-spacing:-.01em;">Scribe</span>
+          <span style="color:#EFE9DC;font-size:17px;font-weight:700;letter-spacing:-.01em;">Scribb</span>
           <span style="color:#8A8F99;font-size:13px;margin-left:10px;">${esc(orgName)}</span>
         </td>
       </tr>
@@ -639,7 +648,7 @@ export const notifyPollCreated = onCall({ cors: true }, async (request) => {
       method: 'POST',
       headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sender: { name: `${orgName} via Scribe`, email: senderEmail },
+        sender: { name: `${orgName} via Scribb`, email: senderEmail },
         to: [{ email: memberEmail, name: memberName }],
         subject: `🗳️ Vote now: ${poll.title} — ${orgName}`,
         htmlContent: html,
@@ -782,7 +791,7 @@ export const sharePreview = onRequest(async (req, res) => {
   <meta name="description" content="${esc(ogDesc)}" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="${esc(shareUrl)}" />
-  <meta property="og:site_name" content="Scribe" />
+  <meta property="og:site_name" content="Scribb" />
   <meta property="og:title" content="${esc(ogTitle)}" />
   <meta property="og:description" content="${esc(ogDesc)}" />
   <meta property="og:image" content="${esc(ogImage)}" />
@@ -796,7 +805,7 @@ export const sharePreview = onRequest(async (req, res) => {
 </head>
 <body>
   <div class="card">
-    <div class="logo">Scribe</div>
+    <div class="logo">Scribb</div>
     <div class="badge">${esc(orgName)} · Event</div>
     <h1>${esc(evTitle)}</h1>
     <div class="meta">📅 ${esc(dateStr)}</div>
@@ -809,7 +818,7 @@ export const sharePreview = onRequest(async (req, res) => {
       <a href="${esc(eventsUrl)}?openEvent=${esc(id)}&amp;rsvp=maybe"     class="btn btn-m">Maybe</a>
       <a href="${esc(eventsUrl)}?openEvent=${esc(id)}&amp;rsvp=declining" class="btn btn-d">Declining</a>
     </div>
-    <a href="${esc(eventsUrl)}" class="btn-open">View in Scribe →</a>
+    <a href="${esc(eventsUrl)}?openEvent=${esc(id)}" class="btn-open">View in Scribb →</a>
   </div>
 </body>
 </html>`);
@@ -867,7 +876,7 @@ export const sharePreview = onRequest(async (req, res) => {
       + '<meta name="description" content="' + esc(pollOgDesc) + '"/>'
       + '<meta property="og:type" content="website"/>'
       + '<meta property="og:url" content="' + esc(shareUrl) + '"/>'
-      + '<meta property="og:site_name" content="Scribe"/>'
+      + '<meta property="og:site_name" content="Scribb"/>'
       + '<meta property="og:title" content="' + esc(pollOgTitle) + '"/>'
       + '<meta property="og:description" content="' + esc(pollOgDesc) + '"/>'
       + '<meta property="og:image" content="' + esc(ogImage) + '"/>'
@@ -879,7 +888,7 @@ export const sharePreview = onRequest(async (req, res) => {
       + '<meta name="twitter:image" content="' + esc(ogImage) + '"/>'
       + '<style>' + css + '</style>'
       + '</head><body><div class="card">'
-      + '<div class="logo">Scribe</div>'
+      + '<div class="logo">Scribb</div>'
       + '<div class="badge">' + esc(orgName) + ' · Vote' + statusBadge + '</div>'
       + '<h1>' + esc(pollTitle) + '</h1>'
       + descHtml
@@ -889,7 +898,7 @@ export const sharePreview = onRequest(async (req, res) => {
       + optionRows
       + '<hr/>'
       + voteBtn
-      + '<a href="' + esc(votesUrl) + '" class="btn-open">View in Scribe</a>'
+      + '<a href="' + esc(votesUrl) + '" class="btn-open">View in Scribb</a>'
       + '</div></body></html>');
     return;
   }

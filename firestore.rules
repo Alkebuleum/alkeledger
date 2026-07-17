@@ -87,7 +87,11 @@ service cloud.firestore {
     // ─── invite tokens ────────────────────────────────────────────────────────
 
     match /invites/{token} {
-      allow read: if request.auth != null;
+      // Only org admins may read invites (get or list) — the token itself is the
+      // bearer credential mailed to the invitee, and redeemInvite/getOrgPreviewByCode
+      // read it server-side via the Admin SDK (which bypasses these rules), so no
+      // client-side path needs to read an invite it doesn't manage.
+      allow read: if request.auth != null && canManage(resource.data.orgId);
       allow create: if request.auth != null && canManage(request.resource.data.orgId);
       allow delete: if request.auth != null && canManage(resource.data.orgId);
     }
