@@ -8,6 +8,7 @@ import { listPolls, createPoll, updatePoll, deletePoll, castVote, notifyPollMemb
 import { notifyCreated } from '@/services/notifications';
 import { listPositions } from '@/services/positions';
 import { can, useRole } from '@/hooks/useRole';
+import { isPaidPlan } from '@/lib/plan';
 import type { Poll, PollOption, PollStatus, VoteType, Organization, LedgerEntry } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
 
@@ -172,7 +173,7 @@ export function Votes({ org, user, ledger, onCreateEntry }: Props) {
   const loggedPollIds = new Set(ledger.filter((e) => e.pollId).map((e) => e.pollId));
 
   const isAdmin = can.announce(role);
-  const isPro   = org.plan === 'pro';
+  const isPro   = isPaidPlan(org);
 
   const active = polls.filter((p) => p.status === 'active');
   const drafts = polls.filter((p) => p.status === 'draft');

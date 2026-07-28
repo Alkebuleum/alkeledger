@@ -1,10 +1,13 @@
 import { useState, useRef } from 'react';
-import { ShieldCheck, CheckCircle2, Trash2, Save, ImagePlus, Bell } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, Trash2, Save, ImagePlus, Bell, Check } from 'lucide-react';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { Panel } from '@/components/Panel';
 import { Row } from '@/components/Row';
 import { useRole, can } from '@/hooks/useRole';
 import { uploadOrgLogo } from '@/lib/storage';
+import { useBilling } from '@/hooks/useBilling';
+import { createCheckoutSession, createCustomerPortalSession, ScribbApiError } from '@/services/billing';
+import { describeApiError } from '@/lib/scribbApi';
 import type { Organization, MemberType, DuesRates } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
 
@@ -144,6 +147,9 @@ export function Settings({ org, user, onDelete, onSaveSettings }: Props) {
           {org.inviteCode && <Row label="Invite code" value={<span className="font-mono font-bold tracking-widest">{org.inviteCode}</span>} />}
         </div>
       </Panel>
+
+      {/* Plan & Billing — owners only */}
+      {isOwner && <BillingPanel org={org} />}
 
       {/* Profile — tagline + logo, available to all admins */}
       {isAdmin && (
@@ -422,5 +428,171 @@ export function Settings({ org, user, onDelete, onSaveSettings }: Props) {
         </div>
       )}
     </div>
+  );
+}
+
+const PLAN_LABELS: Record<string, string> = {
+  free: 'Free',
+  standard_monthly: 'Standard Monthly',
+  standard_annual: 'Standard Annual',
+};
+
+const STANDARD_BULLETS = [
+  'Up to 500 members & 5 administrators',
+  'Membership categories & dues tracking',
+  'Meetings, attendance & board resolutions',
+  'Committees, projects & advanced reports',
+  'Compliance calendar & record exports',
+];
+
+function statusLabel(status: string, cancelAtPeriodEnd: boolean): string {
+  if (cancelAtPeriodEnd && status === 'active') return 'Cancellation Scheduled';
+  switch (status) {
+    case 'active': return 'Active';
+    case 'not_required': return 'Active';
+    case 'checkout_pending': return 'Payment Pending';
+    case 'past_due': return 'Payment Past Due';
+    case 'canceled': return 'Canceled';
+    default: return status;
+  }
+}
+
+function BillingPanel({ org }: { org: Organization }) {
+  const { billing, loading, error, refetch } = useBilling(org.id);
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
+  const [migrationRequested, setMigrationRequested] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [portalUnavailable, setPortalUnavailable] = useState(false);
+
+  const handleUpgrade = async () => {
+    setUpgrading(true);
+    setActionError('');
+    try {
+      const session = await createCheckoutSession({
+        organizationId: org.id,
+        billingInterval,
+        migrationRequested,
+      });
+      window.location.assign(session.checkout.url);
+    } catch (e) {
+      if (e instanceof ScribbApiError && e.code === 'SUBSCRIPTION_ALREADY_EXISTS') {
+        refetch();
+      } else {
+        setActionError(describeApiError(e));
+      }
+      setUpgrading(false);
+    }
+  };
+
+  const handleManageBilling = async () => {
+    setPortalLoading(true);
+    setActionError('');
+    try {
+      const portal = await createCustomerPortalSession(org.id);
+      window.location.assign(portal.portal.url);
+    } catch (e) {
+      if (e instanceof ScribbApiError && e.code === 'STRIPE_CUSTOMER_NOT_FOUND') {
+        setPortalUnavailable(true);
+      } else {
+        setActionError(describeApiError(e));
+      }
+      setPortalLoading(false);
+    }
+  };
+
+  return (
+    <Panel title="Plan & Billing">
+      <div className="space-y-4 text-sm">
+        {loading && <p className="text-stone-400">Loading billing status…</p>}
+        {error && !loading && <p className="text-red-700">{error}</p>}
+
+        {billing && !loading && (
+          <>
+            <Row label="Current plan" value={PLAN_LABELS[billing.billing.planCode] ?? billing.billing.planCode} />
+            <Row label="Billing status" value={statusLabel(billing.billing.status, billing.billing.cancelAtPeriodEnd)} />
+            {billing.billing.currentPeriodEnd && (
+              <Row
+                label={billing.billing.cancelAtPeriodEnd ? 'Ends on' : 'Renews on'}
+                value={new Date(billing.billing.currentPeriodEnd).toLocaleDateString()}
+              />
+            )}
+            {billing.billing.cancelAtPeriodEnd && billing.billing.currentPeriodEnd && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Your subscription will end on {new Date(billing.billing.currentPeriodEnd).toLocaleDateString()}.
+              </p>
+            )}
+            {billing.billing.status === 'past_due' && (
+              <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                Your last payment failed. Update your payment method to keep Standard features active.
+              </p>
+            )}
+            {billing.billing.migrationRequested && (
+              <Row label="Migration" value={billing.billing.migrationStatus} />
+            )}
+
+            {actionError && <p className="text-red-700 text-xs">{actionError}</p>}
+
+            {billing.billing.planCode === 'free' && (
+              <div className="mt-2 p-4 rounded-xl border border-stone-200 bg-stone-50">
+                <p className="text-sm font-medium text-stone-800 mb-1">Upgrade to Scribb Standard — $9.99/mo</p>
+                <p className="text-xs text-stone-500 mb-2">or $104.99/yr — save ~12% vs. paying monthly</p>
+                <ul className="text-xs text-stone-600 space-y-1.5 mb-4">
+                  {STANDARD_BULLETS.map((b) => (
+                    <li key={b} className="flex items-center gap-2">
+                      <Check className="w-3 h-3 flex-shrink-0 text-[#2F5D50]" />
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex gap-1 p-1 bg-stone-100 rounded-lg w-fit mb-3">
+                  {(['monthly', 'annual'] as const).map((cycle) => (
+                    <button
+                      key={cycle}
+                      onClick={() => setBillingInterval(cycle)}
+                      className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                        billingInterval === cycle ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'
+                      }`}
+                    >
+                      {cycle === 'monthly' ? 'Monthly' : 'Annual'}
+                    </button>
+                  ))}
+                </div>
+                <label className="flex items-center gap-2.5 text-xs font-medium text-stone-700 cursor-pointer mb-4">
+                  <input
+                    type="checkbox"
+                    checked={migrationRequested}
+                    onChange={(e) => setMigrationRequested(e.target.checked)}
+                    className="w-4 h-4 rounded border-stone-300"
+                  />
+                  Add migration and setup assistance — $49.99 one time
+                </label>
+                <button
+                  onClick={handleUpgrade}
+                  disabled={upgrading}
+                  className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-lg disabled:opacity-50"
+                >
+                  {upgrading ? 'Preparing secure checkout…' : 'Upgrade to Standard'}
+                </button>
+              </div>
+            )}
+
+            {billing.billing.planCode !== 'free' && !portalUnavailable && (
+              <button
+                onClick={handleManageBilling}
+                disabled={portalLoading}
+                className="px-4 py-2 border border-stone-300 text-sm font-medium text-stone-700 rounded-lg hover:bg-stone-50 disabled:opacity-50"
+              >
+                {portalLoading ? 'Opening Stripe…' : 'Manage Billing'}
+              </button>
+            )}
+            {portalUnavailable && (
+              <p className="text-xs text-stone-400">No paid billing account exists for this organization.</p>
+            )}
+          </>
+        )}
+      </div>
+    </Panel>
   );
 }

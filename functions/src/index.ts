@@ -1,6 +1,7 @@
 import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
 
 admin.initializeApp();
@@ -9,7 +10,7 @@ const db = admin.firestore();
 const adminAuth = admin.auth();
 const FieldValue = admin.firestore.FieldValue;
 
-const APP_BASE_URL = process.env.APP_BASE_URL ?? 'https://app.alkeledger.com';
+const APP_BASE_URL = process.env.APP_BASE_URL ?? 'https://app.scribb.net';
 
 function generateCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -65,7 +66,7 @@ export const requestOtp = onCall({ cors: true }, async (request) => {
   await db.collection('otpCodes').doc(email).set({ code, expiresAt, used: false });
 
   const brevoKey    = process.env.BREVO_API_KEY;
-  const senderEmail = process.env.BREVO_SENDER_EMAIL ?? 'noreply@alkeledger.app';
+  const senderEmail = process.env.BREVO_SENDER_EMAIL ?? 'noreply@scribb.net';
 
   if (!brevoKey) {
     logger.info(`[DEV OTP] ${email} → ${code}`);
@@ -302,7 +303,7 @@ export const sendInviteEmail = onCall({ cors: true }, async (request) => {
   }
 
   const brevoKey    = process.env.BREVO_API_KEY;
-  const senderEmail = process.env.BREVO_SENDER_EMAIL ?? 'noreply@alkeledger.app';
+  const senderEmail = process.env.BREVO_SENDER_EMAIL ?? 'noreply@scribb.net';
 
   const joinLink = token
     ? `${APP_BASE_URL}/join/${inviteCode}?t=${token}`
@@ -387,7 +388,7 @@ export const notifyEventCreated = onCall({ cors: true }, async (request) => {
   }
 
   const brevoKey    = process.env.BREVO_API_KEY;
-  const senderEmail = process.env.BREVO_SENDER_EMAIL ?? 'noreply@alkeledger.app';
+  const senderEmail = process.env.BREVO_SENDER_EMAIL ?? 'noreply@scribb.net';
 
   // Fetch org
   const orgSnap = await db.collection('organizations').doc(orgId).get();
@@ -572,7 +573,7 @@ export const notifyPollCreated = onCall({ cors: true }, async (request) => {
   }
 
   const brevoKey    = process.env.BREVO_API_KEY;
-  const senderEmail = process.env.BREVO_SENDER_EMAIL ?? 'noreply@alkeledger.app';
+  const senderEmail = process.env.BREVO_SENDER_EMAIL ?? 'noreply@scribb.net';
 
   const orgSnap = await db.collection('organizations').doc(orgId).get();
   if (!orgSnap.exists) throw new HttpsError('not-found', 'Organization not found.');
@@ -960,6 +961,7 @@ export const publicOrgData = onRequest({ cors: true }, async (req, res) => {
       location:    (d['location']   as string | undefined) ?? null,
       description: (d['description'] as string | undefined) ?? null,
       allDay:      (d['allDay']     as boolean | undefined) ?? false,
+      imageUrl:    (d['imageUrl']   as string | undefined) ?? null,
     };
   });
 
@@ -1051,4 +1053,32 @@ export const createNotifications = onCall({ cors: true }, async (request) => {
   }
 
   return { sent: uids.length };
+});
+
+// ─── cleanupAbandonedDraftOrgs ─────────────────────────────────────────────────
+
+const DRAFT_RETENTION_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
+
+export const cleanupAbandonedDraftOrgs = onSchedule('every 24 hours', async () => {
+  const cutoffMs = Date.now() - DRAFT_RETENTION_MS;
+
+  const snap = await db.collection('organizations')
+    .where('organizationStatus', 'in', ['draft', 'pending_payment'])
+    .get();
+
+  let deleted = 0;
+  for (const orgDoc of snap.docs) {
+    const data = orgDoc.data() as Record<string, unknown>;
+    const createdAtTs = data.createdAtTs as admin.firestore.Timestamp | undefined;
+    if (!createdAtTs || createdAtTs.toMillis() > cutoffMs) continue; // still within retention window
+
+    const memberSnap = await db.collection('memberships').where('orgId', '==', orgDoc.id).get();
+    const batch = db.batch();
+    for (const m of memberSnap.docs) batch.delete(m.ref);
+    batch.delete(orgDoc.ref);
+    await batch.commit();
+    deleted++;
+  }
+
+  logger.info(`cleanupAbandonedDraftOrgs: removed ${deleted} abandoned draft organization(s).`);
 });

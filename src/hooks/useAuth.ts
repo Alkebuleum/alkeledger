@@ -42,7 +42,7 @@ export interface AuthUser {
 const MOCK_USER: AuthUser = {
   uid: 'mock_user_eleanor',
   displayName: 'Eleanor Vance',
-  email: 'e.vance@alkeledger.app',
+  email: 'e.vance@scribb.net',
 };
 
 async function ensureUserDoc(user: User): Promise<AuthUser> {

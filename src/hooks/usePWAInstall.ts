@@ -13,7 +13,7 @@ export function usePWAInstall() {
     function onBeforeInstall(e: Event) {
       e.preventDefault(); // always suppress the browser's automatic mini-bar
       const host = window.location.hostname;
-      if (host === 'app.alkeledger.com' || host === 'localhost') {
+      if (host === 'app.scribb.net' || host === 'localhost') {
         setPrompt(e as BeforeInstallPromptEvent);
       }
     }

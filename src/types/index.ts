@@ -58,6 +58,21 @@ export interface DuesPeriod {
   createdAt: string;
 }
 
+export type PlanCode = 'free' | 'standard_monthly' | 'standard_annual';
+
+export type OrganizationStatus = 'draft' | 'pending_payment' | 'active' | 'suspended' | 'archived';
+
+export type BillingStatus = 'not_required' | 'checkout_pending' | 'active' | 'past_due' | 'canceled' | 'incomplete';
+
+export interface MigrationRequest {
+  requested: boolean;
+  platformName?: string;
+  approxMembers?: number;
+  currentPrice?: string;
+  desiredMigrationDate?: string;
+  needsHistoricalMigration?: boolean;
+}
+
 export interface Organization {
   id: string;
   slug?: string;
@@ -72,8 +87,24 @@ export interface Organization {
   allowedMemberTypes?: MemberType[];
   duesRates?: DuesRates;
   logoUrl?: string;
-  plan?: 'free' | 'pro';
   cooperativeConfig?: CooperativeConfig;
+  planCode?: PlanCode;
+  organizationStatus?: OrganizationStatus;
+  billingStatus?: BillingStatus;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  stripeCheckoutSessionId?: string;
+  stripePriceId?: string;
+  subscriptionCurrentPeriodEnd?: string;
+  cancelAtPeriodEnd?: boolean;
+  migrationRequest?: MigrationRequest;
+  trialEndsAt?: string;
+  country?: string;
+  region?: string;
+  website?: string;
+  estimatedMembers?: number;
+  primaryAdminName?: string;
+  primaryAdminEmail?: string;
 }
 
 export interface OrgUser {

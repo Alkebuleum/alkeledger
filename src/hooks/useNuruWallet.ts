@@ -1,5 +1,5 @@
 /**
- * Manages Nuru wallet connection state for AlkeLedger.
+ * Manages Nuru wallet connection state for Scribb.
  *
  * On mount: restores a previously saved connection from localStorage.
  * If running inside the Nuru dApp browser (window.ethereum._isNuruWallet),

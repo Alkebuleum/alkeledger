@@ -1,26 +1,13 @@
 import {
-  collection, doc, getDoc, getDocs, addDoc, setDoc, deleteDoc, updateDoc,
-  query, where, serverTimestamp,
+  collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc,
+  query, where,
 } from 'firebase/firestore';
 import { USE_MOCK_DATA, db } from '@/lib/firebase';
 import { isDemoOrgId } from '@/lib/demo';
 import { MOCK_ORGS } from '@/data/mock';
-import type { Organization, MemberType, DuesRates } from '@/types';
+import type { Organization, MemberType, DuesRates, MigrationRequest, PlanCode } from '@/types';
 
 let mockOrgs: Organization[] = [...MOCK_ORGS];
-
-function genInviteCode(): string {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
-}
-
-export function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .slice(0, 50) || 'org';
-}
 
 function docToOrg(id: string, d: Record<string, unknown>): Organization {
   return {
@@ -39,19 +26,39 @@ function docToOrg(id: string, d: Record<string, unknown>): Organization {
     duesRates: d.duesRateIndividual != null
       ? { individual: d.duesRateIndividual as number, organization: d.duesRateOrganization as number }
       : undefined,
+    // Existing orgs predate the billing schema — default them to the free/active state
+    // they've always behaved as, rather than requiring a data migration.
+    planCode: (d.planCode as PlanCode | undefined) ?? 'free',
+    organizationStatus: (d.organizationStatus as Organization['organizationStatus']) ?? 'active',
+    billingStatus: (d.billingStatus as Organization['billingStatus']) ?? 'not_required',
+    stripeCustomerId: d.stripeCustomerId as string | undefined,
+    stripeSubscriptionId: d.stripeSubscriptionId as string | undefined,
+    stripeCheckoutSessionId: d.stripeCheckoutSessionId as string | undefined,
+    stripePriceId: d.stripePriceId as string | undefined,
+    subscriptionCurrentPeriodEnd: d.subscriptionCurrentPeriodEnd as string | undefined,
+    cancelAtPeriodEnd: d.cancelAtPeriodEnd as boolean | undefined,
+    migrationRequest: d.migrationRequest as MigrationRequest | undefined,
+    trialEndsAt: d.trialEndsAt as string | undefined,
+    country: d.country as string | undefined,
+    region: d.region as string | undefined,
+    website: d.website as string | undefined,
+    estimatedMembers: d.estimatedMembers as number | undefined,
+    primaryAdminName: d.primaryAdminName as string | undefined,
+    primaryAdminEmail: d.primaryAdminEmail as string | undefined,
+    cooperativeConfig: d.cooperativeConfig as Organization['cooperativeConfig'],
   };
 }
 
 export async function listAllOrgsForUser(
   userId: string,
-): Promise<{ active: Organization[]; pending: Organization[] }> {
-  if (USE_MOCK_DATA) return { active: mockOrgs, pending: [] };
-  if (!db) return { active: [], pending: [] };
+): Promise<{ active: Organization[]; pending: Organization[]; pendingPayment: Organization[] }> {
+  if (USE_MOCK_DATA) return { active: mockOrgs, pending: [], pendingPayment: [] };
+  if (!db) return { active: [], pending: [], pendingPayment: [] };
 
   const snap = await getDocs(
     query(collection(db, 'memberships'), where('userId', '==', userId))
   );
-  if (snap.empty) return { active: [], pending: [] };
+  if (snap.empty) return { active: [], pending: [], pendingPayment: [] };
 
   const activeIds: string[] = [];
   const pendingIds: string[] = [];
@@ -63,7 +70,7 @@ export async function listAllOrgsForUser(
   }
 
   const allIds = [...new Set([...activeIds, ...pendingIds])];
-  if (allIds.length === 0) return { active: [], pending: [] };
+  if (allIds.length === 0) return { active: [], pending: [], pendingPayment: [] };
 
   const orgMap = new Map<string, Organization>();
   await Promise.all(
@@ -78,7 +85,15 @@ export async function listAllOrgsForUser(
   const toOrgs = (ids: string[]) =>
     [...new Set(ids)].map((id) => orgMap.get(id)).filter(Boolean) as Organization[];
 
-  return { active: toOrgs(activeIds), pending: toOrgs(pendingIds) };
+  // A membership can be "active" while the org itself is still a draft/pending-payment
+  // shell (paid plan awaiting Stripe Checkout) — those don't count as a usable workspace.
+  const activeOrgs = toOrgs(activeIds);
+  const active = activeOrgs.filter((o) => o.organizationStatus === 'active');
+  const pendingPayment = activeOrgs.filter(
+    (o) => o.organizationStatus === 'draft' || o.organizationStatus === 'pending_payment'
+  );
+
+  return { active, pending: toOrgs(pendingIds), pendingPayment };
 }
 
 export async function listOrganizationsForUser(userId: string): Promise<Organization[]> {
@@ -94,55 +109,39 @@ export async function getOrganization(orgId: string): Promise<Organization | nul
   return docToOrg(snap.id, snap.data() as Record<string, unknown>);
 }
 
-export async function createOrganization(
-  org: Omit<Organization, 'id' | 'createdAt'>,
-  userId: string,
-  userName: string,
-  userEmail: string,
-): Promise<Organization> {
-  const inviteCode = genInviteCode();
-  const slug = slugify(org.name);
-  const newOrg: Organization = {
-    ...org,
-    id: 'org_' + Math.random().toString(36).slice(2, 8),
-    slug,
-    createdAt: new Date().toISOString().slice(0, 10),
-    inviteCode,
-    createdBy: userId,
-  };
-
-  if (USE_MOCK_DATA) {
-    mockOrgs = [...mockOrgs, newOrg];
-    return newOrg;
+// Organization creation itself now happens on the backend (POST /api/v1/organizations —
+// see src/services/billing.ts) — it writes the org doc, owner membership, and billing
+// state. This only attaches ordinary operational metadata the API has no slot for
+// (org-details step, cooperative config, the rich migration questionnaire) onto the
+// org the API just created. None of these are billing/status fields, so an owner-write
+// is fine per firestore.rules.
+export async function patchOrganizationMetadata(
+  orgId: string,
+  metadata: {
+    logoInitials?: string;
+    country?: string;
+    region?: string;
+    website?: string;
+    estimatedMembers?: number;
+    primaryAdminName?: string;
+    primaryAdminEmail?: string;
+    cooperativeConfig?: Organization['cooperativeConfig'];
+    migrationRequest?: MigrationRequest;
+  },
+): Promise<void> {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId)) {
+    mockOrgs = mockOrgs.map((o) => (o.id === orgId ? { ...o, ...metadata } : o));
+    return;
   }
-  if (!db) return newOrg;
+  if (!db) return;
 
-  const ref = await addDoc(collection(db, 'organizations'), {
-    name: org.name,
-    type: org.type,
-    currency: org.currency,
-    logoInitials: org.logoInitials,
-    tagline: org.tagline ?? '',
-    slug,
-    inviteCode,
-    createdBy: userId,
-    createdAt: new Date().toISOString().slice(0, 10),
-    createdAtTs: serverTimestamp(),
-  });
+  const updates: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    if (value !== undefined) updates[key] = value;
+  }
+  if (Object.keys(updates).length === 0) return;
 
-  await setDoc(doc(db, 'memberships', `${ref.id}_${userId}`), {
-    orgId: ref.id,
-    userId,
-    name: userName,
-    email: userEmail,
-    role: 'owner',
-    status: 'active',
-    joined: new Date().toISOString().slice(0, 10),
-    duesPaid: false,
-    memberType: 'individual',
-  });
-
-  return { ...newOrg, id: ref.id, slug };
+  await updateDoc(doc(db, 'organizations', orgId), updates);
 }
 
 export async function updateOrgSettings(
@@ -240,5 +239,3 @@ export async function deleteOrganization(orgId: string): Promise<void> {
 export async function listOrganizations(): Promise<Organization[]> {
   return mockOrgs;
 }
-
-export { createOrganization as createOrg };

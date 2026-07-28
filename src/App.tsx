@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams, useMatch, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrgs } from '@/hooks/useOrg';
+import type { OnboardingInput } from '@/hooks/useOrg';
 import { useLedger } from '@/hooks/useLedger';
 import { useNotifications } from '@/hooks/useNotifications';
 import { AppShell } from '@/layout/AppShell';
@@ -30,13 +31,35 @@ import { Credentials } from '@/pages/Credentials';
 import { LedgerDocuments } from '@/pages/LedgerDocuments';
 import { Settings } from '@/pages/Settings';
 import { RsvpConfirm } from '@/pages/RsvpConfirm';
+import { PaymentSuccess } from '@/pages/PaymentSuccess';
+import { PaymentCancelled } from '@/pages/PaymentCancelled';
 import { NewEntryModal } from '@/modals/NewEntryModal';
 import { recordTypeOf } from '@/lib/format';
+import { getOrganizationBilling, createCheckoutSession, PENDING_CHECKOUT_STORAGE_KEY } from '@/services/billing';
+import { describeApiError } from '@/lib/scribbApi';
 import type { LedgerEntry, LedgerStatus, Organization, MemberType, DuesRates, NotifType, RecordType } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
 
-function orgPath(org: Organization) {
-  return `/${org.slug ?? org.id}`;
+// Slugs come from the backend and aren't guaranteed unique per-user (e.g. two
+// similarly-named test orgs). Routing by a colliding slug would resolve to
+// whichever org happens to come first in the list — silently showing the
+// wrong workspace's data. Fall back to the always-unique id whenever the
+// slug isn't unique among the orgs we currently know about.
+function orgPath(org: Organization, orgs: Organization[] = []) {
+  if (!org.slug) return `/${org.id}`;
+  const sharesSlug = orgs.filter((o) => (o.slug ?? o.id) === org.slug).length > 1;
+  return `/${sharesSlug ? org.id : org.slug}`;
+}
+
+function resolveOrgFromSlugParam(orgs: Organization[], slugParam: string | undefined): Organization | null {
+  if (!slugParam) return null;
+  // Prefer an exact id match first (covers both plain-id URLs and the
+  // collision fallback above), then fall back to slug — but only if it
+  // resolves to exactly one org.
+  const byId = orgs.find((o) => o.id === slugParam);
+  if (byId) return byId;
+  const bySlug = orgs.filter((o) => o.slug === slugParam);
+  return bySlug.length === 1 ? bySlug[0] : null;
 }
 
 // Backward-compat redirect for old-style /join?invite=CODE links.
@@ -68,7 +91,7 @@ export default function App() {
     ssoError,
     signOut,
   } = useAuth();
-  const { orgs, pendingOrgs, addOrg, joinOrg, removeOrg, saveOrgSettings, loading: orgsLoading, refreshOrgs } = useOrgs(user);
+  const { orgs, pendingOrgs, pendingPaymentOrgs, addOrg, joinOrg, removeOrg, saveOrgSettings, loading: orgsLoading, refreshOrgs } = useOrgs(user);
   const navigate = useNavigate();
 
   const handleVerifyOtp = async (email: string, code: string) => {
@@ -107,8 +130,33 @@ export default function App() {
     <Route path="/rsvp/:orgId/:eventId" element={<RsvpConfirm />} />
   );
 
+  // Stripe Checkout return pages — reachable regardless of the user's org state,
+  // since a Checkout redirect can return before the paid org is active.
+  const paymentReturnRoutes = (
+    <>
+      <Route path="/onboarding/payment-success" element={
+        <PaymentSuccess onActivated={refreshOrgs} />
+      } />
+      <Route path="/onboarding/payment-cancelled" element={<PaymentCancelled />} />
+    </>
+  );
+
+  const handleOnboardingCreate = async (input: OnboardingInput) => {
+    const response = await addOrg(input);
+    if (response.checkout?.url) {
+      sessionStorage.setItem(PENDING_CHECKOUT_STORAGE_KEY, response.organization.id);
+      window.location.assign(response.checkout.url);
+      return;
+    }
+    // Route by id, not the fresh slug — the local `orgs` list captured in this
+    // closure may not yet reflect the new org, so we can't check for a slug
+    // collision here. id is always unique and resolveOrgFromSlugParam checks
+    // it first, so this is always correct.
+    navigate(`/${response.organization.id}`);
+  };
+
   if (!user) {
-    const isAppDomain = window.location.hostname === 'app.alkeledger.com';
+    const isAppDomain = window.location.hostname === 'app.scribb.net';
     return (
       <Routes>
         <Route path="/" element={
@@ -127,6 +175,7 @@ export default function App() {
         } />
         {joinPreviewRoute}
         {rsvpRoute}
+        {paymentReturnRoutes}
         {/* Backward-compat: old /join?invite=CODE links */}
         <Route path="/join" element={<RedirectOldInvite />} />
         <Route path="*" element={<RedirectToSignIn />} />
@@ -140,11 +189,29 @@ export default function App() {
       <Routes>
         {joinPreviewRoute}
         {rsvpRoute}
+        {paymentReturnRoutes}
         <Route path="*" element={
           <PendingApprovalScreen
             pendingOrgs={pendingOrgs}
             onSignOut={signOut}
             onRefresh={refreshOrgs}
+          />
+        } />
+      </Routes>
+    );
+  }
+
+  // ── Signed in, no active orgs but has a paid-plan draft awaiting checkout ──
+  if (orgs.length === 0 && pendingPaymentOrgs.length > 0) {
+    return (
+      <Routes>
+        {joinPreviewRoute}
+        {rsvpRoute}
+        {paymentReturnRoutes}
+        <Route path="*" element={
+          <PendingPaymentScreen
+            pendingPaymentOrgs={pendingPaymentOrgs}
+            onSignOut={signOut}
           />
         } />
       </Routes>
@@ -157,10 +224,11 @@ export default function App() {
       <Routes>
         {joinPreviewRoute}
         {rsvpRoute}
+        {paymentReturnRoutes}
         <Route path="*" element={
           <OrgSetup
-            onCreate={async (data) => { const org = await addOrg(data); navigate(orgPath(org)); }}
-            onJoin={async (code) => { const org = await joinOrg(code); navigate(orgPath(org)); }}
+            onCreate={handleOnboardingCreate}
+            onJoin={async (code) => { const org = await joinOrg(code); navigate(orgPath(org, orgs)); }}
             user={user}
           />
         } />
@@ -173,27 +241,28 @@ export default function App() {
     <Routes>
       <Route path="/setup" element={
         <OrgSetup
-          onCreate={async (data) => { const org = await addOrg(data); navigate(orgPath(org)); }}
-          onJoin={async (code) => { const org = await joinOrg(code); navigate(orgPath(org)); }}
-          onCancel={() => navigate(orgPath(orgs[0]))}
+          onCreate={handleOnboardingCreate}
+          onJoin={async (code) => { const org = await joinOrg(code); navigate(orgPath(org, orgs)); }}
+          onCancel={() => navigate(orgPath(orgs[0], orgs))}
           user={user}
         />
       } />
       {joinPreviewRoute}
       {rsvpRoute}
+      {paymentReturnRoutes}
       {/* Old /join route — now just redirects to OrgSetup (manual code entry) */}
       <Route path="/join" element={
         <OrgSetup
-          onCreate={async (data) => { const org = await addOrg(data); navigate(orgPath(org)); }}
-          onJoin={async (code) => { const org = await joinOrg(code); navigate(orgPath(org)); }}
-          onCancel={() => navigate(orgPath(orgs[0]))}
+          onCreate={handleOnboardingCreate}
+          onJoin={async (code) => { const org = await joinOrg(code); navigate(orgPath(org, orgs)); }}
+          onCancel={() => navigate(orgPath(orgs[0], orgs))}
           user={user}
         />
       } />
       <Route path="/:slug/*" element={
         <OrgShell orgs={orgs} pendingOrgs={pendingOrgs} user={user} signOut={signOut} removeOrg={removeOrg} saveOrgSettings={saveOrgSettings} />
       } />
-      <Route path="*" element={<Navigate to={orgPath(orgs[0])} replace />} />
+      <Route path="*" element={<Navigate to={orgPath(orgs[0], orgs)} replace />} />
     </Routes>
   );
 }
@@ -264,6 +333,86 @@ function PendingApprovalScreen({
   );
 }
 
+// ── PendingPaymentScreen ──────────────────────────────────────────────────────
+
+function PendingPaymentScreen({
+  pendingPaymentOrgs,
+  onSignOut,
+}: {
+  pendingPaymentOrgs: Organization[];
+  onSignOut: () => Promise<void>;
+}) {
+  const [resumingId, setResumingId] = useState<string | null>(null);
+  const [error, setError] = useState('');
+
+  async function handleResume(orgId: string) {
+    setResumingId(orgId);
+    setError('');
+    try {
+      const billing = await getOrganizationBilling(orgId);
+      const session = await createCheckoutSession({
+        organizationId: orgId,
+        billingInterval: (billing.billing.billingInterval as 'monthly' | 'annual') ?? 'monthly',
+        migrationRequested: billing.billing.migrationRequested,
+      });
+      sessionStorage.setItem(PENDING_CHECKOUT_STORAGE_KEY, orgId);
+      window.location.assign(session.checkout.url);
+    } catch (e) {
+      setError(describeApiError(e));
+      setResumingId(null);
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center px-5 py-12 bg-[var(--bone)]">
+      <div className="w-full max-w-sm">
+        <div className="bg-white border border-stone-200 p-8 text-center">
+          <div className="w-14 h-14 rounded-full bg-stone-100 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-7 h-7 text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h16a1 1 0 001-1V6a1 1 0 00-1-1H4a1 1 0 00-1 1v12a1 1 0 001 1z" />
+            </svg>
+          </div>
+
+          <h2 className="font-display text-2xl mb-2">Payment setup pending</h2>
+          <p className="text-stone-500 text-sm mb-1">
+            Your workspace{pendingPaymentOrgs.length > 1 ? 's are' : ' is'} waiting on checkout:
+          </p>
+
+          <ul className="my-4 space-y-2">
+            {pendingPaymentOrgs.map((org) => (
+              <li key={org.id} className="text-sm font-medium text-stone-800 bg-stone-50 border border-stone-200 px-3 py-2">
+                {org.name}
+              </li>
+            ))}
+          </ul>
+
+          {error && (
+            <div className="mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded text-xs text-red-700 text-left">{error}</div>
+          )}
+
+          {pendingPaymentOrgs.map((org) => (
+            <button
+              key={org.id}
+              onClick={() => handleResume(org.id)}
+              disabled={resumingId === org.id}
+              className="w-full py-2.5 bg-stone-900 text-stone-50 text-sm font-medium hover:bg-stone-800 disabled:opacity-50 mb-3"
+            >
+              {resumingId === org.id ? 'Preparing secure checkout…' : `Resume checkout for "${org.name}"`}
+            </button>
+          ))}
+
+          <button
+            onClick={onSignOut}
+            className="w-full text-sm text-stone-400 hover:text-stone-700 py-1"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── OrgShell ──────────────────────────────────────────────────────────────────
 
 interface OrgShellProps {
@@ -282,7 +431,7 @@ function OrgShell({ orgs, pendingOrgs, user, signOut, removeOrg, saveOrgSettings
   const pageMatch = useMatch('/:slug/:page');
   const pageId = (pageMatch?.params.page ?? 'dashboard') as PageId;
 
-  const org = orgs.find((o) => (o.slug ?? o.id) === slug) ?? null;
+  const org = resolveOrgFromSlugParam(orgs, slug);
 
   const { entries: ledger, createEntry, setStatus, anchor, revoke } = useLedger(org?.id ?? null);
   const [showNewEntry, setShowNewEntry] = useState(false);
@@ -299,12 +448,12 @@ function OrgShell({ orgs, pendingOrgs, user, signOut, removeOrg, saveOrgSettings
   } : {};
 
   if (!org) {
-    return <Navigate to={orgPath(orgs[0])} replace />;
+    return <Navigate to={orgPath(orgs[0], orgs)} replace />;
   }
 
   const handleSwitchOrg = (id: string) => {
     const target = orgs.find((o) => o.id === id);
-    if (target) navigate(orgPath(target));
+    if (target) navigate(orgPath(target, orgs));
   };
 
   const handleSaveEntry = async (entry: LedgerEntry) => {
@@ -348,7 +497,7 @@ function OrgShell({ orgs, pendingOrgs, user, signOut, removeOrg, saveOrgSettings
           onDeleteOrg={async () => {
             await removeOrg(org.id);
             const next = orgs.find((o) => o.id !== org.id);
-            navigate(next ? orgPath(next) : '/setup');
+            navigate(next ? orgPath(next, orgs) : '/setup');
           }}
           onSaveOrgSettings={(s) => saveOrgSettings(org.id, s)}
           onCreateEntry={createEntry}

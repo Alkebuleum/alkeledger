@@ -28,6 +28,16 @@ service cloud.firestore {
       return isMemberOfOrg(orgId) && orgRole(orgId) in ['owner', 'admin', 'treasurer'];
     }
 
+    // Organizations are now created and billed by the Scribb backend service
+    // (Admin SDK, bypasses these rules) — organizationStatus/billingStatus/planCode/
+    // stripe* fields are never client-writable, not even to the Free plan.
+    function billingFieldsUnchanged(before, after) {
+      return !after.diff(before).affectedKeys().hasAny([
+        'organizationStatus', 'billingStatus', 'planCode',
+        'stripeCustomerId', 'stripeSubscriptionId', 'stripeCheckoutSessionId', 'stripePriceId'
+      ]);
+    }
+
     function canApprove(orgId) {
       return isMemberOfOrg(orgId) && orgRole(orgId) in ['owner', 'admin', 'treasurer', 'auditor'];
     }
@@ -109,9 +119,13 @@ service cloud.firestore {
       // This is needed so a new user can look up an org by invite code before joining.
       // Sensitive data (ledger, members, etc.) lives in subcollections with their own rules.
       allow read: if request.auth != null;
-      // Any authenticated user can create an org (they become owner via membership write)
-      allow create: if request.auth != null;
-      allow update: if isMemberOfOrg(orgId) && orgRole(orgId) in ['owner', 'admin'];
+      // Organization creation is backend-only now (POST /api/v1/organizations via the
+      // Admin SDK, which bypasses this rule) — no client path creates an org doc directly.
+      allow create: if false;
+      // Owners/admins may update ordinary operational fields (name, tagline, logo,
+      // dues rates, cooperative config, etc.) but never the billing/status fields above.
+      allow update: if isMemberOfOrg(orgId) && orgRole(orgId) in ['owner', 'admin'] &&
+        billingFieldsUnchanged(resource.data, request.resource.data);
       allow delete: if isMemberOfOrg(orgId) && orgRole(orgId) == 'owner';
 
       match /ledgerEntries/{entryId} {

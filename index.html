@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <script>
-      // If opened as an installed PWA from the wrong domain, redirect to app.alkeledger.com
+      // If opened as an installed PWA from the wrong domain, redirect to app.scribb.net
       (function () {
         var standalone = window.matchMedia('(display-mode: standalone)').matches
           || window.navigator.standalone === true;
         var host = window.location.hostname;
-        if (standalone && host !== 'app.alkeledger.com' && host !== 'localhost') {
+        if (standalone && host !== 'app.scribb.net' && host !== 'localhost') {
           window.location.replace(
-            'https://app.alkeledger.com'
+            'https://app.scribb.net'
             + window.location.pathname
             + window.location.search
             + window.location.hash
@@ -34,7 +34,7 @@
     <meta property="og:site_name"   content="Scribb" />
     <meta property="og:title"       content="Scribb — A modern instrument of record" />
     <meta property="og:description" content="Blockchain-anchored bookkeeping for organizations that intend to be trusted." />
-    <meta property="og:image"       content="https://app.alkeledger.com/icon.png" />
+    <meta property="og:image"       content="https://app.scribb.net/icon.png" />
     <meta property="og:image:width"  content="1254" />
     <meta property="og:image:height" content="1254" />
     <meta name="twitter:card"       content="summary_large_image" />

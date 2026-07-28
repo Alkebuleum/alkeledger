@@ -26,7 +26,7 @@ export function Transparency({ org, ledger }: Props) {
       <div className="border-b border-stone-300/60 px-8 py-3 bg-[var(--ink)] text-[var(--bone)] flex items-center gap-3 text-[11px]">
         <Globe className="w-3.5 h-3.5 text-emerald-300" />
         <span className="uppercase tracking-[0.22em] font-mono text-stone-300">Published publicly at</span>
-        <span className="font-mono text-emerald-300">alkeledger.app/p/{org.id}</span>
+        <span className="font-mono text-emerald-300">scribb.net/p/{org.id}</span>
         <button className="ml-auto text-stone-300 hover:text-[var(--bone)] flex items-center gap-1 font-mono uppercase tracking-wider">
           <Copy className="w-3 h-3" />Copy link
         </button>

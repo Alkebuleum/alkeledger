@@ -70,10 +70,10 @@ export function JoinPreview({ user, orgs, onRequestOtp, onVerifyOtp, onSignInWit
     if (!user) return;
 
     // Pending items set just before sign-in (OTP or token flow)
-    const pendingSlug = sessionStorage.getItem('pendingOrgSlug');
-    if (pendingSlug) {
-      sessionStorage.removeItem('pendingOrgSlug');
-      navigate(`/${pendingSlug}`, { replace: true });
+    const pendingOrgId = sessionStorage.getItem('pendingOrgId');
+    if (pendingOrgId) {
+      sessionStorage.removeItem('pendingOrgId');
+      navigate(`/${pendingOrgId}`, { replace: true });
       return;
     }
 
@@ -99,7 +99,7 @@ export function JoinPreview({ user, orgs, onRequestOtp, onVerifyOtp, onSignInWit
     // Case 1: orgs already loaded — if they're already a member, redirect immediately.
     const existing = findExistingMembership();
     if (existing) {
-      navigate(`/${existing.slug ?? existing.id}`, { replace: true });
+      navigate(`/${existing.id}`, { replace: true });
     }
   }, [user?.uid]);
 
@@ -116,7 +116,7 @@ export function JoinPreview({ user, orgs, onRequestOtp, onVerifyOtp, onSignInWit
         if (user) {
           const existing = findExistingMembership(res.data.orgId);
           if (existing) {
-            navigate(`/${existing.slug ?? existing.id}`, { replace: true });
+            navigate(`/${existing.id}`, { replace: true });
             return;
           }
         }
@@ -170,12 +170,14 @@ export function JoinPreview({ user, orgs, onRequestOtp, onVerifyOtp, onSignInWit
       const name = user?.displayName?.trim() ?? '';
       const result = await fn({ token, name });
       // Save destination before sign-in so the re-mounted component can navigate.
-      sessionStorage.setItem('pendingOrgSlug', result.data.orgSlug);
+      // Use id, not slug — it's always unique, and the local orgs list at that
+      // point can't yet reflect this brand-new membership to check for a collision.
+      sessionStorage.setItem('pendingOrgId', result.data.orgId);
       await onSignInWithToken(result.data.customToken);
       // Component unmounts here as App transitions to authenticated routes.
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not accept invitation. Try again.');
-      sessionStorage.removeItem('pendingOrgSlug');
+      sessionStorage.removeItem('pendingOrgId');
       setLoading(false);
     }
   }

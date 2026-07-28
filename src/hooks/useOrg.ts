@@ -1,29 +1,58 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  listAllOrgsForUser, createOrganization, joinOrganization,
-  getOrgByInviteCode, deleteOrganization, updateOrgSettings,
+  listAllOrgsForUser, joinOrganization,
+  getOrgByInviteCode, deleteOrganization, updateOrgSettings, patchOrganizationMetadata,
 } from '@/services/organizations';
+import {
+  createOrganizationViaApi, PENDING_METADATA_STORAGE_KEY,
+  type CreateOrganizationResponse, type BillingInterval,
+} from '@/services/billing';
 import { hasDemoAccess } from '@/lib/demo';
 import { MOCK_ORGS } from '@/data/mock';
 import type { AuthUser } from './useAuth';
-import type { Organization, MemberType, DuesRates } from '@/types';
+import type { Organization, MemberType, DuesRates, MigrationRequest, OrgType } from '@/types';
+
+export interface OnboardingInput {
+  name: string;
+  type: OrgType;
+  currency: string;
+  tagline?: string;
+  selectedPlan: 'free' | 'standard';
+  billingInterval: BillingInterval;
+  migrationRequested: boolean;
+  idempotencyKey: string;
+  // Operational metadata the API has no slot for — patched onto the org doc
+  // (via organizations.ts#patchOrganizationMetadata) right after creation.
+  logoInitials?: string;
+  country?: string;
+  region?: string;
+  website?: string;
+  estimatedMembers?: number;
+  primaryAdminName?: string;
+  primaryAdminEmail?: string;
+  cooperativeConfig?: Organization['cooperativeConfig'];
+  migrationRequest?: MigrationRequest;
+}
 
 export function useOrgs(user: AuthUser | null) {
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [pendingOrgs, setPendingOrgs] = useState<Organization[]>([]);
+  const [pendingPaymentOrgs, setPendingPaymentOrgs] = useState<Organization[]>([]);
   // Track which uid's orgs are currently loaded. null = not yet loaded.
   const [loadedForUid, setLoadedForUid] = useState<string | null>(null);
 
   const fetchOrgs = useCallback((uid: string, email: string | undefined) => {
-    listAllOrgsForUser(uid)
-      .then(({ active, pending }) => {
+    return listAllOrgsForUser(uid)
+      .then(({ active, pending, pendingPayment }) => {
         setOrgs(hasDemoAccess(email) ? [...active, ...MOCK_ORGS] : active);
         setPendingOrgs(pending);
+        setPendingPaymentOrgs(pendingPayment);
         setLoadedForUid(uid);
       })
       .catch(() => {
         setOrgs(hasDemoAccess(email) ? [...MOCK_ORGS] : []);
         setPendingOrgs([]);
+        setPendingPaymentOrgs([]);
         setLoadedForUid(uid);
       });
   }, []);
@@ -32,6 +61,7 @@ export function useOrgs(user: AuthUser | null) {
     if (!user) {
       setOrgs([]);
       setPendingOrgs([]);
+      setPendingPaymentOrgs([]);
       setLoadedForUid(null);
       return;
     }
@@ -43,11 +73,46 @@ export function useOrgs(user: AuthUser | null) {
   // we're still loading — even before the effect fires after a render.
   const loading = user != null && loadedForUid !== user.uid;
 
-  const addOrg = async (org: Omit<Organization, 'id' | 'createdAt'>): Promise<Organization> => {
+  const addOrg = async (input: OnboardingInput): Promise<CreateOrganizationResponse> => {
     if (!user) throw new Error('Not authenticated');
-    const created = await createOrganization(org, user.uid, user.displayName, user.email);
-    setOrgs((prev) => [...prev, created]);
-    return created;
+
+    const response = await createOrganizationViaApi({
+      name: input.name,
+      type: input.type,
+      currency: input.currency,
+      tagline: input.tagline,
+      selectedPlan: input.selectedPlan,
+      billingInterval: input.billingInterval,
+      migrationRequested: input.migrationRequested,
+      idempotencyKey: input.idempotencyKey,
+    });
+
+    const metadata = {
+      logoInitials: input.logoInitials,
+      country: input.country,
+      region: input.region,
+      website: input.website,
+      estimatedMembers: input.estimatedMembers,
+      primaryAdminName: input.primaryAdminName,
+      primaryAdminEmail: input.primaryAdminEmail,
+      cooperativeConfig: input.cooperativeConfig,
+      migrationRequest: input.migrationRequest,
+    };
+
+    if (response.checkout) {
+      // Paid org: the backend doesn't create the owner membership until the Stripe
+      // webhook confirms payment, so a metadata write here would be rejected by
+      // Firestore rules (no membership yet). Stash it — PaymentSuccess applies it
+      // once activation is confirmed.
+      sessionStorage.setItem(PENDING_METADATA_STORAGE_KEY, JSON.stringify(metadata));
+    } else {
+      // Free plan (or an idempotent retry that resolved without a new Checkout) —
+      // the org and its owner membership already exist, so this write is safe.
+      await patchOrganizationMetadata(response.organization.id, metadata);
+      await fetchOrgs(user.uid, user.email);
+    }
+
+    return response;
   };
 
   const joinOrg = async (inviteCode: string, nameOverride?: string): Promise<Organization> => {
@@ -65,6 +130,7 @@ export function useOrgs(user: AuthUser | null) {
   const removeOrg = async (orgId: string): Promise<void> => {
     await deleteOrganization(orgId);
     setOrgs((prev) => prev.filter((o) => o.id !== orgId));
+    setPendingPaymentOrgs((prev) => prev.filter((o) => o.id !== orgId));
   };
 
   const saveOrgSettings = async (
@@ -77,7 +143,7 @@ export function useOrgs(user: AuthUser | null) {
     );
   };
 
-  const refreshOrgs = () => { if (user) fetchOrgs(user.uid, user.email); };
+  const refreshOrgs = (): Promise<void> => (user ? fetchOrgs(user.uid, user.email) : Promise.resolve());
 
-  return { orgs, pendingOrgs, addOrg, joinOrg, removeOrg, saveOrgSettings, loading, refreshOrgs };
+  return { orgs, pendingOrgs, pendingPaymentOrgs, addOrg, joinOrg, removeOrg, saveOrgSettings, loading, refreshOrgs };
 }

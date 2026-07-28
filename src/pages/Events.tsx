@@ -5,6 +5,7 @@ import { listEvents, createEvent, updateEvent, deleteEvent, setRsvp, notifyEvent
 import { processCoverImage } from '@/lib/image';
 import { notifyCreated } from '@/services/notifications';
 import { can, useRole } from '@/hooks/useRole';
+import { isPaidPlan } from '@/lib/plan';
 import type { OrgEvent, Organization, RsvpStatus } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
 
@@ -321,7 +322,7 @@ export function Events({ org, user }: Props) {
   };
 
   const isAdmin = can.announce(role);
-  const isPro   = org.plan === 'pro';
+  const isPro   = isPaidPlan(org);
 
   const upcoming = events.filter((e) => !isPast(e) && !e.cancelled);
   const past      = events.filter((e) => isPast(e) || !!e.cancelled);
