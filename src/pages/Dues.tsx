@@ -9,6 +9,7 @@ import { KPI } from '@/components/KPI';
 import { fmt } from '@/lib/format';
 import { listMembers } from '@/services/members';
 import { listDuesPeriods, createDuesPeriod, updateDuesPeriod } from '@/services/dues';
+import { notifyDuesActivity } from '@/services/notifications';
 import { uploadDuesReceipt } from '@/lib/storage';
 import { can, useRole } from '@/hooks/useRole';
 import type {
@@ -227,6 +228,7 @@ export function Dues({ org, ledger, user, onRecordPayment, onApprove }: Props) {
       createdAt: new Date().toISOString().slice(0, 10),
       anchorStatus: 'not_anchored',
     });
+    notifyDuesActivity(org.id, 'marked_paid', member.name, selectedPeriod.name, amount, org.currency);
   };
 
   // Member: submit payment with optional receipt → pending
@@ -237,6 +239,7 @@ export function Dues({ org, ledger, user, onRecordPayment, onApprove }: Props) {
       receiptUrl = await uploadDuesReceipt(org.id, selectedPeriod.id, user.uid, imageFile);
     }
     const me = members.find((m) => m.id === user.uid);
+    const memberName = me?.name ?? user.displayName;
     await onRecordPayment({
       id: 'le_' + Math.random().toString(36).slice(2, 7),
       orgId: org.id,
@@ -244,7 +247,7 @@ export function Dues({ org, ledger, user, onRecordPayment, onApprove }: Props) {
       amount: myRate,
       currency: org.currency,
       category: 'Dues',
-      description: `${selectedPeriod.name} — ${me?.name ?? user.displayName}`,
+      description: `${selectedPeriod.name} — ${memberName}`,
       memberId: user.uid,
       duesPeriodId: selectedPeriod.id,
       status: 'pending',
@@ -254,6 +257,7 @@ export function Dues({ org, ledger, user, onRecordPayment, onApprove }: Props) {
       createdAt: new Date().toISOString().slice(0, 10),
       anchorStatus: 'not_anchored',
     });
+    notifyDuesActivity(org.id, 'submitted', memberName, selectedPeriod.name, myRate, org.currency);
     setShowSubmitPayment(false);
   };
 

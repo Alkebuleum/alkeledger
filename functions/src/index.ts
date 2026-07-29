@@ -669,6 +669,153 @@ export const notifyPollCreated = onCall({ cors: true }, async (request) => {
   return { success: true, sent, failed };
 });
 
+// ─── notifyDuesActivity ─────────────────────────────────────────────────────────
+// Emails an org's admins (owner/admin/treasurer/finance) about dues activity:
+// - 'submitted': a member submitted a payment that needs admin approval.
+// - 'marked_paid': an admin recorded a payment directly — informs the *other*
+//   admins so nobody double-records the same payment. Either way, the admin
+//   who triggered the action isn't emailed about their own activity.
+
+const DUES_ADMIN_ROLES = ['owner', 'admin', 'treasurer', 'finance'];
+
+export const notifyDuesActivity = onCall({ cors: true }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Must be signed in to send notifications.');
+  }
+
+  const { orgId, kind, memberName, periodName, amount, currency } = request.data as {
+    orgId: string;
+    kind: 'submitted' | 'marked_paid';
+    memberName: string;
+    periodName: string;
+    amount: number;
+    currency: string;
+  };
+
+  if (!orgId || !kind || !memberName || !periodName) {
+    throw new HttpsError('invalid-argument', 'orgId, kind, memberName, and periodName are required.');
+  }
+  if (!['submitted', 'marked_paid'].includes(kind)) {
+    throw new HttpsError('invalid-argument', 'kind must be "submitted" or "marked_paid".');
+  }
+
+  const callerUid = request.auth.uid;
+  const callerSnap = await db.collection('memberships').doc(`${orgId}_${callerUid}`).get();
+  if (!callerSnap.exists) throw new HttpsError('permission-denied', 'Not a member of this org.');
+
+  // Marking a payment paid directly is an admin-only action — verify server-side too.
+  // Submitting your own payment for approval just requires being a member.
+  if (kind === 'marked_paid') {
+    const callerRole = (callerSnap.data() as Record<string, unknown>)?.role as string | undefined;
+    if (!DUES_ADMIN_ROLES.includes(callerRole ?? '')) {
+      throw new HttpsError('permission-denied', 'Only admins can record payments directly.');
+    }
+  }
+
+  const brevoKey    = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.BREVO_SENDER_EMAIL ?? 'noreply@scribb.net';
+
+  const orgSnap = await db.collection('organizations').doc(orgId).get();
+  if (!orgSnap.exists) throw new HttpsError('not-found', 'Organization not found.');
+  const orgData = orgSnap.data()!;
+  const orgName = orgData['name'] as string;
+  const orgSlug = (orgData['slug'] as string | undefined) ?? orgId;
+
+  const adminsSnap = await db.collection('memberships')
+    .where('orgId', '==', orgId)
+    .where('status', '==', 'active')
+    .where('role', 'in', DUES_ADMIN_ROLES)
+    .get();
+
+  if (adminsSnap.empty) return { success: true, sent: 0 };
+
+  const duesUrl = `${APP_BASE_URL}/${orgSlug}/dues`;
+  const amountStr = `${currency ?? ''} ${(amount ?? 0).toFixed(2)}`.trim();
+
+  const isSubmitted = kind === 'submitted';
+  const subject = isSubmitted
+    ? `Dues payment awaiting approval — ${memberName}`
+    : `Dues payment recorded — ${memberName}`;
+  const eyebrow = isSubmitted ? 'Approval needed' : 'Payment recorded';
+  const heading = isSubmitted ? 'A payment needs your approval' : 'A payment was recorded';
+  const bodyText = isSubmitted
+    ? `${esc(memberName)} submitted a dues payment of <strong>${esc(amountStr)}</strong> for <strong>${esc(periodName)}</strong>. It's waiting on an admin to approve or reject it.`
+    : `${esc(memberName)}'s dues payment of <strong>${esc(amountStr)}</strong> for <strong>${esc(periodName)}</strong> was recorded as paid by another admin — no action needed, just keeping you in the loop.`;
+  const cta = isSubmitted ? 'Review and approve' : 'View in Scribb';
+
+  const emailJobs = adminsSnap.docs
+    .filter((d) => (d.data() as Record<string, unknown>)['userId'] !== callerUid)
+    .map(async (adminDoc) => {
+      const adminMember = adminDoc.data();
+      const adminEmail  = adminMember['email'] as string;
+      const adminName   = adminMember['name']  as string;
+      if (!adminEmail) return;
+
+      const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f5f4;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f4;padding:32px 16px;">
+  <tr><td align="center">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fafaf9;border:1px solid #e7e5e4;">
+      <tr>
+        <td style="background:#171B21;padding:18px 28px;">
+          <span style="color:#EFE9DC;font-size:17px;font-weight:700;letter-spacing:-.01em;">Scribb</span>
+          <span style="color:#8A8F99;font-size:13px;margin-left:10px;">${esc(orgName)}</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:28px;">
+          <p style="color:#a8a29e;font-size:11px;text-transform:uppercase;letter-spacing:.18em;margin:0 0 6px;font-family:monospace;">${esc(eyebrow)}</p>
+          <h1 style="color:#1c1917;font-size:22px;font-weight:700;margin:0 0 16px;line-height:1.25;">${esc(heading)}</h1>
+          <p style="color:#57534e;font-size:14px;line-height:1.6;margin:0 0 24px;">${bodyText}</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:white;border:1px solid #e7e5e4;margin-bottom:20px;">
+            <tr>
+              <td style="padding:22px;text-align:center;">
+                <a href="${esc(duesUrl)}" style="display:inline-block;background:#1c1917;color:white;text-decoration:none;padding:12px 28px;font-size:14px;font-weight:600;border-radius:4px;">${esc(cta)} →</a>
+              </td>
+            </tr>
+          </table>
+          <p style="color:#a8a29e;font-size:12px;text-align:center;margin:0;">
+            You're receiving this because you're an admin of ${esc(orgName)} on Scribb.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+
+      if (!brevoKey) {
+        logger.info(`[DEV DUES EMAIL] → ${adminEmail} | ${subject}`);
+        return;
+      }
+
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender: { name: `${orgName} via Scribb`, email: senderEmail },
+          to: [{ email: adminEmail, name: adminName }],
+          subject,
+          htmlContent: html,
+        }),
+      });
+
+      if (!res.ok) {
+        const d = await res.json() as { message?: string };
+        logger.warn(`Dues activity email failed for ${adminEmail}: ${d.message}`);
+      }
+    });
+
+  const results = await Promise.allSettled(emailJobs);
+  const failed  = results.filter((r) => r.status === 'rejected').length;
+  const sent    = results.length - failed;
+  logger.info(`Dues activity (${kind}) notifications: ${sent} sent, ${failed} failed for org ${orgId}`);
+  return { success: true, sent, failed };
+});
+
 // ─── handleEmailRsvp ──────────────────────────────────────────────────────────
 // Validates a per-member RSVP token from an email link and records the response.
 // Does NOT require Firebase authentication — the token is the proof of identity.

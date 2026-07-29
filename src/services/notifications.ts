@@ -50,3 +50,22 @@ export async function notifyCreated(
     });
   } catch { /* best-effort */ }
 }
+
+// Emails an org's admins about dues activity — a member's payment awaiting
+// approval, or another admin having recorded a payment directly. Best-effort:
+// a failure here shouldn't block the payment action itself.
+export async function notifyDuesActivity(
+  orgId: string,
+  kind: 'submitted' | 'marked_paid',
+  memberName: string,
+  periodName: string,
+  amount: number,
+  currency: string,
+): Promise<void> {
+  if (USE_MOCK_DATA || isDemoOrgId(orgId) || !app) return;
+  try {
+    await httpsCallable(getFunctions(app), 'notifyDuesActivity')({
+      orgId, kind, memberName, periodName, amount, currency,
+    });
+  } catch { /* best-effort */ }
+}
