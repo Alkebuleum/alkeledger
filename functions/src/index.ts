@@ -143,6 +143,58 @@ export const verifyOtp = onCall({ cors: true }, async (request) => {
   return { customToken };
 });
 
+// ─── signInWithNuru ───────────────────────────────────────────────────────────
+//
+// Sign-in for people who open Scribb inside the Nuru app. Nuru hands the page a
+// one-time code (its in-app browser bridge, or #nuru_code= on the web); we
+// redeem it with Nuru's server, which answers once with the person's VERIFIED
+// email (their Google / Apple / confirmed-email login on Nuru). Then the same
+// as verifyOtp: that email's account, created if new. No shared secret: the
+// code is single-use, bound to Scribb and expires in two minutes.
+
+const NURU_REDEEM_URL =
+  process.env.NURU_REDEEM_URL ?? 'https://us-central1-amid-7592b.cloudfunctions.net/redeemAppHandoff';
+
+export const signInWithNuru = onCall({ cors: true }, async (request) => {
+  const code = String((request.data as { code?: string })?.code ?? '').trim().toLowerCase();
+  if (!/^[0-9a-f]{32}$/.test(code)) {
+    throw new HttpsError('invalid-argument', 'Missing Nuru sign-in code.');
+  }
+
+  let out: { email?: string; name?: string; nuruId?: string };
+  try {
+    const res = await fetch(NURU_REDEEM_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ app: 'scribb', code }),
+    });
+    if (!res.ok) {
+      logger.warn(`[signInWithNuru] Nuru refused the code: ${res.status}`);
+      throw new HttpsError('permission-denied', 'Nuru could not confirm your sign-in. Sign in with your email instead.');
+    }
+    out = (await res.json()) as typeof out;
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    logger.error('[signInWithNuru] redeem failed', e);
+    throw new HttpsError('unavailable', 'Could not reach Nuru. Sign in with your email instead.');
+  }
+
+  const email = String(out.email ?? '').trim().toLowerCase();
+  if (!email || !email.includes('@')) {
+    throw new HttpsError('failed-precondition', 'Your Nuru account has no email. Sign in with your email instead.');
+  }
+
+  let uid: string;
+  try {
+    uid = (await adminAuth.getUserByEmail(email)).uid;
+  } catch {
+    const name = String(out.name ?? '').trim();
+    uid = (await adminAuth.createUser({ email, emailVerified: true, ...(name ? { displayName: name } : {}) })).uid;
+  }
+  logger.info(`[signInWithNuru] Nuru ${out.nuruId ?? '?'} → ${uid}`);
+  return { customToken: await adminAuth.createCustomToken(uid) };
+});
+
 // ─── getOrgPreviewByCode ──────────────────────────────────────────────────────
 
 export const getOrgPreviewByCode = onCall({ cors: true }, async (request) => {

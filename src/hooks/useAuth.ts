@@ -14,6 +14,7 @@ import { FirebaseError } from 'firebase/app';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { USE_MOCK_DATA, app, auth, db } from '@/lib/firebase';
+import { clearSignedOut, noteSignedOut, tryNuruHandoff } from '@/lib/nuruHandoff';
 
 function friendlySsoError(err: unknown): string {
   if (err instanceof FirebaseError) {
@@ -69,13 +70,18 @@ export function useAuth() {
   const [ssoError, setSsoError] = useState('');
 
   useEffect(() => {
-    if (USE_MOCK_DATA || !auth) return;
+    if (USE_MOCK_DATA || !auth || !app) return;
 
+    // Opened inside the Nuru app: sign in with Nuru's hand-off first (once
+    // per page load), so the sign-in screen doesn't flash.
+    const handoff = tryNuruHandoff(app, auth);
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         const authUser = await ensureUserDoc(fbUser);
         setUser(authUser);
       } else {
+        await handoff;
+        if (auth?.currentUser) return; // the hand-off signed in: the next event sets the user
         setUser(null);
       }
       setLoading(false);
@@ -103,6 +109,7 @@ export function useAuth() {
   async function signInWithSso(provider: AuthProvider): Promise<void> {
     if (!auth) throw new Error('Firebase not initialized');
     setSsoError('');
+    clearSignedOut();
     if (isStandalonePwa()) {
       await signInWithRedirect(auth, provider);
       return;
@@ -147,6 +154,7 @@ export function useAuth() {
       'verifyOtp'
     );
     const result = await fn({ email: email.trim().toLowerCase(), code });
+    clearSignedOut();
     const credential = await signInWithCustomToken(auth, result.data.customToken);
     const authUser = await ensureUserDoc(credential.user);
     setUser(authUser);
@@ -160,6 +168,7 @@ export function useAuth() {
   }
 
   async function signOut(): Promise<void> {
+    noteSignedOut();
     if (auth) await fbSignOut(auth);
     setUser(null);
   }
